@@ -1,0 +1,2082 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediRadar | Smart Medicine & Nearest Pharmacy Locator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            200: '#99f6e4',
+                            300: '#5eead4',
+                            400: '#2dd4bf',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            700: '#0f766e',
+                            800: '#115e59',
+                            900: '#134e4a',
+                        },
+                        gemdark: {
+                            900: '#131314',
+                            800: '#1e1f20',
+                            700: '#282a2c',
+                            600: '#37393b'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 9999px;
+        }
+        /* Smooth Gemini-style collapsible sidebar */
+        #geminiSidebar {
+            transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .sidebar-expanded {
+            width: 280px;
+        }
+        .sidebar-collapsed {
+            width: 0px;
+            overflow: hidden;
+            border-right-width: 0px;
+        }
+        .card-hover {
+            transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(13, 148, 136, 0.12), 0 8px 10px -6px rgba(13, 148, 136, 0.08);
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(20, 184, 166, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(20, 184, 166, 0); }
+        }
+        .gps-pulse {
+            animation: pulse-ring 2s infinite;
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex">
+
+    <!-- ===================================================== -->
+    <!-- GEMINI-STYLE FULL-HEIGHT COLLAPSIBLE DARK LEFT SIDEBAR -->
+    <!-- ===================================================== -->
+    <aside id="geminiSidebar" class="sidebar-expanded bg-gemdark-900 text-slate-200 flex-shrink-0 flex flex-col border-r border-slate-800/80 select-none z-40 sticky top-0 h-screen">
+        <div class="w-[280px] flex flex-col h-full">
+            
+            <!-- Top Brand & Collapse Icon Row (Matches Gemini Screenshot) -->
+            <div class="px-4 py-4 flex items-center justify-between border-b border-white/5">
+                <a href="#" onclick="switchView('home'); return false;" class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-500 via-teal-400 to-emerald-300 flex items-center justify-center shadow-md">
+                        <i class="fa-solid fa-capsules text-slate-950 text-sm"></i>
+                    </div>
+                    <span class="text-lg font-bold tracking-tight text-white">MediRadar</span>
+                </a>
+                <div class="flex items-center space-x-1">
+                    <button onclick="focusSearchBar()" title="Search Medicines" class="w-9 h-9 rounded-full hover:bg-gemdark-800 text-slate-300 hover:text-white flex items-center justify-center transition">
+                        <i class="fa-solid fa-magnifying-glass text-sm"></i>
+                    </button>
+                    <button onclick="toggleSidebar()" title="Collapse Menu" class="w-9 h-9 rounded-full hover:bg-gemdark-800 text-slate-300 hover:text-white flex items-center justify-center transition">
+                        <i class="fa-solid fa-table-columns text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Action Items (Gemini top menu style) -->
+            <div class="px-3 pt-3 pb-2 space-y-1">
+                <button onclick="resetAllFilters(); switchView('home');"
+                    class="w-full flex items-center space-x-3.5 px-4 py-2.5 rounded-full text-sm font-medium text-slate-200 hover:bg-gemdark-800 transition">
+                    <i class="fa-solid fa-rotate text-brand-400 w-4 text-center"></i>
+                    <span>Reset All Filters</span>
+                </button>
+                <button onclick="fetchUserLocation()"
+                    class="w-full flex items-center space-x-3.5 px-4 py-2.5 rounded-full text-sm font-medium text-slate-200 hover:bg-gemdark-800 transition">
+                    <i class="fa-solid fa-location-crosshairs text-amber-400 w-4 text-center"></i>
+                    <span>Locate Nearest 5</span>
+                </button>
+                <button onclick="openOrdersModal()"
+                    class="w-full flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-medium text-slate-200 hover:bg-gemdark-800 transition">
+                    <div class="flex items-center space-x-3.5">
+                        <i class="fa-solid fa-receipt text-teal-400 w-4 text-center"></i>
+                        <span>My Receipts</span>
+                    </div>
+                    <span id="sidebarOrderBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gemdark-700 text-brand-300">0</span>
+                </button>
+            </div>
+
+            <div class="px-5 pt-4 pb-2 flex items-center justify-between">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Medicine Categories</span>
+                <i class="fa-solid fa-filter text-xs text-slate-500"></i>
+            </div>
+
+            <!-- Scrollable Categories List (Styled like Gemini rounded pill items) -->
+            <div id="categoryListContainer" class="flex-1 overflow-y-auto px-3 space-y-1 pb-6">
+                <!-- Populated dynamically via JS -->
+            </div>
+
+            <!-- Subtle Live Database Connection Indicator at Bottom of Sidebar -->
+            <div class="p-3.5 border-t border-white/5 bg-gemdark-800/50 text-[11px] text-slate-400 flex items-center justify-between">
+                <div class="flex items-center space-x-2 truncate">
+                    <span id="dbStatusDot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></span>
+                    <span id="dbStatusText" class="truncate">Live Supabase Connected</span>
+                </div>
+                <button onclick="fetchLiveSupabaseData()" title="Refresh Live Database" class="text-slate-400 hover:text-white ml-2">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ===================================================== -->
+    <!-- RIGHT MAIN COLUMN (HEADER + CONTENT + FOOTER)         -->
+    <!-- ===================================================== -->
+    <div class="flex-1 flex flex-col min-w-0 min-h-screen">
+
+        <!-- Sticky Eye-Catching Header (No LK, No Configure Keys, No Top Phone Bar) -->
+        <header class="sticky top-0 z-30 bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white shadow-xl border-b border-teal-800/60">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    
+                    <!-- Left: Sidebar Toggle Button & MediRadar Logo -->
+                    <div class="flex items-center space-x-3">
+                        <button id="headerSidebarToggleBtn" onclick="toggleSidebar()" title="Extend or Hide Categories Menu"
+                            class="p-2.5 rounded-xl bg-teal-800/50 hover:bg-teal-700/70 text-teal-200 border border-teal-700/60 transition focus:outline-none">
+                            <i class="fa-solid fa-table-columns text-lg"></i>
+                        </button>
+                        
+                        <a href="#" onclick="switchView('home'); return false;" class="flex items-center space-x-3 group">
+                            <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/30 group-hover:scale-105 transition">
+                                <i class="fa-solid fa-capsules text-white text-xl"></i>
+                            </div>
+                            <div>
+                                <span class="text-xl sm:text-2xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-teal-100 to-brand-300">
+                                    MediRadar
+                                </span>
+                                <p class="text-[11px] text-teal-300/80 hidden sm:block">Live Pharmacy Stock & Nearest 5 Locator</p>
+                            </div>
+                        </a>
+                    </div>
+
+                    <!-- Center: Primary Navigation Buttons (Home, About Us, Support) -->
+                    <nav class="flex items-center bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700/80 space-x-1 sm:space-x-2">
+                        <button id="navHomeBtn" onclick="switchView('home')"
+                            class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-brand-600 text-white shadow-md shadow-brand-600/30">
+                            <i class="fa-solid fa-house-medical"></i>
+                            <span>Home</span>
+                        </button>
+                        <button id="navAboutBtn" onclick="switchView('about')"
+                            class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-700/60 transition flex items-center gap-2">
+                            <i class="fa-solid fa-users-gear"></i>
+                            <span>About Us</span>
+                        </button>
+                        <button id="navSupportBtn" onclick="scrollToSupport(event)"
+                            class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-700/60 transition flex items-center gap-2">
+                            <i class="fa-solid fa-headset"></i>
+                            <span>Support</span>
+                        </button>
+                    </nav>
+
+                    <!-- Right: Fetch Current Location Button & Orders Summary -->
+                    <div class="flex items-center space-x-2.5">
+                        <button id="fetchLocationBtn" onclick="fetchUserLocation()"
+                            class="relative flex items-center space-x-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-lg shadow-amber-500/20 transition transform active:scale-95">
+                            <span class="w-2.5 h-2.5 rounded-full bg-slate-950 gps-pulse"></span>
+                            <i class="fa-solid fa-location-crosshairs text-base"></i>
+                            <div class="text-left leading-tight">
+                                <span id="locationBtnTitle" class="block text-xs font-extrabold">Fetch My Location</span>
+                                <span id="locationCoordsBadge" class="block text-[10px] font-semibold opacity-85">Moratuwa (6.7965, 79.9005)</span>
+                            </div>
+                        </button>
+
+                        <button onclick="openOrdersModal()" title="View Recent Pharmacy Purchases"
+                            class="relative p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-200 border border-slate-700 transition">
+                            <i class="fa-solid fa-receipt text-lg"></i>
+                            <span id="orderCountBadge" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center shadow">
+                                0
+                            </span>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </header>
+
+        <!-- ========================================== -->
+        <!-- VIEW 1: HOME (SHOPPING & MEDICINE FINDER)  -->
+        <!-- ========================================== -->
+        <div id="homeView" class="flex-1 flex flex-col">
+
+            <!-- Hero Search Engine & Filtering Banner -->
+            <section class="bg-gradient-to-b from-teal-900 via-teal-900/95 to-slate-900 text-white py-8 px-4 sm:px-6 border-b border-teal-800/50 relative overflow-hidden">
+                <div class="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-brand-500/10 blur-3xl pointer-events-none"></div>
+                <div class="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-amber-500/10 blur-3xl pointer-events-none"></div>
+
+                <div class="max-w-7xl mx-auto relative z-10">
+                    <div class="text-center max-w-3xl mx-auto mb-6">
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-teal-800/80 text-teal-200 border border-teal-600/50 mb-3">
+                            <i class="fa-solid fa-bolt text-amber-400"></i> Live Supabase Inventory & Geolocation Matcher
+                        </span>
+                        <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight text-white mb-2">
+                            Find Your Medicine & Locate the <span class="text-brand-300 underline decoration-amber-400/80 decoration-wavy underline-offset-4">Nearest 5 Pharmacies</span>
+                        </h1>
+                        <p class="text-xs sm:text-sm text-teal-100/80">
+                            Search real-time pharmacy GRN inventory, filter by category, city, supplier, or price, get instant Google Maps directions, and buy directly from pharmacies.
+                        </p>
+                    </div>
+
+                    <!-- Main Search Bar -->
+                    <div class="max-w-4xl mx-auto bg-white p-2 rounded-2xl shadow-2xl border-2 border-teal-500/40 flex flex-col sm:flex-row items-center gap-2">
+                        <div class="flex-1 flex items-center w-full px-3 py-1.5">
+                            <i class="fa-solid fa-magnifying-glass text-teal-600 text-lg mr-3"></i>
+                            <input id="searchInput" type="text" oninput="applyFiltersAndRender()"
+                                placeholder="Search by medicine name, category, pharmacy, or supplier..."
+                                class="w-full text-slate-800 placeholder-slate-400 text-sm sm:text-base font-medium focus:outline-none">
+                            <button id="clearSearchBtn" onclick="clearSearch()" class="hidden text-slate-400 hover:text-slate-600 px-2">
+                                <i class="fa-solid fa-circle-xmark"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-2 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
+                            <button onclick="applyFiltersAndRender()"
+                                class="w-full sm:w-auto bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm px-6 py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-sliders"></i>
+                                <span>Search Stock</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Working Filters Under Search Engine -->
+                    <div class="max-w-5xl mx-auto mt-4 bg-slate-800/75 backdrop-blur-md p-3.5 rounded-2xl border border-teal-700/50">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-center">
+                            
+                            <!-- Filter 1: Sort Order -->
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase tracking-wider text-teal-300 mb-1">
+                                    <i class="fa-solid fa-arrow-up-wide-short mr-1"></i> Sort By (Popularity Rank)
+                                </label>
+                                <select id="sortFilter" onchange="applyFiltersAndRender()"
+                                    class="w-full bg-slate-900/90 text-white text-xs rounded-xl px-3 py-2 border border-slate-700 focus:outline-none focus:border-brand-400">
+                                    <option value="popular_asc">Most Popular First (Ascending)</option>
+                                    <option value="price_asc">Selling Price: Low to High</option>
+                                    <option value="price_desc">Selling Price: High to Low</option>
+                                    <option value="nearest">Nearest Pharmacy Distance</option>
+                                    <option value="name_asc">Medicine Name (A - Z)</option>
+                                </select>
+                            </div>
+
+                            <!-- Filter 2: Pharmacy City (Populated dynamically from DB) -->
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase tracking-wider text-teal-300 mb-1">
+                                    <i class="fa-solid fa-city mr-1"></i> Pharmacy City
+                                </label>
+                                <select id="cityFilter" onchange="applyFiltersAndRender()"
+                                    class="w-full bg-slate-900/90 text-white text-xs rounded-xl px-3 py-2 border border-slate-700 focus:outline-none focus:border-brand-400">
+                                    <option value="ALL">All Cities</option>
+                                </select>
+                            </div>
+
+                            <!-- Filter 3: Supplier / Manufacturer (Populated dynamically from DB) -->
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase tracking-wider text-teal-300 mb-1">
+                                    <i class="fa-solid fa-truck-medical mr-1"></i> Supplier / Manufacturer
+                                </label>
+                                <select id="supplierFilter" onchange="applyFiltersAndRender()"
+                                    class="w-full bg-slate-900/90 text-white text-xs rounded-xl px-3 py-2 border border-slate-700 focus:outline-none focus:border-brand-400">
+                                    <option value="ALL">All Verified Suppliers</option>
+                                </select>
+                            </div>
+
+                            <!-- Filter 4: Raised Max Price Slider (Up to Rs. 25,000+) -->
+                            <div>
+                                <div class="flex justify-between text-[10px] font-bold uppercase tracking-wider text-teal-300 mb-1">
+                                    <span><i class="fa-solid fa-tags mr-1"></i> Max Price</span>
+                                    <span id="priceRangeLabel" class="text-amber-300">Rs. 25,000</span>
+                                </div>
+                                <input id="priceFilter" type="range" min="100" max="25000" step="100" value="25000" oninput="updatePriceLabel(); applyFiltersAndRender();"
+                                    class="w-full accent-brand-400 cursor-pointer h-2 bg-slate-700 rounded-lg">
+                            </div>
+
+                            <!-- Filter 5: In-Stock Toggle & Reset -->
+                            <div class="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0">
+                                <label class="inline-flex items-center cursor-pointer select-none bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-700">
+                                    <input id="inStockOnlyFilter" type="checkbox" checked onchange="applyFiltersAndRender()" class="sr-only peer">
+                                    <div class="w-8 h-4 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all relative peer-checked:bg-brand-500"></div>
+                                    <span class="ml-2 text-xs font-semibold text-teal-100">In Stock Only</span>
+                                </label>
+                                <button onclick="resetAllFilters()" title="Reset All Filters"
+                                    class="p-2 rounded-xl bg-slate-700/80 hover:bg-slate-600 text-xs text-slate-200 transition">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Main Content Area: Medicine Tiles & Pharmacies Directory -->
+            <main class="max-w-7xl w-full mx-auto flex-1 px-4 sm:px-6 py-6">
+                
+                <!-- Active Category & Results Bar -->
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 mb-5 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <span id="activeCategoryPill" class="px-3 py-1 rounded-xl bg-brand-50 text-brand-700 border border-brand-200 text-xs font-bold">
+                            All Categories
+                        </span>
+                        <p class="text-xs sm:text-sm text-slate-600">
+                            Showing <span id="resultsCountText" class="font-bold text-slate-900">0</span> medicines sorted by
+                            <span id="activeSortLabel" class="font-semibold text-teal-700">Popularity Rank (Ascending)</span>
+                        </p>
+                    </div>
+
+                    <div class="flex items-center gap-2 text-xs text-slate-500">
+                        <i class="fa-solid fa-credit-card text-teal-600"></i>
+                        <span>Pharmacy-Direct Checkout: <strong>Card</strong> or <strong>Bank Transfer</strong> Only</span>
+                    </div>
+                </div>
+
+                <!-- Medicine Tiles Grid -->
+                <div id="medicineTilesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <!-- Populated dynamically via JS -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyResultsState" class="hidden bg-white rounded-2xl p-12 text-center border border-slate-200 my-4">
+                    <div class="w-16 h-16 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mx-auto mb-4 text-2xl">
+                        <i class="fa-solid fa-prescription-bottle-medical"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800 mb-1">No Matching Medicines Found</h3>
+                    <p class="text-sm text-slate-500 max-w-md mx-auto mb-5">
+                        No medicines matched your current search or filter selection. Try adjusting the price range, city, supplier, or category filter.
+                    </p>
+                    <button onclick="resetAllFilters()" class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow transition">
+                        Reset All Filters
+                    </button>
+                </div>
+
+                <!-- Nearest Pharmacies Overview Strip -->
+                <div class="mt-10 bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200">
+                    <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
+                        <div>
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-teal-600 block">Live Geolocation Directory</span>
+                            <h3 class="text-lg font-extrabold text-slate-900">
+                                Registered Pharmacies Ranked by Distance from You
+                            </h3>
+                        </div>
+                        <button onclick="fetchUserLocation()" class="text-xs font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-3.5 py-2 rounded-xl transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-location-arrow"></i> Recalculate GPS Distances
+                        </button>
+                    </div>
+                    <div id="pharmaciesDirectoryGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
+
+            </main>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VIEW 2: ABOUT US PAGE (IN THE SAME HTML)   -->
+        <!-- ========================================== -->
+        <div id="aboutView" class="hidden flex-1 bg-slate-50 py-10 px-4 sm:px-6">
+            <div class="max-w-6xl mx-auto space-y-10">
+
+                <!-- Hero Banner for About Us & Codecrafters -->
+                <div class="bg-gradient-to-br from-slate-900 via-teal-950 to-slate-900 rounded-3xl p-8 sm:p-12 text-white shadow-xl border border-teal-800/50 relative overflow-hidden">
+                    <div class="absolute -right-16 -bottom-16 w-72 h-72 bg-brand-500/15 rounded-full blur-3xl pointer-events-none"></div>
+                    <div class="relative z-10 max-w-3xl">
+                        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-500/20 border border-brand-400/40 text-brand-300 text-xs font-bold mb-4">
+                            <i class="fa-solid fa-code"></i> Group Project by Team Codecrafters
+                        </div>
+                        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight mb-4">
+                            Bridging Patients & Licensed Pharmacies in Real Time
+                        </h1>
+                        <p class="text-teal-100/90 text-sm sm:text-base leading-relaxed mb-6">
+                            <strong>MediRadar</strong> is a dynamic digital healthcare and pharmacy stock discovery platform engineered by <strong>Team Codecrafters</strong>. Our mission is to eliminate the stress of traveling from pharmacy to pharmacy searching for critical medications by connecting patients directly to live Goods Received Note (GRN) pharmacy inventories and highlighting the <strong>Nearest 5 Pharmacies</strong> with instant Google Maps navigation and digital checkout.
+                        </p>
+                        <div class="flex flex-wrap gap-3">
+                            <button onclick="switchView('home')" class="bg-brand-500 hover:bg-brand-400 text-slate-950 font-bold text-sm px-6 py-3 rounded-xl shadow-lg transition flex items-center gap-2">
+                                <i class="fa-solid fa-magnifying-glass-location"></i> Explore Medicine Finder
+                            </button>
+                            <a href="#footer-support" onclick="scrollToSupport(event)" class="bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm px-6 py-3 rounded-xl border border-slate-700 transition flex items-center gap-2">
+                                <i class="fa-solid fa-headset text-brand-400"></i> Contact Support
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- About This Site & Database Architecture -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl mb-4">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-slate-900 mb-2">Nearest 5 Pharmacies & Maps</h3>
+                        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                            Using the browser Geolocation API and the Haversine spherical distance formula, our platform calculates exact distances between the customer and every registered pharmacy's coordinates (<code>latitude</code> & <code>longitude</code>) and provides one-click Google Maps route navigation.
+                        </p>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl mb-4">
+                            <i class="fa-solid fa-boxes-stacked"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-slate-900 mb-2">Live Supabase GRN Stock</h3>
+                        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                            Powered by a relational PostgreSQL schema on Supabase (<code>pharmacies</code>, <code>medicines</code>, <code>grn_stock</code>, <code>pharmacy_staff</code>, and <code>sales_transactions</code>). Customers see verified batch numbers, expiry dates, rack locations, and real-time unit quantities.
+                        </p>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl mb-4">
+                            <i class="fa-solid fa-building-columns"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-slate-900 mb-2">Pharmacy-Direct Card & Bank Pay</h3>
+                        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                            Medicines are purchased exclusively from licensed pharmacies using secure <strong>Card Payments (Visa/MasterCard)</strong> or <strong>Direct Bank Transactions</strong>. Each order generates an instant official invoice and updates stock levels immediately.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Team Codecrafters & Member IDs Section -->
+                <div class="bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-slate-200">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+                        <div>
+                            <span class="text-xs font-extrabold uppercase tracking-wider text-brand-600">Project Development Team</span>
+                            <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1">
+                                Meet Group <span class="text-brand-600">Codecrafters</span>
+                            </h2>
+                            <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                                Dedicated engineering team behind the MediRadar Supabase Ecosystem & Customer Portal.
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-3 bg-slate-900 text-white px-4 py-3 rounded-2xl">
+                            <i class="fa-solid fa-people-group text-2xl text-brand-400"></i>
+                            <div>
+                                <div class="text-xs text-slate-400">Group Name</div>
+                                <div class="text-sm font-extrabold tracking-wide">CODECRAFTERS (10 Members)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Team Member ID Cards Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-6">
+                        <div class="p-4 rounded-2xl bg-gradient-to-br from-teal-50 to-white border-2 border-teal-500/40 shadow-sm flex flex-col justify-between">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-9 h-9 rounded-xl bg-teal-600 text-white font-bold text-xs flex items-center justify-center">01</span>
+                                <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">Team Lead</span>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-500">Member ID</div>
+                                <div class="text-lg font-extrabold text-slate-900 tracking-tight">250322M</div>
+                                <div class="text-xs font-medium text-teal-700 mt-0.5">Anuhas Nimasara</div>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">02</span>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-500">Member ID</div>
+                                <div class="text-lg font-extrabold text-slate-900 tracking-tight">250070L</div>
+                                <div class="text-xs text-slate-500 mt-0.5">Core Developer</div>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">03</span>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-500">Member ID</div>
+                                <div class="text-lg font-extrabold text-slate-900 tracking-tight">250295F</div>
+                                <div class="text-xs text-slate-500 mt-0.5">Database Architect</div>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">04</span>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-500">Member ID</div>
+                                <div class="text-lg font-extrabold text-slate-900 tracking-tight">250384D</div>
+                                <div class="text-xs text-slate-500 mt-0.5">Frontend Engineer</div>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">05</span>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-500">Member ID</div>
+                                <div class="text-lg font-extrabold text-slate-900 tracking-tight">250296J</div>
+                                <div class="text-xs text-slate-500 mt-0.5">Backend & API</div>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">06</span>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-500">Member ID</div>
+                                <div class="text-lg font-extrabold text-slate-900 tracking-tight">250292T</div>
+                                <div class="text-xs text-slate-500 mt-0.5">GIS & Location Logic</div>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">07</span>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-500">Member ID</div>
+                                <div class="text-lg font-extrabold text-slate-900 tracking-tight">250283R</div>
+                                <div class="text-xs text-slate-500 mt-0.5">UI/UX Designer</div>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">08</span>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-500">Member ID</div>
+                                <div class="text-lg font-extrabold text-slate-900 tracking-tight">250013E</div>
+                                <div class="text-xs text-slate-500 mt-0.5">Payment Integration</div>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">09</span>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-500">Member ID</div>
+                                <div class="text-lg font-extrabold text-slate-900 tracking-tight">250734D</div>
+                                <div class="text-xs text-slate-500 mt-0.5">Inventory Systems</div>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">10</span>
+                                <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold text-slate-500">Member ID</div>
+                                <div class="text-lg font-extrabold text-slate-900 tracking-tight">250525M</div>
+                                <div class="text-xs text-slate-500 mt-0.5">QA & Security</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- PROFESSIONAL FOOTER WITH SUPPORT SECTION   -->
+        <!-- (Two Phone Numbers & One Official Email)   -->
+        <!-- ========================================== -->
+        <footer id="footer-support" class="bg-slate-950 text-slate-300 border-t-4 border-brand-600 mt-auto">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-12">
+                
+                <!-- Dedicated Support Highlight Banner inside Footer -->
+                <div id="supportHighlightBox" class="bg-gradient-to-r from-teal-950 via-slate-900 to-teal-950 rounded-3xl p-6 sm:p-8 border border-teal-700/60 shadow-xl mb-10 transition-all duration-500">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                        <div>
+                            <span class="inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-brand-400 mb-1">
+                                <i class="fa-solid fa-headset"></i> 24/7 Customer & Pharmacy Support Desk
+                            </span>
+                            <h3 class="text-xl sm:text-2xl font-extrabold text-white">
+                                Need Help Finding a Medicine or Verifying a Pharmacy Order?
+                            </h3>
+                            <p class="text-xs sm:text-sm text-slate-400 mt-1">
+                                Reach out directly to our Codecrafters Support Team and Pharmacy Verification Hotline using our two dedicated phone lines or official support email.
+                            </p>
+                        </div>
+
+                        <!-- Two Phone Numbers and One Email Cards -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 flex-shrink-0">
+                            <a href="tel:+94766260341" class="bg-slate-900/90 hover:bg-slate-800 p-4 rounded-2xl border border-teal-800/80 transition flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-brand-500/20 text-brand-400 flex items-center justify-center text-lg flex-shrink-0">
+                                    <i class="fa-solid fa-phone-volume"></i>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] uppercase font-bold text-teal-400 block">Support Hotline 1</span>
+                                    <span class="text-sm font-extrabold text-white">+94 76 626 0341</span>
+                                </div>
+                            </a>
+
+                            <a href="tel:+94112650301" class="bg-slate-900/90 hover:bg-slate-800 p-4 rounded-2xl border border-teal-800/80 transition flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg flex-shrink-0">
+                                    <i class="fa-solid fa-phone"></i>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] uppercase font-bold text-amber-400 block">Support Hotline 2</span>
+                                    <span class="text-sm font-extrabold text-white">+94 11 265 0301</span>
+                                </div>
+                            </a>
+
+                            <a href="mailto:nimsaraanuhas123@gmail.com" class="bg-slate-900/90 hover:bg-slate-800 p-4 rounded-2xl border border-teal-800/80 transition flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg flex-shrink-0">
+                                    <i class="fa-solid fa-envelope-open-text"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <span class="text-[10px] uppercase font-bold text-emerald-400 block">Official Support Email</span>
+                                    <span class="text-xs font-extrabold text-white truncate block">nimsaraanuhas123@gmail.com</span>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Multi-Column Footer Links -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-8 pb-10 border-b border-slate-800/80 text-xs">
+                    <div class="space-y-3">
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center text-white font-bold">
+                                <i class="fa-solid fa-capsules"></i>
+                            </div>
+                            <span class="text-lg font-extrabold text-white">MediRadar</span>
+                        </div>
+                        <p class="text-slate-400 leading-relaxed">
+                            Dynamic customer web portal powered by Supabase. Find authentic medicines, locate the 5 nearest pharmacies with Google Maps directions, and pay securely via Card or Bank Transfer.
+                        </p>
+                        <div class="text-[11px] text-teal-400 font-semibold">
+                            <i class="fa-solid fa-code-branch mr-1"></i> Built by Group Codecrafters
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-sm font-bold text-white mb-3 uppercase tracking-wider">Medicine Categories</h4>
+                        <ul class="space-y-2 text-slate-400">
+                            <li><a href="#" onclick="selectCategory('Tablet / Pill'); switchView('home'); return false;" class="hover:text-brand-400 transition">Tablet / Pill</a></li>
+                            <li><a href="#" onclick="selectCategory('Capsule'); switchView('home'); return false;" class="hover:text-brand-400 transition">Capsule</a></li>
+                            <li><a href="#" onclick="selectCategory('Syrup / Suspension'); switchView('home'); return false;" class="hover:text-brand-400 transition">Syrup / Suspension</a></li>
+                            <li><a href="#" onclick="selectCategory('Injection / Vial'); switchView('home'); return false;" class="hover:text-brand-400 transition">Injection / Vial</a></li>
+                            <li><a href="#" onclick="selectCategory('Cream / Ointment'); switchView('home'); return false;" class="hover:text-brand-400 transition">Cream / Ointment</a></li>
+                            <li><a href="#" onclick="selectCategory('Inhaler / Drops'); switchView('home'); return false;" class="hover:text-brand-400 transition">Inhaler / Drops</a></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 class="text-sm font-bold text-white mb-3 uppercase tracking-wider">Quick Links</h4>
+                        <ul class="space-y-2 text-slate-400">
+                            <li><a href="#" onclick="switchView('home'); return false;" class="hover:text-brand-400 transition">Home & Medicine Search</a></li>
+                            <li><a href="#" onclick="switchView('about'); return false;" class="hover:text-brand-400 transition">About Us & Team Codecrafters</a></li>
+                            <li><a href="#" onclick="fetchUserLocation(); return false;" class="hover:text-brand-400 transition">Fetch Current GPS Location</a></li>
+                            <li><a href="#" onclick="openOrdersModal(); return false;" class="hover:text-brand-400 transition">My Pharmacy Purchase Receipts</a></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 class="text-sm font-bold text-white mb-3 uppercase tracking-wider">Support & Contact</h4>
+                        <ul class="space-y-2.5 text-slate-400">
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-phone text-brand-400 mt-0.5"></i>
+                                <span><strong>Phone 1:</strong> +94 76 626 0341</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-phone text-brand-400 mt-0.5"></i>
+                                <span><strong>Phone 2:</strong> +94 11 265 0301</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-envelope text-brand-400 mt-0.5"></i>
+                                <span><strong>Email:</strong> nimsaraanuhas123@gmail.com</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-location-dot text-brand-400 mt-0.5"></i>
+                                <span>Willorawatta, Moratuwa, Western Province, Sri Lanka</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Bottom Copyright & Team Member IDs Strip -->
+                <div class="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
+                    <div>
+                        © 2026 <strong>MediRadar</strong> • Engineered by <strong>Group Codecrafters</strong>. All Rights Reserved.
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 justify-center">
+                        <span class="px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">250322M</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">250070L</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">250295F</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">250384D</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">250296J</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">250292T</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">250283R</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">250013E</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">250734D</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">250525M</span>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 1: NEAREST 5 PHARMACIES DRAWER/MODAL -->
+    <!-- ========================================== -->
+    <div id="nearestPharmaciesModal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
+            
+            <!-- Modal Header -->
+            <div class="bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white p-5 sm:p-6 flex items-start justify-between gap-4">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-12 h-12 rounded-2xl bg-brand-500/20 border border-brand-400/40 flex items-center justify-center text-brand-300 text-xl flex-shrink-0">
+                        <i class="fa-solid fa-location-dot"></i>
+                    </div>
+                    <div>
+                        <span id="modalMedCategoryBadge" class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-brand-500/30 text-brand-200 border border-brand-400/30">
+                            Inhaler / Drops
+                        </span>
+                        <h3 id="modalMedName" class="text-lg sm:text-2xl font-extrabold text-white mt-1">
+                            Salbutamol Inhaler 100mcg
+                        </h3>
+                        <p id="modalUserLocationNote" class="text-xs text-teal-300 mt-0.5">
+                            Showing Top 5 Nearest Pharmacies with active stock sorted by distance from your location
+                        </p>
+                    </div>
+                </div>
+                <button onclick="closeNearestModal()" class="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800/70 hover:bg-slate-700 transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body: List of Nearest 5 Pharmacies -->
+            <div class="p-5 sm:p-6 max-h-[70vh] overflow-y-auto space-y-4 bg-slate-50" id="nearestPharmaciesList">
+                <!-- Populated dynamically via JS -->
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="bg-white px-6 py-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-map-location-dot text-teal-600 text-base"></i>
+                    <span>Click <strong>Find on Google Maps</strong> next to any pharmacy to get turn-by-turn directions from your location.</span>
+                </div>
+                <button onclick="closeNearestModal()" class="px-5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold transition">
+                    Close Window
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 2: PHARMACY-DIRECT CHECKOUT MODAL    -->
+    <!-- (Card or Bank Transaction Only)            -->
+    <!-- ========================================== -->
+    <div id="checkoutModal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
+            
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-teal-900 to-slate-900 text-white p-5 sm:p-6 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-brand-500 text-slate-950 flex items-center justify-center text-lg font-bold">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-extrabold">Direct Pharmacy Purchase Checkout</h3>
+                        <p class="text-xs text-teal-200">Official Pharmacy Billing • Card or Bank Transaction Only</p>
+                    </div>
+                </div>
+                <button onclick="closeCheckoutModal()" class="text-slate-300 hover:text-white p-2 rounded-xl bg-white/10">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Form Body -->
+            <form id="checkoutForm" onsubmit="submitPharmacyOrder(event)" class="p-5 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+                
+                <!-- Selected Pharmacy & Medicine Summary Box -->
+                <div class="bg-teal-50/70 border border-teal-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-teal-700 block">Purchasing Directly From Pharmacy</span>
+                        <h4 id="checkoutPharmacyName" class="text-base font-extrabold text-slate-900">Araliya Pharmacy</h4>
+                        <p id="checkoutPharmacyMeta" class="text-xs text-slate-600 mt-0.5">License: 54956262 • Rack C-04 • Batch: BTH-904D</p>
+                        <div class="mt-2 pt-2 border-t border-teal-200/70">
+                            <span id="checkoutMedicineName" class="text-sm font-bold text-teal-950">Salbutamol Inhaler 100mcg</span>
+                            <span id="checkoutUnitPriceLabel" class="text-xs font-semibold text-teal-700 ml-2">(Rs. 690.00 / unit)</span>
+                        </div>
+                    </div>
+
+                    <!-- Quantity Selector -->
+                    <div class="bg-white p-3 rounded-xl border border-teal-200 text-center flex-shrink-0">
+                        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Quantity</label>
+                        <div class="flex items-center justify-center gap-2">
+                            <button type="button" onclick="adjustCheckoutQty(-1)" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 font-bold text-slate-700">-</button>
+                            <input id="checkoutQtyInput" type="number" min="1" max="10" value="1" onchange="recalculateCheckoutTotal()"
+                                class="w-12 text-center font-extrabold text-sm text-slate-900 border border-slate-200 rounded-lg py-1">
+                            <button type="button" onclick="adjustCheckoutQty(1)" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 font-bold text-slate-700">+</button>
+                        </div>
+                        <span id="checkoutMaxStockNote" class="block text-[10px] text-emerald-600 font-medium mt-1">Available</span>
+                    </div>
+                </div>
+
+                <!-- Customer Information -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Patient / Customer Full Name *</label>
+                        <input id="custName" type="text" required placeholder="e.g., Kasun Perera"
+                            class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Contact Phone Number *</label>
+                        <input id="custPhone" type="tel" required placeholder="e.g., +94 77 123 4567"
+                            class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-600">
+                    </div>
+                </div>
+
+                <!-- Payment Method Selector (Strictly Card or Bank Transaction) -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-2">
+                        Select Pharmacy Payment Method (Card or Bank Transaction Only) *
+                    </label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button" id="payTabCard" onclick="selectPaymentMethod('CARD')"
+                            class="p-3.5 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center text-lg">
+                                <i class="fa-regular fa-credit-card"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs sm:text-sm font-extrabold text-slate-900">Card Payment</div>
+                                <div class="text-[11px] text-slate-500">Visa / MasterCard / Amex</div>
+                            </div>
+                        </button>
+
+                        <button type="button" id="payTabBank" onclick="selectPaymentMethod('BANK')"
+                            class="p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-building-columns"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs sm:text-sm font-extrabold text-slate-900">Bank Transaction</div>
+                                <div class="text-[11px] text-slate-500">Online Transfer / CEFT</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Option A: Card Payment Fields -->
+                <div id="cardPaymentSection" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-shield-halved text-teal-600 mr-1"></i> Encrypted Card Gateway</span>
+                        <div class="flex gap-1.5 text-lg text-slate-600">
+                            <i class="fa-brands fa-cc-visa text-blue-700"></i>
+                            <i class="fa-brands fa-cc-mastercard text-orange-600"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Card Number (16 Digits)</label>
+                        <input id="cardNumberInput" type="text" maxlength="19" placeholder="4532 •••• •••• 8891"
+                            class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Expiry Date (MM/YY)</label>
+                            <input id="cardExpiryInput" type="text" maxlength="5" placeholder="08/29"
+                                class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">CVV / CVC</label>
+                            <input id="cardCvvInput" type="password" maxlength="4" placeholder="•••"
+                                class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Option B: Bank Transaction Fields -->
+                <div id="bankPaymentSection" class="hidden bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <div class="bg-white p-3 rounded-xl border border-slate-200 text-xs space-y-1">
+                        <div class="font-bold text-slate-800"><i class="fa-solid fa-circle-info text-brand-600 mr-1"></i> Pharmacy Designated Bank Account:</div>
+                        <div class="text-slate-600">Bank: <strong>Bank of Ceylon (BOC) / Commercial Bank</strong></div>
+                        <div class="text-slate-600">Account Name: <strong id="bankBeneficiaryName">Pharmacy Official Account</strong></div>
+                        <div class="text-slate-600">Account Number: <strong class="font-mono text-teal-700">8490-2219-4001</strong></div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Your Sending Bank *</label>
+                            <select id="bankNameSelect" class="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 bg-white">
+                                <option value="Bank of Ceylon (BOC)">Bank of Ceylon (BOC)</option>
+                                <option value="Commercial Bank">Commercial Bank of Ceylon</option>
+                                <option value="Sampath Bank">Sampath Bank</option>
+                                <option value="Hatton National Bank (HNB)">Hatton National Bank (HNB)</option>
+                                <option value="People's Bank">People's Bank</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Bank Transfer Ref / Slip No *</label>
+                            <input id="bankRefInput" type="text" placeholder="e.g., CEFT-9948201"
+                                class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total & Submit -->
+                <div class="bg-slate-900 text-white p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <span class="text-[11px] text-slate-400 uppercase font-semibold block">Total Payable Amount</span>
+                        <span id="checkoutTotalAmount" class="text-2xl font-extrabold text-brand-300">Rs. 0.00</span>
+                    </div>
+                    <button type="submit"
+                        class="bg-gradient-to-r from-brand-500 to-teal-500 hover:from-brand-400 hover:to-teal-400 text-slate-950 font-extrabold text-sm px-6 py-3.5 rounded-xl shadow-lg transition flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span>Complete Pharmacy Purchase</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 3: RECENT ORDERS / RECEIPTS MODAL    -->
+    <!-- ========================================== -->
+    <div id="ordersModal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden">
+            <div class="bg-slate-900 text-white p-5 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-file-invoice text-brand-400 text-lg"></i>
+                    <h3 class="text-base font-bold">Your Pharmacy Purchase Receipts (`sales_transactions`)</h3>
+                </div>
+                <button onclick="closeOrdersModal()" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="ordersListContainer" class="p-6 max-h-[65vh] overflow-y-auto space-y-3 bg-slate-50">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Banner -->
+    <div id="toastNotification" class="fixed bottom-5 right-5 z-50 hidden max-w-sm bg-slate-900 text-white px-4 py-3.5 rounded-2xl shadow-2xl border border-teal-500/50 flex items-center gap-3">
+        <div id="toastIcon" class="w-8 h-8 rounded-xl bg-brand-500/20 text-brand-400 flex items-center justify-center flex-shrink-0">
+            <i class="fa-solid fa-check"></i>
+        </div>
+        <div class="text-xs">
+            <div id="toastTitle" class="font-bold text-white">Updated</div>
+            <div id="toastMessage" class="text-slate-300 mt-0.5">Action completed successfully.</div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- APPLICATION JAVASCRIPT & LIVE SUPABASE     -->
+    <!-- ========================================== -->
+    <script>
+        // ---------------------------------------------------------
+        // 1. LIVE SUPABASE CONNECTION (Pre-configured with your keys)
+        // ---------------------------------------------------------
+        const SUPABASE_URL = 'https://juobkaftyrzlxbviudpy.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_qdME8AYk9rz5B4FHs4Eb1g_0vvhN73v';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // ---------------------------------------------------------
+        // 2. EXACT CATEGORIES FROM USER SCREENSHOT
+        // ---------------------------------------------------------
+        const MEDICINE_CATEGORIES = [
+            { id: 'ALL', label: 'All Categories', icon: 'fa-border-all' },
+            { id: 'Tablet / Pill', label: 'Tablet / Pill', icon: 'fa-tablets' },
+            { id: 'Capsule', label: 'Capsule', icon: 'fa-capsules' },
+            { id: 'Syrup / Suspension', label: 'Syrup / Suspension', icon: 'fa-prescription-bottle' },
+            { id: 'Injection / Vial', label: 'Injection / Vial', icon: 'fa-syringe' },
+            { id: 'Cream / Ointment', label: 'Cream / Ointment', icon: 'fa-pump-medical' },
+            { id: 'Inhaler / Drops', label: 'Inhaler / Drops', icon: 'fa-lungs' }
+        ];
+
+        // ---------------------------------------------------------
+        // 3. LIVE STATE ARRAYS (Populated directly from Supabase)
+        // ---------------------------------------------------------
+        let pharmaciesTable = [];
+        let medicinesTable = [];
+        let grnStockTable = [];
+        let salesTransactionsTable = [];
+
+        // Default user coordinates (Moratuwa) until GPS is fetched
+        let userLocation = {
+            lat: 6.79652,
+            lng: 79.90053,
+            label: "Moratuwa (6.7965, 79.9005)",
+            isLiveGps: false
+        };
+
+        let selectedCategory = 'ALL';
+        let sidebarOpen = true;
+        let currentCheckoutContext = null;
+        let selectedPaymentMethod = 'CARD';
+
+        // ---------------------------------------------------------
+        // 4. FETCH LIVE DATA FROM SUPABASE
+        // ---------------------------------------------------------
+        async function fetchLiveSupabaseData() {
+            const statusDot = document.getElementById('dbStatusDot');
+            const statusText = document.getElementById('dbStatusText');
+            statusText.textContent = "Syncing Supabase...";
+
+            try {
+                const [pharmRes, medRes, stockRes, salesRes] = await Promise.all([
+                    supabaseClient.from('pharmacies').select('*'),
+                    supabaseClient.from('medicines').select('*'),
+                    supabaseClient.from('grn_stock').select('*'),
+                    supabaseClient.from('sales_transactions').select('*').order('sold_at', { ascending: false }).limit(25)
+                ]);
+
+                if (pharmRes.error) throw pharmRes.error;
+                if (medRes.error) throw medRes.error;
+                if (stockRes.error) throw stockRes.error;
+
+                pharmaciesTable = pharmRes.data || [];
+                medicinesTable = medRes.data || [];
+                grnStockTable = stockRes.data || [];
+                if (salesRes.data) salesTransactionsTable = salesRes.data;
+
+                statusDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0";
+                statusText.textContent = `Live DB (${pharmaciesTable.length} Pharmacies, ${grnStockTable.length} Stock)`;
+
+                populateDynamicFilterDropdowns();
+                renderCategorySidebar();
+                applyFiltersAndRender();
+                renderPharmaciesDirectory();
+                updateOrdersBadge();
+            } catch (err) {
+                console.error("Supabase Fetch Error:", err);
+                statusDot.className = "w-2 h-2 rounded-full bg-rose-500 flex-shrink-0";
+                statusText.textContent = "Database Connection Error";
+                showToast("Database Error", err.message || "Could not load tables from Supabase.", "warning");
+            }
+        }
+
+        // Dynamically populate City, Supplier, and Max Price slider based on real DB contents
+        function populateDynamicFilterDropdowns() {
+            const citySelect = document.getElementById('cityFilter');
+            const supplierSelect = document.getElementById('supplierFilter');
+            const priceSlider = document.getElementById('priceFilter');
+
+            const currentCity = citySelect.value || 'ALL';
+            const currentSupplier = supplierSelect.value || 'ALL';
+
+            // Extract unique non-empty cities from pharmaciesTable
+            const cities = [...new Set(
+                pharmaciesTable
+                    .map(p => (p.city || '').trim())
+                    .filter(Boolean)
+            )].sort();
+
+            citySelect.innerHTML = `<option value="ALL">All Cities (${cities.length})</option>` +
+                cities.map(c => `<option value="${c}">${c}</option>`).join('');
+            if (cities.includes(currentCity)) citySelect.value = currentCity;
+
+            // Extract unique non-empty suppliers from grnStockTable
+            const suppliers = [...new Set(
+                grnStockTable
+                    .map(s => (s.supplier_name || '').trim())
+                    .filter(Boolean)
+            )].sort();
+
+            supplierSelect.innerHTML = `<option value="ALL">All Verified Suppliers (${suppliers.length})</option>` +
+                suppliers.map(s => `<option value="${s}">${s}</option>`).join('');
+            if (suppliers.includes(currentSupplier)) supplierSelect.value = currentSupplier;
+
+            // Dynamically adjust Max Price slider if database has medicines above Rs. 25,000
+            const prices = grnStockTable.map(s => parseFloat(s.selling_price || 0)).filter(p => !isNaN(p) && p > 0);
+            const highestDbPrice = prices.length > 0 ? Math.max(...prices) : 25000;
+            const sliderMax = Math.max(25000, Math.ceil(highestDbPrice / 1000) * 1000);
+            priceSlider.max = sliderMax;
+            priceSlider.value = sliderMax;
+            updatePriceLabel();
+        }
+
+        // ---------------------------------------------------------
+        // 5. HAVERSINE DISTANCE & GOOGLE MAPS URL BUILDER
+        // ---------------------------------------------------------
+        function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+            const parsedLat2 = parseFloat(lat2);
+            const parsedLon2 = parseFloat(lon2);
+            if (isNaN(parsedLat2) || isNaN(parsedLon2)) return 999.99;
+
+            const R = 6371; // km
+            const dLat = (parsedLat2 - lat1) * Math.PI / 180;
+            const dLon = (parsedLon2 - lon1) * Math.PI / 180;
+            const a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(parsedLat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function buildGoogleMapsDirectionsUrl(pharmacy) {
+            const origin = `${userLocation.lat},${userLocation.lng}`;
+            const lat = parseFloat(pharmacy.latitude);
+            const lng = parseFloat(pharmacy.longitude);
+            let destination = '';
+            if (!isNaN(lat) && !isNaN(lng)) {
+                destination = `${lat},${lng}`;
+            } else {
+                destination = encodeURIComponent(`${pharmacy.pharmacy_name || ''} ${pharmacy.address || ''} ${pharmacy.city || ''} Sri Lanka`.trim());
+            }
+            return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${destination}&travelmode=driving`;
+        }
+
+        // Category matching helper
+        function matchesCategoryFilter(stockCategory, filterCategory) {
+            if (filterCategory === 'ALL') return true;
+            if (!stockCategory) return false;
+            const normStock = stockCategory.toLowerCase();
+            const normFilter = filterCategory.toLowerCase();
+            if (normStock === normFilter) return true;
+            if (normFilter.includes('inhaler') && (normStock.includes('inhaler') || normStock.includes('drop'))) return true;
+            if (normFilter.includes('tablet') && (normStock.includes('tablet') || normStock.includes('pill'))) return true;
+            if (normFilter.includes('capsule') && normStock.includes('capsule')) return true;
+            if (normFilter.includes('syrup') && (normStock.includes('syrup') || normStock.includes('suspension'))) return true;
+            if (normFilter.includes('injection') && (normStock.includes('injection') || normStock.includes('vial'))) return true;
+            if (normFilter.includes('cream') && (normStock.includes('cream') || normStock.includes('ointment') || normStock.includes('gel'))) return true;
+            return false;
+        }
+
+        // ---------------------------------------------------------
+        // 6. FETCH USER GPS LOCATION
+        // ---------------------------------------------------------
+        function fetchUserLocation() {
+            const btnTitle = document.getElementById('locationBtnTitle');
+            const coordsBadge = document.getElementById('locationCoordsBadge');
+            btnTitle.textContent = "Locating GPS...";
+
+            if (!navigator.geolocation) {
+                showToast("Geolocation Unsupported", "Using default Moratuwa coordinates.", "warning");
+                btnTitle.textContent = "Location Active";
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userLocation.lat = position.coords.latitude;
+                    userLocation.lng = position.coords.longitude;
+                    userLocation.isLiveGps = true;
+                    userLocation.label = `GPS (${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)})`;
+
+                    btnTitle.textContent = "Live GPS Locked";
+                    coordsBadge.textContent = userLocation.label;
+
+                    applyFiltersAndRender();
+                    renderPharmaciesDirectory();
+                    showToast("Current Location Fetched!", `Distances & Google Maps routes updated from ${userLocation.label}.`, "success");
+                },
+                () => {
+                    userLocation.lat = 6.79652;
+                    userLocation.lng = 79.90053;
+                    userLocation.label = "Moratuwa (6.7965, 79.9005)";
+                    btnTitle.textContent = "Moratuwa GPS Set";
+                    coordsBadge.textContent = userLocation.label;
+
+                    applyFiltersAndRender();
+                    renderPharmaciesDirectory();
+                    showToast("Location Calibrated", "Using Moratuwa coordinates (6.7965, 79.9005) to rank pharmacies.", "info");
+                },
+                { enableHighAccuracy: true, timeout: 6000 }
+            );
+        }
+
+        // ---------------------------------------------------------
+        // 7. GEMINI-STYLE COLLAPSIBLE LEFT SIDEBAR
+        // ---------------------------------------------------------
+        function toggleSidebar() {
+            const sidebar = document.getElementById('geminiSidebar');
+            sidebarOpen = !sidebarOpen;
+
+            if (sidebarOpen) {
+                sidebar.classList.remove('sidebar-collapsed');
+                sidebar.classList.add('sidebar-expanded');
+            } else {
+                sidebar.classList.remove('sidebar-expanded');
+                sidebar.classList.add('sidebar-collapsed');
+            }
+        }
+
+        function focusSearchBar() {
+            switchView('home');
+            const input = document.getElementById('searchInput');
+            if (input) {
+                input.focus();
+                input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        function renderCategorySidebar() {
+            const container = document.getElementById('categoryListContainer');
+            const allAggregated = getAggregatedMedicines();
+
+            container.innerHTML = MEDICINE_CATEGORIES.map(cat => {
+                const count = allAggregated.filter(m =>
+                    cat.id === 'ALL' ? true : m.allCategories.some(c => matchesCategoryFilter(c, cat.id))
+                ).length;
+                const isActive = selectedCategory === cat.id;
+
+                return `
+                    <button onclick="selectCategory('${cat.id}')"
+                        class="w-full flex items-center justify-between px-4 py-2.5 rounded-full text-left text-sm transition ${
+                            isActive
+                                ? 'bg-gemdark-700 text-white font-semibold shadow-inner'
+                                : 'text-slate-300 hover:bg-gemdark-800 hover:text-white font-medium'
+                        }">
+                        <div class="flex items-center space-x-3.5 truncate">
+                            <i class="fa-solid ${cat.icon} w-4 text-center ${isActive ? 'text-brand-400' : 'text-slate-400'}"></i>
+                            <span class="truncate">${cat.label}</span>
+                        </div>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${
+                            isActive ? 'bg-brand-500/20 text-brand-300' : 'text-slate-500'
+                        }">${count}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function selectCategory(catId) {
+            selectedCategory = catId;
+            document.getElementById('activeCategoryPill').textContent = catId === 'ALL' ? 'All Categories' : catId;
+            renderCategorySidebar();
+            applyFiltersAndRender();
+        }
+
+        // ---------------------------------------------------------
+        // 8. AGGREGATE MEDICINES BY NAME ACROSS ALL PHARMACIES
+        // ---------------------------------------------------------
+        function getAggregatedMedicines() {
+            const groupedByName = new Map();
+
+            // Group from grn_stock first so every stocked medicine and its pharmacy is linked
+            grnStockTable.forEach(stock => {
+                const rawName = (stock.medicine_name || '').trim();
+                if (!rawName) return;
+                const key = rawName.toLowerCase();
+
+                const pharm = pharmaciesTable.find(p => p.id === stock.pharmacy_id) || {
+                    id: stock.pharmacy_id,
+                    pharmacy_name: "Registered Pharmacy",
+                    license_no: "Verified",
+                    phone: "+94 76 626 0341",
+                    operating_hours: "8:00 AM - 10:00 PM",
+                    city: "Moratuwa",
+                    address: "Main Street",
+                    latitude: "6.79652",
+                    longitude: "79.90053",
+                    image_url: ""
+                };
+
+                const distKm = calculateDistanceKm(
+                    userLocation.lat,
+                    userLocation.lng,
+                    pharm.latitude,
+                    pharm.longitude
+                );
+
+                const enrichedStock = {
+                    ...stock,
+                    selling_price_num: parseFloat(stock.selling_price || 0),
+                    current_quantity_num: parseInt(stock.current_quantity || 0, 10),
+                    pharmacy: pharm,
+                    distanceKm: distKm
+                };
+
+                if (!groupedByName.has(key)) {
+                    groupedByName.set(key, {
+                        id: stock.medicine_id || stock.id,
+                        key: key,
+                        name: rawName,
+                        pharmacyStocks: [enrichedStock]
+                    });
+                } else {
+                    groupedByName.get(key).pharmacyStocks.push(enrichedStock);
+                }
+            });
+
+            // Also include any medicine from medicinesTable that might not have a grn_stock row yet
+            medicinesTable.forEach(med => {
+                const rawName = (med.name || '').trim();
+                if (!rawName) return;
+                const key = rawName.toLowerCase();
+                if (!groupedByName.has(key)) {
+                    const pharm = pharmaciesTable.find(p => p.id === med.pharmacy_id) || pharmaciesTable[0] || {
+                        id: med.pharmacy_id,
+                        pharmacy_name: "Registered Pharmacy",
+                        city: "Moratuwa",
+                        address: "",
+                        latitude: "6.79652",
+                        longitude: "79.90053"
+                    };
+                    const distKm = calculateDistanceKm(userLocation.lat, userLocation.lng, pharm.latitude, pharm.longitude);
+                    groupedByName.set(key, {
+                        id: med.id,
+                        key: key,
+                        name: rawName,
+                        pharmacyStocks: [{
+                            id: med.id,
+                            pharmacy_id: pharm.id,
+                            medicine_id: med.id,
+                            medicine_name: rawName,
+                            grn_number: "N/A",
+                            batch_number: "N/A",
+                            supplier_name: "Verified Supplier",
+                            category: "Tablet / Pill",
+                            quantity_received: 0,
+                            current_quantity: 0,
+                            current_quantity_num: 0,
+                            selling_price: "0.00",
+                            selling_price_num: 0,
+                            expiry_date: "N/A",
+                            rack_location: "N/A",
+                            pharmacy: pharm,
+                            distanceKm: distKm
+                        }]
+                    });
+                }
+            });
+
+            // Convert map to list & compute popularity metric
+            const list = Array.from(groupedByName.values()).map(group => {
+                // Sort pharmacy stocks by distance
+                group.pharmacyStocks.sort((a, b) => a.distanceKm - b.distanceKm);
+
+                const primary = group.pharmacyStocks[0];
+                const totalStock = group.pharmacyStocks.reduce((sum, s) => sum + s.current_quantity_num, 0);
+                const totalReceived = group.pharmacyStocks.reduce((sum, s) => sum + parseInt(s.quantity_received || 0, 10), 0);
+
+                // Calculate popularity score from sales_transactions + stock turnover + branch count
+                const txSold = salesTransactionsTable
+                    .filter(tx => (tx.medicine_name || '').toLowerCase() === group.key)
+                    .reduce((sum, tx) => sum + parseInt(tx.quantity_sold || 0, 10), 0);
+
+                const turnover = Math.max(0, totalReceived - totalStock);
+                const popularityScore = (txSold * 100) + (group.pharmacyStocks.length * 50) + (turnover * 5) + totalStock;
+
+                const allCategories = [...new Set(group.pharmacyStocks.map(s => s.category).filter(Boolean))];
+                const allSuppliers = [...new Set(group.pharmacyStocks.map(s => s.supplier_name).filter(Boolean))];
+                const displayCategory = primary.category === "Inhaler" ? "Inhaler / Drops" : (primary.category || "Tablet / Pill");
+
+                const validPrices = group.pharmacyStocks.map(s => s.selling_price_num).filter(p => p > 0);
+                const minPrice = validPrices.length > 0 ? Math.min(...validPrices) : 0;
+
+                return {
+                    ...group,
+                    category: displayCategory,
+                    allCategories,
+                    allSuppliers,
+                    supplier_name: primary.supplier_name || 'Verified Supplier',
+                    minPrice,
+                    totalStock,
+                    nearestDistanceKm: primary.distanceKm,
+                    nearestPharmacyName: primary.pharmacy.pharmacy_name,
+                    nearestPharmacyCity: primary.pharmacy.city,
+                    expiry_date: primary.expiry_date || 'N/A',
+                    rack_location: primary.rack_location || 'N/A',
+                    batch_number: primary.batch_number || 'N/A',
+                    popularityScore
+                };
+            });
+
+            // Assign ascending popularity rank (1 = Most Popular, 2 = 2nd Most Popular, etc.)
+            list.sort((a, b) => b.popularityScore - a.popularityScore);
+            list.forEach((item, idx) => {
+                item.popularityRank = idx + 1;
+            });
+
+            return list;
+        }
+
+        // ---------------------------------------------------------
+        // 9. APPLY WORKING FILTERS & RENDER MEDICINE TILES
+        // ---------------------------------------------------------
+        function getCategoryIcon(category) {
+            const c = (category || '').toLowerCase();
+            if (c.includes('inhaler') || c.includes('drop')) return 'fa-lungs';
+            if (c.includes('tablet') || c.includes('pill')) return 'fa-tablets';
+            if (c.includes('capsule')) return 'fa-capsules';
+            if (c.includes('syrup') || c.includes('suspension')) return 'fa-prescription-bottle';
+            if (c.includes('injection') || c.includes('vial')) return 'fa-syringe';
+            if (c.includes('cream') || c.includes('ointment')) return 'fa-pump-medical';
+            return 'fa-pills';
+        }
+
+        function applyFiltersAndRender() {
+            const searchVal = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+            const sortVal = document.getElementById('sortFilter').value;
+            const cityVal = document.getElementById('cityFilter').value;
+            const supplierVal = document.getElementById('supplierFilter').value;
+            const maxPriceVal = parseFloat(document.getElementById('priceFilter').value || 25000);
+            const inStockOnly = document.getElementById('inStockOnlyFilter').checked;
+
+            const clearBtn = document.getElementById('clearSearchBtn');
+            if (searchVal.length > 0) clearBtn.classList.remove('hidden');
+            else clearBtn.classList.add('hidden');
+
+            const rawAggregated = getAggregatedMedicines();
+
+            // Filter each medicine's pharmacyStocks so filters actively narrow down relevant stock rows
+            let filteredMedicines = rawAggregated.map(med => {
+                const matchingStocks = med.pharmacyStocks.filter(s => {
+                    const catMatch = matchesCategoryFilter(s.category, selectedCategory);
+                    const cityMatch = cityVal === 'ALL' || ((s.pharmacy.city || '').trim().toLowerCase() === cityVal.trim().toLowerCase());
+                    const supMatch = supplierVal === 'ALL' || ((s.supplier_name || '').trim().toLowerCase() === supplierVal.trim().toLowerCase());
+                    const priceMatch = s.selling_price_num <= maxPriceVal;
+                    const stockMatch = !inStockOnly || s.current_quantity_num > 0;
+                    return catMatch && cityMatch && supMatch && priceMatch && stockMatch;
+                });
+
+                if (matchingStocks.length === 0) return null;
+
+                // Search query check across medicine name, category, supplier, or pharmacy name/city
+                if (searchVal) {
+                    const nameMatch = med.name.toLowerCase().includes(searchVal);
+                    const stockSearchMatch = matchingStocks.some(s =>
+                        (s.supplier_name || '').toLowerCase().includes(searchVal) ||
+                        (s.category || '').toLowerCase().includes(searchVal) ||
+                        (s.pharmacy.pharmacy_name || '').toLowerCase().includes(searchVal) ||
+                        (s.pharmacy.city || '').toLowerCase().includes(searchVal)
+                    );
+                    if (!nameMatch && !stockSearchMatch) return null;
+                }
+
+                // Recompute summary metrics based on the filtered stocks
+                matchingStocks.sort((a, b) => a.distanceKm - b.distanceKm);
+                const closest = matchingStocks[0];
+                const filteredTotalStock = matchingStocks.reduce((sum, s) => sum + s.current_quantity_num, 0);
+                const validPrices = matchingStocks.map(s => s.selling_price_num).filter(p => p > 0);
+                const filteredMinPrice = validPrices.length > 0 ? Math.min(...validPrices) : 0;
+
+                return {
+                    ...med,
+                    category: closest.category === "Inhaler" ? "Inhaler / Drops" : (closest.category || med.category),
+                    supplier_name: closest.supplier_name || med.supplier_name,
+                    minPrice: filteredMinPrice,
+                    totalStock: filteredTotalStock,
+                    nearestDistanceKm: closest.distanceKm,
+                    nearestPharmacyName: closest.pharmacy.pharmacy_name,
+                    nearestPharmacyCity: closest.pharmacy.city,
+                    expiry_date: closest.expiry_date || med.expiry_date,
+                    batch_number: closest.batch_number || med.batch_number,
+                    filteredPharmacyStocks: matchingStocks
+                };
+            }).filter(Boolean);
+
+            // Sort items
+            const sortLabels = {
+                'popular_asc': 'Most Popular First (Ascending Order)',
+                'price_asc': 'Selling Price: Low to High',
+                'price_desc': 'Selling Price: High to Low',
+                'nearest': 'Nearest Pharmacy Distance',
+                'name_asc': 'Medicine Name (A - Z)'
+            };
+            document.getElementById('activeSortLabel').textContent = sortLabels[sortVal] || sortLabels['popular_asc'];
+
+            filteredMedicines.sort((a, b) => {
+                if (sortVal === 'popular_asc') return a.popularityRank - b.popularityRank;
+                if (sortVal === 'price_asc') return a.minPrice - b.minPrice;
+                if (sortVal === 'price_desc') return b.minPrice - a.minPrice;
+                if (sortVal === 'nearest') return a.nearestDistanceKm - b.nearestDistanceKm;
+                if (sortVal === 'name_asc') return a.name.localeCompare(b.name);
+                return a.popularityRank - b.popularityRank;
+            });
+
+            document.getElementById('resultsCountText').textContent = filteredMedicines.length;
+
+            const grid = document.getElementById('medicineTilesGrid');
+            const emptyState = document.getElementById('emptyResultsState');
+
+            if (filteredMedicines.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            // Render tiles: Top 3 get "#1/2/3 Most Popular" badge; others just show "#4", "#5", etc. in order
+            grid.innerHTML = filteredMedicines.map((item, displayIdx) => {
+                const nearest5Count = Math.min(5, item.filteredPharmacyStocks.length);
+                const iconClass = getCategoryIcon(item.category);
+                const rankNumber = sortVal === 'popular_asc' ? item.popularityRank : (displayIdx + 1);
+                const isTopThreePopular = item.popularityRank <= 3;
+
+                const rankBadgeHtml = isTopThreePopular
+                    ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
+                           <i class="fa-solid fa-fire text-amber-500"></i>
+                           #${item.popularityRank} Most Popular
+                       </span>`
+                    : `<span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                           #${rankNumber}
+                       </span>`;
+
+                return `
+                    <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm card-hover flex flex-col justify-between overflow-hidden">
+                        
+                        <div>
+                            <!-- Top Card Header -->
+                            <div class="p-4 pb-3 bg-gradient-to-br from-slate-50 to-teal-50/40 border-b border-slate-100 flex items-center justify-between gap-2">
+                                ${rankBadgeHtml}
+
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
+                                    <i class="fa-solid ${iconClass}"></i>
+                                    ${item.category}
+                                </span>
+                            </div>
+
+                            <!-- Medicine Details Body -->
+                            <div class="p-4">
+                                <div class="flex items-start justify-between gap-3 mb-3">
+                                    <h3 class="text-base font-extrabold text-slate-900 leading-snug">
+                                        ${item.name}
+                                    </h3>
+                                    <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 border border-brand-100 flex items-center justify-center flex-shrink-0 text-lg">
+                                        <i class="fa-solid ${iconClass}"></i>
+                                    </div>
+                                </div>
+
+                                <!-- Metadata Badges from grn_stock -->
+                                <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100 space-y-1.5 text-[11px] text-slate-600">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-slate-400">Supplier:</span>
+                                        <span class="font-semibold text-slate-800 truncate max-w-[180px]">${item.supplier_name}</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-slate-400">Closest Pharmacy:</span>
+                                        <span class="font-bold text-teal-700">
+                                            <i class="fa-solid fa-location-dot mr-0.5"></i> ${item.nearestPharmacyName} (${item.nearestDistanceKm.toFixed(2)} km)
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-slate-400">Batch & Expiry:</span>
+                                        <span class="font-mono text-slate-700">${item.batch_number} • Exp: ${item.expiry_date}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Price & Action Footer -->
+                        <div class="px-4 pb-4 pt-2 border-t border-slate-100">
+                            <div class="flex items-end justify-between mb-3">
+                                <div>
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Selling Price From</span>
+                                    <span class="text-xl font-extrabold text-slate-900">Rs. ${item.minPrice.toFixed(2)}</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                        ${item.totalStock} Units in Stock
+                                    </span>
+                                    <span class="block text-[10px] text-slate-400 mt-0.5">Available in ${nearest5Count} Pharmacy${nearest5Count === 1 ? '' : 's'}</span>
+                                </div>
+                            </div>
+
+                            <button onclick="openNearestPharmaciesModal('${encodeURIComponent(item.key)}')"
+                                class="w-full bg-gradient-to-r from-brand-600 to-teal-700 hover:from-brand-500 hover:to-teal-600 text-white font-bold text-xs sm:text-sm py-2.5 px-4 rounded-xl shadow-md shadow-teal-600/15 transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-map-location-dot"></i>
+                                <span>Show Nearest 5 Pharmacies & Buy</span>
+                            </button>
+                        </div>
+
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updatePriceLabel() {
+            const val = document.getElementById('priceFilter').value;
+            document.getElementById('priceRangeLabel').textContent = `Rs. ${Number(val).toLocaleString()}`;
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            applyFiltersAndRender();
+        }
+
+        function resetAllFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('sortFilter').value = 'popular_asc';
+            document.getElementById('cityFilter').value = 'ALL';
+            document.getElementById('supplierFilter').value = 'ALL';
+            const priceSlider = document.getElementById('priceFilter');
+            priceSlider.value = priceSlider.max || 25000;
+            document.getElementById('inStockOnlyFilter').checked = true;
+            updatePriceLabel();
+            selectCategory('ALL');
+        }
+
+        // ---------------------------------------------------------
+        // 10. NEAREST 5 PHARMACIES MODAL + GOOGLE MAPS ROUTE BUTTON
+        // ---------------------------------------------------------
+        function openNearestPharmaciesModal(encodedMedKey) {
+            const medKey = decodeURIComponent(encodedMedKey);
+            const med = getAggregatedMedicines().find(m => m.key === medKey);
+            if (!med) return;
+
+            document.getElementById('modalMedCategoryBadge').textContent = med.category;
+            document.getElementById('modalMedName').textContent = med.name;
+            document.getElementById('modalUserLocationNote').innerHTML = `
+                <i class="fa-solid fa-location-crosshairs mr-1"></i> Ranked by distance from <strong>${userLocation.label}</strong> • Showing Nearest 5 Pharmacies with stock
+            `;
+
+            const nearest5 = med.pharmacyStocks
+                .filter(s => s.current_quantity_num > 0)
+                .sort((a, b) => a.distanceKm - b.distanceKm)
+                .slice(0, 5);
+
+            const listContainer = document.getElementById('nearestPharmaciesList');
+
+            if (nearest5.length === 0) {
+                listContainer.innerHTML = `<p class="text-sm text-slate-500 text-center py-8">Currently out of stock across registered pharmacies.</p>`;
+            } else {
+                listContainer.innerHTML = nearest5.map((entry, idx) => {
+                    const p = entry.pharmacy;
+                    const isClosest = idx === 0;
+                    const mapsUrl = buildGoogleMapsDirectionsUrl(p);
+
+                    return `
+                        <div class="bg-white rounded-2xl p-4 sm:p-5 border-2 ${
+                            isClosest ? 'border-brand-500 shadow-md' : 'border-slate-200'
+                        } flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                            
+                            <!-- Left: Pharmacy Image & Details -->
+                            <div class="flex items-start gap-4">
+                                <div class="relative flex-shrink-0">
+                                    <img src="${p.image_url || ''}"
+                                         onerror="this.src='https://placehold.co/120x120/0d9488/ffffff?text=${encodeURIComponent(p.pharmacy_name || 'Pharmacy')}'"
+                                         alt="${p.pharmacy_name}"
+                                         class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border border-slate-200">
+                                    <span class="absolute -top-2 -left-2 w-7 h-7 rounded-xl ${
+                                        isClosest ? 'bg-brand-600 text-white' : 'bg-slate-800 text-white'
+                                    } font-extrabold text-xs flex items-center justify-center shadow">
+                                        #${idx + 1}
+                                    </span>
+                                </div>
+
+                                <div class="space-y-1">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <h4 class="text-base sm:text-lg font-extrabold text-slate-900">${p.pharmacy_name}</h4>
+                                        ${isClosest ? `<span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-brand-100 text-brand-800 border border-brand-300">Closest to You</span>` : ''}
+                                        <span class="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
+                                            <i class="fa-solid fa-route mr-1"></i>${entry.distanceKm.toFixed(2)} km away
+                                        </span>
+                                    </div>
+
+                                    <p class="text-xs text-slate-600">
+                                        <i class="fa-solid fa-location-dot text-teal-600 mr-1"></i>
+                                        <strong>${p.address || ''}${p.address && p.city ? ', ' : ''}${p.city || ''}</strong> (Lat: ${p.latitude}, Lng: ${p.longitude})
+                                    </p>
+
+                                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 pt-1">
+                                        <span><i class="fa-regular fa-clock text-teal-600 mr-1"></i>${p.operating_hours || '8:00 AM - 10:00 PM'}</span>
+                                        <span><i class="fa-solid fa-phone text-teal-600 mr-1"></i>${p.phone || 'N/A'}</span>
+                                        <span><i class="fa-solid fa-id-card text-teal-600 mr-1"></i>License: <strong>${p.license_no || 'Verified'}</strong></span>
+                                    </div>
+
+                                    <div class="flex flex-wrap items-center gap-2 pt-1.5">
+                                        <span class="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">
+                                            Rack: <strong>${entry.rack_location || 'N/A'}</strong>
+                                        </span>
+                                        <span class="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">
+                                            GRN: <strong>${entry.grn_number || 'N/A'}</strong>
+                                        </span>
+                                        <span class="text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-bold">
+                                            ${entry.current_quantity_num} units in stock
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right: Price, Google Maps Route Button & Direct Pharmacy Buy Button -->
+                            <div class="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end justify-between border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100 flex-shrink-0 gap-2.5">
+                                <div class="text-left lg:text-right">
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Pharmacy Unit Price</span>
+                                    <span class="text-xl font-extrabold text-slate-900">Rs. ${entry.selling_price_num.toFixed(2)}</span>
+                                </div>
+
+                                <!-- Action Buttons Side-by-Side: Google Maps + Buy from Pharmacy -->
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
+                                        title="Get Google Maps directions from your location to ${p.pharmacy_name}"
+                                        class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-sm transition flex items-center justify-center gap-1.5">
+                                        <i class="fa-solid fa-diamond-turn-right text-emerald-600"></i>
+                                        <span>Google Maps</span>
+                                    </a>
+
+                                    <button onclick="openCheckoutModal('${entry.id}')"
+                                        class="bg-slate-900 hover:bg-brand-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition flex items-center justify-center gap-2">
+                                        <i class="fa-solid fa-bag-shopping"></i>
+                                        <span>Buy from ${p.pharmacy_name}</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            document.getElementById('nearestPharmaciesModal').classList.remove('hidden');
+        }
+
+        function closeNearestModal() {
+            document.getElementById('nearestPharmaciesModal').classList.add('hidden');
+        }
+
+        // ---------------------------------------------------------
+        // 11. PHARMACY-DIRECT CHECKOUT (CARD OR BANK TRANSACTION)
+        // ---------------------------------------------------------
+        function openCheckoutModal(grnStockId) {
+            const stockRow = grnStockTable.find(s => String(s.id) === String(grnStockId));
+            if (!stockRow) return;
+            const pharm = pharmaciesTable.find(p => p.id === stockRow.pharmacy_id) || pharmaciesTable[0] || {
+                id: stockRow.pharmacy_id,
+                pharmacy_name: "Pharmacy",
+                city: "",
+                license_no: "Verified"
+            };
+
+            currentCheckoutContext = {
+                stockRow,
+                pharmacy: pharm
+            };
+
+            document.getElementById('checkoutPharmacyName').textContent = `${pharm.pharmacy_name} (${pharm.city || 'Sri Lanka'})`;
+            document.getElementById('checkoutPharmacyMeta').textContent = `License: ${pharm.license_no || 'Verified'} • ${stockRow.rack_location || 'Main Rack'} • Batch: ${stockRow.batch_number || 'N/A'}`;
+            document.getElementById('checkoutMedicineName').textContent = stockRow.medicine_name;
+            document.getElementById('checkoutUnitPriceLabel').textContent = `(Rs. ${parseFloat(stockRow.selling_price || 0).toFixed(2)} / unit)`;
+            document.getElementById('checkoutMaxStockNote').textContent = `${stockRow.current_quantity} Available in Stock`;
+            document.getElementById('bankBeneficiaryName').textContent = `${pharm.pharmacy_name} Official Account`;
+
+            const qtyInput = document.getElementById('checkoutQtyInput');
+            qtyInput.value = 1;
+            qtyInput.max = stockRow.current_quantity;
+
+            selectPaymentMethod('CARD');
+            recalculateCheckoutTotal();
+
+            closeNearestModal();
+            document.getElementById('checkoutModal').classList.remove('hidden');
+        }
+
+        function closeCheckoutModal() {
+            document.getElementById('checkoutModal').classList.add('hidden');
+        }
+
+        function adjustCheckoutQty(delta) {
+            if (!currentCheckoutContext) return;
+            const input = document.getElementById('checkoutQtyInput');
+            let val = parseInt(input.value || '1', 10) + delta;
+            val = Math.max(1, Math.min(parseInt(currentCheckoutContext.stockRow.current_quantity || 1, 10), val));
+            input.value = val;
+            recalculateCheckoutTotal();
+        }
+
+        function recalculateCheckoutTotal() {
+            if (!currentCheckoutContext) return;
+            const qty = Math.max(1, parseInt(document.getElementById('checkoutQtyInput').value || '1', 10));
+            const price = parseFloat(currentCheckoutContext.stockRow.selling_price || 0);
+            const total = qty * price;
+            document.getElementById('checkoutTotalAmount').textContent = `Rs. ${total.toFixed(2)}`;
+        }
+
+        function selectPaymentMethod(method) {
+            selectedPaymentMethod = method;
+            const tabCard = document.getElementById('payTabCard');
+            const tabBank = document.getElementById('payTabBank');
+            const cardSec = document.getElementById('cardPaymentSection');
+            const bankSec = document.getElementById('bankPaymentSection');
+
+            if (method === 'CARD') {
+                tabCard.className = "p-3.5 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-3";
+                tabBank.className = "p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-3";
+                cardSec.classList.remove('hidden');
+                bankSec.classList.add('hidden');
+            } else {
+                tabBank.className = "p-3.5 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-3";
+                tabCard.className = "p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-3";
+                bankSec.classList.remove('hidden');
+                cardSec.classList.add('hidden');
+            }
+        }
+
+        async function submitPharmacyOrder(event) {
+            event.preventDefault();
+            if (!currentCheckoutContext) return;
+
+            const custName = document.getElementById('custName').value.trim();
+            const custPhone = document.getElementById('custPhone').value.trim();
+            const qty = Math.max(1, parseInt(document.getElementById('checkoutQtyInput').value || '1', 10));
+
+            let paymentLabel = '';
+            if (selectedPaymentMethod === 'CARD') {
+                const cardNo = document.getElementById('cardNumberInput').value.trim();
+                if (cardNo.length < 4) {
+                    showToast("Card Verification", "Please enter a valid card number to complete payment.", "warning");
+                    return;
+                }
+                paymentLabel = `Card Payment (••• ${cardNo.slice(-4)})`;
+            } else {
+                const bankName = document.getElementById('bankNameSelect').value;
+                const bankRef = document.getElementById('bankRefInput').value.trim();
+                if (!bankRef) {
+                    showToast("Bank Reference Required", "Please provide your Bank Transfer Reference / Slip No.", "warning");
+                    return;
+                }
+                paymentLabel = `Bank Transaction (${bankName} - Ref: ${bankRef})`;
+            }
+
+            const { stockRow, pharmacy } = currentCheckoutContext;
+            const unitPrice = parseFloat(stockRow.selling_price || 0);
+            const unitCost = parseFloat(stockRow.unit_cost || (unitPrice * 0.75));
+            const totalAmount = qty * unitPrice;
+            const profitAmount = (unitPrice - unitCost) * qty;
+            const invoiceNo = `INV-${Math.floor(100000 + Math.random() * 900000)}`;
+
+            // 1. Decrement GRN stock quantity locally
+            stockRow.current_quantity = Math.max(0, Number(stockRow.current_quantity) - qty);
+
+            // 2. Push update to live Supabase
+            try {
+                await supabaseClient
+                    .from('grn_stock')
+                    .update({ current_quantity: stockRow.current_quantity })
+                    .eq('id', stockRow.id);
+
+                await supabaseClient
+                    .from('sales_transactions')
+                    .insert([{
+                        pharmacy_id: pharmacy.id,
+                        invoice_no: invoiceNo,
+                        counter_name: `Web (${paymentLabel})`,
+                        cashier_username: `${custName} (${custPhone})`,
+                        medicine_name: stockRow.medicine_name,
+                        quantity_sold: qty,
+                        unit_cost: unitCost,
+                        unit_price: unitPrice,
+                        total_amount: totalAmount,
+                        profit_amount: profitAmount
+                    }]);
+            } catch (e) {
+                console.warn("Live Supabase write notice:", e);
+            }
+
+            salesTransactionsTable.unshift({
+                id: `tx-${Date.now()}`,
+                pharmacy_id: pharmacy.id,
+                pharmacy_name: pharmacy.pharmacy_name,
+                invoice_no: invoiceNo,
+                counter_name: `Web (${paymentLabel})`,
+                cashier_username: custName,
+                medicine_name: stockRow.medicine_name,
+                quantity_sold: qty,
+                unit_cost: unitCost.toFixed(2),
+                unit_price: unitPrice.toFixed(2),
+                total_amount: totalAmount.toFixed(2),
+                profit_amount: profitAmount.toFixed(2),
+                sold_at: new Date().toLocaleString()
+            });
+
+            updateOrdersBadge();
+            closeCheckoutModal();
+            applyFiltersAndRender();
+            renderCategorySidebar();
+            showToast(
+                `Order Confirmed (${invoiceNo})`,
+                `Purchased ${qty}x ${stockRow.medicine_name} from ${pharmacy.pharmacy_name}.`,
+                "success"
+            );
+            openOrdersModal();
+        }
+
+        function updateOrdersBadge() {
+            const count = salesTransactionsTable.length;
+            document.getElementById('orderCountBadge').textContent = count;
+            const sidebarBadge = document.getElementById('sidebarOrderBadge');
+            if (sidebarBadge) sidebarBadge.textContent = count;
+        }
+
+        function openOrdersModal() {
+            const container = document.getElementById('ordersListContainer');
+            if (salesTransactionsTable.length === 0) {
+                container.innerHTML = `<p class="text-sm text-slate-500 text-center py-6">No pharmacy orders recorded yet.</p>`;
+            } else {
+                container.innerHTML = salesTransactionsTable.map(tx => {
+                    const pharm = pharmaciesTable.find(p => p.id === tx.pharmacy_id);
+                    const pharmName = tx.pharmacy_name || (pharm ? pharm.pharmacy_name : 'Registered Pharmacy');
+                    return `
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-extrabold px-2 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200">${tx.invoice_no || 'INV'}</span>
+                                    <span class="text-xs font-bold text-slate-800">${pharmName}</span>
+                                    <span class="text-[11px] text-slate-400">• ${tx.sold_at ? new Date(tx.sold_at).toLocaleString() : 'Just now'}</span>
+                                </div>
+                                <h4 class="text-sm font-extrabold text-slate-900 mt-1">${tx.medicine_name} (Qty: ${tx.quantity_sold})</h4>
+                                <p class="text-xs text-slate-500 mt-0.5"><i class="fa-solid fa-credit-card text-teal-600 mr-1"></i>${tx.counter_name || 'Direct Pharmacy Checkout'}</p>
+                            </div>
+                            <div class="text-left sm:text-right">
+                                <span class="text-[10px] uppercase font-bold text-slate-400 block">Total Paid</span>
+                                <span class="text-lg font-extrabold text-brand-700">Rs. ${parseFloat(tx.total_amount || 0).toFixed(2)}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+            document.getElementById('ordersModal').classList.remove('hidden');
+        }
+
+        function closeOrdersModal() {
+            document.getElementById('ordersModal').classList.add('hidden');
+        }
+
+        // ---------------------------------------------------------
+        // 12. RENDER REGISTERED PHARMACIES DIRECTORY WITH GOOGLE MAPS
+        // ---------------------------------------------------------
+        function renderPharmaciesDirectory() {
+            const container = document.getElementById('pharmaciesDirectoryGrid');
+            const ranked = pharmaciesTable.map(p => ({
+                ...p,
+                distanceKm: calculateDistanceKm(
+                    userLocation.lat,
+                    userLocation.lng,
+                    p.latitude,
+                    p.longitude
+                )
+            })).sort((a, b) => a.distanceKm - b.distanceKm);
+
+            if (ranked.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 col-span-full">Loading registered pharmacies from Supabase...</p>`;
+                return;
+            }
+
+            container.innerHTML = ranked.map((p, idx) => {
+                const mapsUrl = buildGoogleMapsDirectionsUrl(p);
+                return `
+                    <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/40 border border-slate-200 transition flex flex-col justify-between gap-3">
+                        <div class="flex items-center gap-3.5">
+                            <img src="${p.image_url || ''}"
+                                 onerror="this.src='https://placehold.co/100x100/0d9488/ffffff?text=${encodeURIComponent(p.pharmacy_name || 'P')}'"
+                                 alt="${p.pharmacy_name}" class="w-14 h-14 rounded-2xl object-cover border border-slate-300 flex-shrink-0">
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center justify-between gap-1">
+                                    <h4 class="text-sm font-extrabold text-slate-900 truncate">#${idx + 1} ${p.pharmacy_name}</h4>
+                                    <span class="text-[11px] font-bold text-teal-700 bg-teal-100 px-2 py-0.5 rounded-md flex-shrink-0">
+                                        ${p.distanceKm.toFixed(2)} km
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-600 truncate">${p.address || ''}${p.address && p.city ? ', ' : ''}${p.city || ''}</p>
+                                <div class="flex items-center justify-between text-[11px] text-slate-500 mt-1">
+                                    <span><i class="fa-solid fa-phone text-teal-600 mr-1"></i>${p.phone || 'N/A'}</span>
+                                    <span>Lic: ${p.license_no || 'N/A'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
+                           class="w-full py-2 px-3 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+                            <i class="fa-solid fa-map-location-dot"></i>
+                            <span>Find on Google Maps</span>
+                        </a>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ---------------------------------------------------------
+        // 13. NAVIGATION (HOME, ABOUT US, SUPPORT)
+        // ---------------------------------------------------------
+        function switchView(view) {
+            const homeView = document.getElementById('homeView');
+            const aboutView = document.getElementById('aboutView');
+            const navHomeBtn = document.getElementById('navHomeBtn');
+            const navAboutBtn = document.getElementById('navAboutBtn');
+
+            if (view === 'about') {
+                homeView.classList.add('hidden');
+                aboutView.classList.remove('hidden');
+                navAboutBtn.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-brand-600 text-white shadow-md shadow-brand-600/30";
+                navHomeBtn.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-700/60 transition flex items-center gap-2";
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                aboutView.classList.add('hidden');
+                homeView.classList.remove('hidden');
+                navHomeBtn.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-brand-600 text-white shadow-md shadow-brand-600/30";
+                navAboutBtn.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-700/60 transition flex items-center gap-2";
+            }
+        }
+
+        function scrollToSupport(event) {
+            if (event) event.preventDefault();
+            const footerEl = document.getElementById('footer-support');
+            const box = document.getElementById('supportHighlightBox');
+            footerEl.scrollIntoView({ behavior: 'smooth' });
+            box.classList.add('ring-4', 'ring-amber-400');
+            setTimeout(() => box.classList.remove('ring-4', 'ring-amber-400'), 2500);
+        }
+
+        // ---------------------------------------------------------
+        // 14. TOAST NOTIFICATION HELPER
+        // ---------------------------------------------------------
+        let toastTimer = null;
+        function showToast(title, message) {
+            const toast = document.getElementById('toastNotification');
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.remove('hidden');
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 4500);
+        }
+
+        // ---------------------------------------------------------
+        // 15. INITIALIZE ON PAGE LOAD
+        // ---------------------------------------------------------
+        window.addEventListener('DOMContentLoaded', () => {
+            renderCategorySidebar();
+            fetchLiveSupabaseData();
+        });
+    </script>
+</body>
+</html>
