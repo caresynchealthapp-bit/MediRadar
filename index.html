@@ -61,7 +61,6 @@
             background: #475569;
             border-radius: 9999px;
         }
-        /* Smooth Gemini-style collapsible sidebar */
         #geminiSidebar {
             transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -98,7 +97,7 @@
     <aside id="geminiSidebar" class="sidebar-expanded bg-gemdark-900 text-slate-200 flex-shrink-0 flex flex-col border-r border-slate-800/80 select-none z-40 sticky top-0 h-screen">
         <div class="w-[280px] flex flex-col h-full">
             
-            <!-- Top Brand & Collapse Icon Row (Matches Gemini Screenshot) -->
+            <!-- Top Brand & Collapse Icon Row -->
             <div class="px-4 py-4 flex items-center justify-between border-b border-white/5">
                 <a href="#" onclick="switchView('home'); return false;" class="flex items-center space-x-2.5">
                     <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-500 via-teal-400 to-emerald-300 flex items-center justify-center shadow-md">
@@ -116,7 +115,7 @@
                 </div>
             </div>
 
-            <!-- Quick Action Items (Gemini top menu style) -->
+            <!-- Quick Action Items -->
             <div class="px-3 pt-3 pb-2 space-y-1">
                 <button onclick="resetAllFilters(); switchView('home');"
                     class="w-full flex items-center space-x-3.5 px-4 py-2.5 rounded-full text-sm font-medium text-slate-200 hover:bg-gemdark-800 transition">
@@ -128,11 +127,19 @@
                     <i class="fa-solid fa-location-crosshairs text-amber-400 w-4 text-center"></i>
                     <span>Locate Nearest 5</span>
                 </button>
+                <button onclick="openCartModal()"
+                    class="w-full flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-medium text-slate-200 hover:bg-gemdark-800 transition">
+                    <div class="flex items-center space-x-3.5">
+                        <i class="fa-solid fa-cart-shopping text-emerald-400 w-4 text-center"></i>
+                        <span>My Shopping Cart</span>
+                    </div>
+                    <span id="sidebarCartBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gemdark-700 text-emerald-300">0</span>
+                </button>
                 <button onclick="openOrdersModal()"
                     class="w-full flex items-center justify-between px-4 py-2.5 rounded-full text-sm font-medium text-slate-200 hover:bg-gemdark-800 transition">
                     <div class="flex items-center space-x-3.5">
                         <i class="fa-solid fa-receipt text-teal-400 w-4 text-center"></i>
-                        <span>My Receipts</span>
+                        <span>My Orders & Receipts</span>
                     </div>
                     <span id="sidebarOrderBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-gemdark-700 text-brand-300">0</span>
                 </button>
@@ -143,12 +150,12 @@
                 <i class="fa-solid fa-filter text-xs text-slate-500"></i>
             </div>
 
-            <!-- Scrollable Categories List (Styled like Gemini rounded pill items) -->
+            <!-- Scrollable Categories List -->
             <div id="categoryListContainer" class="flex-1 overflow-y-auto px-3 space-y-1 pb-6">
                 <!-- Populated dynamically via JS -->
             </div>
 
-            <!-- Subtle Live Database Connection Indicator at Bottom of Sidebar -->
+            <!-- Subtle Live Database Connection Indicator -->
             <div class="p-3.5 border-t border-white/5 bg-gemdark-800/50 text-[11px] text-slate-400 flex items-center justify-between">
                 <div class="flex items-center space-x-2 truncate">
                     <span id="dbStatusDot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0"></span>
@@ -166,7 +173,7 @@
     <!-- ===================================================== -->
     <div class="flex-1 flex flex-col min-w-0 min-h-screen">
 
-        <!-- Sticky Eye-Catching Header (No LK, No Configure Keys, No Top Phone Bar) -->
+        <!-- Sticky Eye-Catching Header -->
         <header class="sticky top-0 z-30 bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white shadow-xl border-b border-teal-800/60">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5">
                 <div class="flex flex-wrap items-center justify-between gap-4">
@@ -210,19 +217,37 @@
                         </button>
                     </nav>
 
-                    <!-- Right: Fetch Current Location Button & Orders Summary -->
+                    <!-- Right: Location, Account, Cart & My Orders Buttons -->
                     <div class="flex items-center space-x-2.5">
+                        <!-- Fetch GPS Button -->
                         <button id="fetchLocationBtn" onclick="fetchUserLocation()"
-                            class="relative flex items-center space-x-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-lg shadow-amber-500/20 transition transform active:scale-95">
-                            <span class="w-2.5 h-2.5 rounded-full bg-slate-950 gps-pulse"></span>
-                            <i class="fa-solid fa-location-crosshairs text-base"></i>
-                            <div class="text-left leading-tight">
-                                <span id="locationBtnTitle" class="block text-xs font-extrabold">Fetch My Location</span>
-                                <span id="locationCoordsBadge" class="block text-[10px] font-semibold opacity-85">Moratuwa (6.7965, 79.9005)</span>
+                            class="relative flex items-center space-x-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-lg shadow-amber-500/20 transition transform active:scale-95">
+                            <span class="w-2 h-2 rounded-full bg-slate-950 gps-pulse"></span>
+                            <i class="fa-solid fa-location-crosshairs text-sm"></i>
+                            <div class="text-left leading-tight hidden sm:block">
+                                <span id="locationBtnTitle" class="block text-[11px] font-extrabold">Fetch My Location</span>
+                                <span id="locationCoordsBadge" class="block text-[9px] font-semibold opacity-85">Moratuwa (6.7965, 79.9005)</span>
                             </div>
                         </button>
 
-                        <button onclick="openOrdersModal()" title="View Recent Pharmacy Purchases"
+                        <!-- Customer Account / Register Button -->
+                        <button onclick="openCustomerAccountModal()" id="headerAccountBtn"
+                            class="flex items-center space-x-2 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-200 border border-slate-700 text-xs font-bold transition">
+                            <i class="fa-solid fa-user-check text-brand-400"></i>
+                            <span id="headerAccountLabel">Sign In / Register</span>
+                        </button>
+
+                        <!-- Shopping Cart Button -->
+                        <button onclick="openCartModal()" title="View Shopping Cart"
+                            class="relative p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 transition">
+                            <i class="fa-solid fa-cart-shopping text-lg"></i>
+                            <span id="cartCountBadge" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-extrabold flex items-center justify-center shadow">
+                                0
+                            </span>
+                        </button>
+
+                        <!-- My Orders / Receipts Button -->
+                        <button onclick="openOrdersModal()" title="View My Orders & Receipts"
                             class="relative p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-200 border border-slate-700 transition">
                             <i class="fa-solid fa-receipt text-lg"></i>
                             <span id="orderCountBadge" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center shadow">
@@ -254,7 +279,7 @@
                             Find Your Medicine & Locate the <span class="text-brand-300 underline decoration-amber-400/80 decoration-wavy underline-offset-4">Nearest 5 Pharmacies</span>
                         </h1>
                         <p class="text-xs sm:text-sm text-teal-100/80">
-                            Search real-time pharmacy GRN inventory, filter by category, city, supplier, or price, get instant Google Maps directions, and buy directly from pharmacies.
+                            Search real-time pharmacy GRN inventory, add medicines to your cart, upload bank transfer receipts for live cashier approval, or pay by card.
                         </p>
                     </div>
 
@@ -297,7 +322,7 @@
                                 </select>
                             </div>
 
-                            <!-- Filter 2: Pharmacy City (Populated dynamically from DB) -->
+                            <!-- Filter 2: Pharmacy City -->
                             <div>
                                 <label class="block text-[10px] font-bold uppercase tracking-wider text-teal-300 mb-1">
                                     <i class="fa-solid fa-city mr-1"></i> Pharmacy City
@@ -308,7 +333,7 @@
                                 </select>
                             </div>
 
-                            <!-- Filter 3: Supplier / Manufacturer (Populated dynamically from DB) -->
+                            <!-- Filter 3: Supplier / Manufacturer -->
                             <div>
                                 <label class="block text-[10px] font-bold uppercase tracking-wider text-teal-300 mb-1">
                                     <i class="fa-solid fa-truck-medical mr-1"></i> Supplier / Manufacturer
@@ -319,7 +344,7 @@
                                 </select>
                             </div>
 
-                            <!-- Filter 4: Raised Max Price Slider (Up to Rs. 25,000+) -->
+                            <!-- Filter 4: Raised Max Price Slider -->
                             <div>
                                 <div class="flex justify-between text-[10px] font-bold uppercase tracking-wider text-teal-300 mb-1">
                                     <span><i class="fa-solid fa-tags mr-1"></i> Max Price</span>
@@ -362,9 +387,8 @@
                         </p>
                     </div>
 
-                    <div class="flex items-center gap-2 text-xs text-slate-500">
-                        <i class="fa-solid fa-credit-card text-teal-600"></i>
-                        <span>Pharmacy-Direct Checkout: <strong>Card</strong> or <strong>Bank Transfer</strong> Only</span>
+                    <div class="flex items-center gap-3 text-xs text-slate-500">
+                        <span><i class="fa-solid fa-cart-plus text-emerald-600 mr-1"></i>Add to Cart or Direct Pharmacy Checkout</span>
                     </div>
                 </div>
 
@@ -456,7 +480,7 @@
                         </div>
                         <h3 class="text-base font-bold text-slate-900 mb-2">Live Supabase GRN Stock</h3>
                         <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                            Powered by a relational PostgreSQL schema on Supabase (<code>pharmacies</code>, <code>medicines</code>, <code>grn_stock</code>, <code>pharmacy_staff</code>, and <code>sales_transactions</code>). Customers see verified batch numbers, expiry dates, rack locations, and real-time unit quantities.
+                            Powered by a relational PostgreSQL schema on Supabase (<code>pharmacies</code>, <code>medicines</code>, <code>grn_stock</code>, <code>customer_orders</code>, and <code>sales_transactions</code>). Customers see verified batch numbers, expiry dates, rack locations, and real-time unit quantities.
                         </p>
                     </div>
 
@@ -464,9 +488,9 @@
                         <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl mb-4">
                             <i class="fa-solid fa-building-columns"></i>
                         </div>
-                        <h3 class="text-base font-bold text-slate-900 mb-2">Pharmacy-Direct Card & Bank Pay</h3>
+                        <h3 class="text-base font-bold text-slate-900 mb-2">Receipt Upload & Cashier Sync</h3>
                         <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                            Medicines are purchased exclusively from licensed pharmacies using secure <strong>Card Payments (Visa/MasterCard)</strong> or <strong>Direct Bank Transactions</strong>. Each order generates an instant official invoice and updates stock levels immediately.
+                            Customers can purchase via <strong>Card Payment</strong> or upload their <strong>Bank Transfer Receipt</strong> directly to Supabase Storage. The pharmacy POS Cashier reviews the slip and approves it in real time, notifying the customer immediately.
                         </p>
                     </div>
                 </div>
@@ -480,7 +504,7 @@
                                 Meet Group <span class="text-brand-600">Codecrafters</span>
                             </h2>
                             <p class="text-xs sm:text-sm text-slate-500 mt-1">
-                                Dedicated engineering team behind the MediRadar Supabase Ecosystem & Customer Portal.
+                                Dedicated engineering team behind the MediRadar & PharmaConnect Supabase Ecosystem.
                             </p>
                         </div>
                         <div class="flex items-center gap-3 bg-slate-900 text-white px-4 py-3 rounded-2xl">
@@ -492,7 +516,6 @@
                         </div>
                     </div>
 
-                    <!-- Team Member ID Cards Grid -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-6">
                         <div class="p-4 rounded-2xl bg-gradient-to-br from-teal-50 to-white border-2 border-teal-500/40 shadow-sm flex flex-col justify-between">
                             <div class="flex items-center justify-between mb-3">
@@ -506,7 +529,7 @@
                             </div>
                         </div>
 
-                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
                             <div class="flex items-center justify-between mb-3">
                                 <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">02</span>
                                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
@@ -518,7 +541,7 @@
                             </div>
                         </div>
 
-                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
                             <div class="flex items-center justify-between mb-3">
                                 <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">03</span>
                                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
@@ -530,7 +553,7 @@
                             </div>
                         </div>
 
-                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
                             <div class="flex items-center justify-between mb-3">
                                 <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">04</span>
                                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
@@ -542,7 +565,7 @@
                             </div>
                         </div>
 
-                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
                             <div class="flex items-center justify-between mb-3">
                                 <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">05</span>
                                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
@@ -554,7 +577,7 @@
                             </div>
                         </div>
 
-                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
                             <div class="flex items-center justify-between mb-3">
                                 <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">06</span>
                                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
@@ -566,7 +589,7 @@
                             </div>
                         </div>
 
-                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
                             <div class="flex items-center justify-between mb-3">
                                 <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">07</span>
                                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
@@ -578,7 +601,7 @@
                             </div>
                         </div>
 
-                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
                             <div class="flex items-center justify-between mb-3">
                                 <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">08</span>
                                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
@@ -590,7 +613,7 @@
                             </div>
                         </div>
 
-                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
                             <div class="flex items-center justify-between mb-3">
                                 <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">09</span>
                                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
@@ -602,7 +625,7 @@
                             </div>
                         </div>
 
-                        <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 border border-slate-200 transition flex flex-col justify-between">
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
                             <div class="flex items-center justify-between mb-3">
                                 <span class="w-9 h-9 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center justify-center">10</span>
                                 <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Codecrafters</span>
@@ -621,12 +644,10 @@
 
         <!-- ========================================== -->
         <!-- PROFESSIONAL FOOTER WITH SUPPORT SECTION   -->
-        <!-- (Two Phone Numbers & One Official Email)   -->
         <!-- ========================================== -->
         <footer id="footer-support" class="bg-slate-950 text-slate-300 border-t-4 border-brand-600 mt-auto">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 py-12">
                 
-                <!-- Dedicated Support Highlight Banner inside Footer -->
                 <div id="supportHighlightBox" class="bg-gradient-to-r from-teal-950 via-slate-900 to-teal-950 rounded-3xl p-6 sm:p-8 border border-teal-700/60 shadow-xl mb-10 transition-all duration-500">
                     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                         <div>
@@ -641,7 +662,6 @@
                             </p>
                         </div>
 
-                        <!-- Two Phone Numbers and One Email Cards -->
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 flex-shrink-0">
                             <a href="tel:+94766260341" class="bg-slate-900/90 hover:bg-slate-800 p-4 rounded-2xl border border-teal-800/80 transition flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-xl bg-brand-500/20 text-brand-400 flex items-center justify-center text-lg flex-shrink-0">
@@ -710,8 +730,8 @@
                         <ul class="space-y-2 text-slate-400">
                             <li><a href="#" onclick="switchView('home'); return false;" class="hover:text-brand-400 transition">Home & Medicine Search</a></li>
                             <li><a href="#" onclick="switchView('about'); return false;" class="hover:text-brand-400 transition">About Us & Team Codecrafters</a></li>
-                            <li><a href="#" onclick="fetchUserLocation(); return false;" class="hover:text-brand-400 transition">Fetch Current GPS Location</a></li>
-                            <li><a href="#" onclick="openOrdersModal(); return false;" class="hover:text-brand-400 transition">My Pharmacy Purchase Receipts</a></li>
+                            <li><a href="#" onclick="openCartModal(); return false;" class="hover:text-brand-400 transition">My Shopping Cart</a></li>
+                            <li><a href="#" onclick="openOrdersModal(); return false;" class="hover:text-brand-400 transition">My Orders & Receipts</a></li>
                         </ul>
                     </div>
 
@@ -767,7 +787,6 @@
     <div id="nearestPharmaciesModal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
             
-            <!-- Modal Header -->
             <div class="bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white p-5 sm:p-6 flex items-start justify-between gap-4">
                 <div class="flex items-center gap-3.5">
                     <div class="w-12 h-12 rounded-2xl bg-brand-500/20 border border-brand-400/40 flex items-center justify-center text-brand-300 text-xl flex-shrink-0">
@@ -790,27 +809,225 @@
                 </button>
             </div>
 
-            <!-- Modal Body: List of Nearest 5 Pharmacies -->
-            <div class="p-5 sm:p-6 max-h-[70vh] overflow-y-auto space-y-4 bg-slate-50" id="nearestPharmaciesList">
-                <!-- Populated dynamically via JS -->
-            </div>
+            <div class="p-5 sm:p-6 max-h-[70vh] overflow-y-auto space-y-4 bg-slate-50" id="nearestPharmaciesList"></div>
 
-            <!-- Modal Footer -->
             <div class="bg-white px-6 py-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
                 <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-map-location-dot text-teal-600 text-base"></i>
-                    <span>Click <strong>Find on Google Maps</strong> next to any pharmacy to get turn-by-turn directions from your location.</span>
+                    <i class="fa-solid fa-cart-shopping text-teal-600 text-base"></i>
+                    <span>Add items to your <strong>Shopping Cart</strong> or click <strong>Buy Now</strong> to checkout from that pharmacy.</span>
                 </div>
-                <button onclick="closeNearestModal()" class="px-5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold transition">
-                    Close Window
-                </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="closeNearestModal(); openCartModal();" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition">
+                        <i class="fa-solid fa-cart-shopping mr-1"></i> View Cart
+                    </button>
+                    <button onclick="closeNearestModal()" class="px-5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold transition">
+                        Close Window
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- ========================================== -->
-    <!-- MODAL 2: PHARMACY-DIRECT CHECKOUT MODAL    -->
-    <!-- (Card or Bank Transaction Only)            -->
+    <!-- MODAL 2: SHOPPING CART MODAL (WITH REMOVE) -->
+    <!-- ========================================== -->
+    <div id="cartModal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
+            <div class="bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white p-5 sm:p-6 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-extrabold">Your MediRadar Shopping Cart</h3>
+                        <p class="text-xs text-teal-200">Review selected medicines, adjust quantities, or remove items before checkout</p>
+                    </div>
+                </div>
+                <button onclick="closeCartModal()" class="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div id="cartItemsContainer" class="p-5 sm:p-6 max-h-[60vh] overflow-y-auto space-y-3 bg-slate-50">
+                <!-- Populated dynamically via JS -->
+            </div>
+
+            <div class="bg-white p-5 sm:p-6 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <span class="text-[11px] font-bold uppercase text-slate-400 block">Combined Cart Total</span>
+                    <span id="cartTotalDisplay" class="text-2xl font-extrabold text-slate-900">Rs. 0.00</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button type="button" onclick="clearEntireCart()" class="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition">
+                        <i class="fa-solid fa-trash-can mr-1"></i> Clear Cart
+                    </button>
+                    <button type="button" onclick="proceedFromCartToCheckout()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-brand-600 to-teal-700 hover:from-brand-500 hover:to-teal-600 text-white text-xs sm:text-sm font-extrabold shadow-lg transition flex items-center gap-2">
+                        <i class="fa-solid fa-lock"></i>
+                        <span>Proceed to Checkout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 3: CUSTOMER REGISTRATION / PROFILE   -->
+    <!-- ========================================== -->
+    <div id="customerAccountModal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
+            <div class="bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white p-5 sm:p-6 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-brand-500/20 border border-brand-400/40 text-brand-300 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-user-shield"></i>
+                    </div>
+                    <div>
+                        <h3 id="accountModalTitle" class="text-lg font-extrabold">Customer Account & Saved Payment Details</h3>
+                        <p class="text-xs text-teal-200">Register or sign in once — your address, bank & card details auto-fill at checkout</p>
+                    </div>
+                </div>
+                <button onclick="closeCustomerAccountModal()" class="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Mode Tabs: Register / Edit Profile vs Sign In -->
+            <div id="authModeTabs" class="bg-slate-100 p-2 flex gap-2 border-b border-slate-200">
+                <button type="button" id="tabRegisterMode" onclick="switchAuthTab('REGISTER')"
+                    class="flex-1 py-2 rounded-xl text-xs font-extrabold bg-white text-slate-900 shadow-sm transition">
+                    <i class="fa-solid fa-user-plus mr-1 text-brand-600"></i> New Customer Registration
+                </button>
+                <button type="button" id="tabLoginMode" onclick="switchAuthTab('LOGIN')"
+                    class="flex-1 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 transition">
+                    <i class="fa-solid fa-right-to-bracket mr-1"></i> Returning Customer Sign In
+                </button>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <form id="customerLoginForm" onsubmit="handleCustomerLogin(event)" class="hidden p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Registered Email Address *</label>
+                    <input id="loginEmailInput" type="email" required placeholder="customer@email.com"
+                        class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-600">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Account Password *</label>
+                    <input id="loginPasswordInput" type="password" required placeholder="Enter your password"
+                        class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-600">
+                </div>
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeCustomerAccountModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Cancel</button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-extrabold shadow">
+                        Sign In to MediRadar
+                    </button>
+                </div>
+            </form>
+
+            <!-- REGISTER / UPDATE PROFILE FORM -->
+            <form id="customerProfileForm" onsubmit="handleSaveCustomerProfile(event)" class="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Full Name *</label>
+                        <input id="profFullName" type="text" required placeholder="e.g., Anuhas Nimasara"
+                            class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Email Address *</label>
+                        <input id="profEmail" type="email" required placeholder="e.g., customer@gmail.com"
+                            class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-600">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Account Password *</label>
+                        <input id="profPassword" type="password" required minlength="4" placeholder="Create password"
+                            class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Phone Number *</label>
+                        <input id="profPhone" type="tel" required placeholder="e.g., +94 76 626 0341"
+                            class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-600">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Delivery / Home Address *</label>
+                    <input id="profAddress" type="text" required placeholder="e.g., No. 45, Willorawatta, Moratuwa"
+                        class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-600">
+                </div>
+
+                <!-- Customer Bank Account Details -->
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <div class="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                        <i class="fa-solid fa-building-columns text-teal-600 mr-1"></i> Your Bank Account Details (Required for Bank Transfers)
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Your Bank Name *</label>
+                            <select id="profBankName" class="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 bg-white">
+                                <option value="Bank of Ceylon (BOC)">Bank of Ceylon (BOC)</option>
+                                <option value="Commercial Bank">Commercial Bank of Ceylon</option>
+                                <option value="Sampath Bank">Sampath Bank</option>
+                                <option value="Hatton National Bank (HNB)">Hatton National Bank (HNB)</option>
+                                <option value="People's Bank">People's Bank</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Your Bank Account Number *</label>
+                            <input id="profBankAccountNo" type="text" required placeholder="e.g., 8001234567"
+                                class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Optional Visa / MasterCard Details -->
+                <div class="bg-teal-50/50 p-4 rounded-2xl border border-teal-200/80 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-extrabold text-teal-950 uppercase tracking-wider">
+                            <i class="fa-regular fa-credit-card text-brand-600 mr-1"></i> Saved Visa / MasterCard Details (Optional - Auto-Fills Card Checkout)
+                        </span>
+                        <div class="flex gap-1.5 text-base">
+                            <i class="fa-brands fa-cc-visa text-blue-700"></i>
+                            <i class="fa-brands fa-cc-mastercard text-orange-600"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Card Number (Optional)</label>
+                        <input id="profCardNumber" type="text" maxlength="19" placeholder="4532 8891 2210 4491"
+                            class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Expiry Date (MM/YY)</label>
+                            <input id="profCardExpiry" type="text" maxlength="5" placeholder="08/29"
+                                class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">CVV / CVC</label>
+                            <input id="profCardCvv" type="password" maxlength="4" placeholder="123"
+                                class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex flex-wrap items-center justify-between gap-3">
+                    <button type="button" id="logoutCustomerBtn" onclick="logoutCustomer()" class="hidden px-4 py-2.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold">
+                        <i class="fa-solid fa-right-from-bracket mr-1"></i> Sign Out
+                    </button>
+                    <div class="flex items-center gap-2 ml-auto">
+                        <button type="button" onclick="closeCustomerAccountModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Cancel</button>
+                        <button type="submit" id="saveProfileSubmitBtn" class="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-extrabold shadow">
+                            Save Customer Account
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 4: PHARMACY-DIRECT CHECKOUT MODAL    -->
+    <!-- (Auto-filled from Customer Profile + Edit) -->
     <!-- ========================================== -->
     <div id="checkoutModal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
@@ -823,7 +1040,7 @@
                     </div>
                     <div>
                         <h3 class="text-lg font-extrabold">Direct Pharmacy Purchase Checkout</h3>
-                        <p class="text-xs text-teal-200">Official Pharmacy Billing • Card or Bank Transaction Only</p>
+                        <p class="text-xs text-teal-200">Official Pharmacy Billing • Card or Bank Receipt Upload</p>
                     </div>
                 </div>
                 <button onclick="closeCheckoutModal()" class="text-slate-300 hover:text-white p-2 rounded-xl bg-white/10">
@@ -832,48 +1049,48 @@
             </div>
 
             <!-- Form Body -->
-            <form id="checkoutForm" onsubmit="submitPharmacyOrder(event)" class="p-5 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+            <form id="checkoutForm" onsubmit="submitPharmacyOrder(event)" class="p-5 sm:p-6 space-y-5 max-h-[82vh] overflow-y-auto">
                 
-                <!-- Selected Pharmacy & Medicine Summary Box -->
-                <div class="bg-teal-50/70 border border-teal-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-teal-700 block">Purchasing Directly From Pharmacy</span>
-                        <h4 id="checkoutPharmacyName" class="text-base font-extrabold text-slate-900">Araliya Pharmacy</h4>
-                        <p id="checkoutPharmacyMeta" class="text-xs text-slate-600 mt-0.5">License: 54956262 • Rack C-04 • Batch: BTH-904D</p>
-                        <div class="mt-2 pt-2 border-t border-teal-200/70">
-                            <span id="checkoutMedicineName" class="text-sm font-bold text-teal-950">Salbutamol Inhaler 100mcg</span>
-                            <span id="checkoutUnitPriceLabel" class="text-xs font-semibold text-teal-700 ml-2">(Rs. 690.00 / unit)</span>
-                        </div>
+                <!-- Order Items Summary inside Checkout -->
+                <div class="bg-teal-50/70 border border-teal-200 rounded-2xl p-4 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-teal-700">Purchasing Directly From Pharmacy</span>
+                        <span id="checkoutItemsCountBadge" class="text-xs font-bold text-teal-800 bg-teal-100 px-2.5 py-0.5 rounded-full">1 Item</span>
                     </div>
-
-                    <!-- Quantity Selector -->
-                    <div class="bg-white p-3 rounded-xl border border-teal-200 text-center flex-shrink-0">
-                        <label class="block text-[10px] font-bold uppercase text-slate-500 mb-1">Quantity</label>
-                        <div class="flex items-center justify-center gap-2">
-                            <button type="button" onclick="adjustCheckoutQty(-1)" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 font-bold text-slate-700">-</button>
-                            <input id="checkoutQtyInput" type="number" min="1" max="10" value="1" onchange="recalculateCheckoutTotal()"
-                                class="w-12 text-center font-extrabold text-sm text-slate-900 border border-slate-200 rounded-lg py-1">
-                            <button type="button" onclick="adjustCheckoutQty(1)" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 font-bold text-slate-700">+</button>
-                        </div>
-                        <span id="checkoutMaxStockNote" class="block text-[10px] text-emerald-600 font-medium mt-1">Available</span>
+                    <h4 id="checkoutPharmacyName" class="text-base font-extrabold text-slate-900">Araliya Pharmacy</h4>
+                    <div id="checkoutOrderItemsList" class="space-y-1.5 pt-2 border-t border-teal-200/70 text-xs text-slate-700">
+                        <!-- Populated dynamically -->
                     </div>
                 </div>
 
-                <!-- Customer Information -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Patient / Customer Full Name *</label>
-                        <input id="custName" type="text" required placeholder="e.g., Kasun Perera"
-                            class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-600">
+                <!-- Editable Customer Delivery & Contact Details (Auto-filled from profile) -->
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                            <i class="fa-solid fa-truck-fast text-brand-600 mr-1"></i> Customer & Delivery Details (Editable for this Order)
+                        </span>
+                        <button type="button" onclick="openCustomerAccountModal()" class="text-[11px] font-bold text-brand-600 hover:underline">
+                            Edit Saved Account
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">Customer Full Name *</label>
+                            <input id="custName" type="text" required class="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">Contact Phone Number *</label>
+                            <input id="custPhone" type="tel" required class="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Contact Phone Number *</label>
-                        <input id="custPhone" type="tel" required placeholder="e.g., +94 77 123 4567"
-                            class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:border-brand-600">
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">Delivery Address *</label>
+                        <input id="custAddress" type="text" required placeholder="Enter delivery or pickup address"
+                            class="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
                     </div>
                 </div>
 
-                <!-- Payment Method Selector (Strictly Card or Bank Transaction) -->
+                <!-- Payment Method Selector -->
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-2">
                         Select Pharmacy Payment Method (Card or Bank Transaction Only) *
@@ -886,7 +1103,7 @@
                             </div>
                             <div>
                                 <div class="text-xs sm:text-sm font-extrabold text-slate-900">Card Payment</div>
-                                <div class="text-[11px] text-slate-500">Visa / MasterCard / Amex</div>
+                                <div class="text-[11px] text-slate-500">Auto-filled Visa / MasterCard</div>
                             </div>
                         </button>
 
@@ -897,16 +1114,16 @@
                             </div>
                             <div>
                                 <div class="text-xs sm:text-sm font-extrabold text-slate-900">Bank Transaction</div>
-                                <div class="text-[11px] text-slate-500">Online Transfer / CEFT</div>
+                                <div class="text-[11px] text-slate-500">Upload Slip for Cashier Review</div>
                             </div>
                         </button>
                     </div>
                 </div>
 
-                <!-- Option A: Card Payment Fields -->
+                <!-- Option A: Card Payment Fields (Auto-filled from Customer Profile & Editable) -->
                 <div id="cardPaymentSection" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-shield-halved text-teal-600 mr-1"></i> Encrypted Card Gateway</span>
+                        <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-shield-halved text-teal-600 mr-1"></i> Card Details (Auto-filled from Profile — You can edit below)</span>
                         <div class="flex gap-1.5 text-lg text-slate-600">
                             <i class="fa-brands fa-cc-visa text-blue-700"></i>
                             <i class="fa-brands fa-cc-mastercard text-orange-600"></i>
@@ -931,24 +1148,22 @@
                     </div>
                 </div>
 
-                <!-- Option B: Bank Transaction Fields -->
-                <div id="bankPaymentSection" class="hidden bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-                    <div class="bg-white p-3 rounded-xl border border-slate-200 text-xs space-y-1">
-                        <div class="font-bold text-slate-800"><i class="fa-solid fa-circle-info text-brand-600 mr-1"></i> Pharmacy Designated Bank Account:</div>
-                        <div class="text-slate-600">Bank: <strong>Bank of Ceylon (BOC) / Commercial Bank</strong></div>
-                        <div class="text-slate-600">Account Name: <strong id="bankBeneficiaryName">Pharmacy Official Account</strong></div>
-                        <div class="text-slate-600">Account Number: <strong class="font-mono text-teal-700">8490-2219-4001</strong></div>
+                <!-- Option B: Bank Transaction Fields (Live Pharmacy Bank Accounts + Receipt File Upload) -->
+                <div id="bankPaymentSection" class="hidden bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3.5">
+                    <div>
+                        <div class="text-xs font-bold text-slate-800 mb-1.5">
+                            <i class="fa-solid fa-building-columns text-brand-600 mr-1"></i> Transfer to Pharmacy Designated Bank Account(s) (From Supabase):
+                        </div>
+                        <div id="checkoutPharmacyBanksList" class="space-y-2">
+                            <!-- Dynamically populated from pharmacy_banks & pharmacies table -->
+                        </div>
                     </div>
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Your Sending Bank *</label>
-                            <select id="bankNameSelect" class="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 bg-white">
-                                <option value="Bank of Ceylon (BOC)">Bank of Ceylon (BOC)</option>
-                                <option value="Commercial Bank">Commercial Bank of Ceylon</option>
-                                <option value="Sampath Bank">Sampath Bank</option>
-                                <option value="Hatton National Bank (HNB)">Hatton National Bank (HNB)</option>
-                                <option value="People's Bank">People's Bank</option>
-                            </select>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Your Sending Bank & Account *</label>
+                            <input id="bankNameSelect" type="text" placeholder="e.g., BOC - 8001234567"
+                                class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
                         </div>
                         <div>
                             <label class="block text-[11px] font-semibold text-slate-600 mb-1">Bank Transfer Ref / Slip No *</label>
@@ -956,7 +1171,25 @@
                                 class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
                         </div>
                     </div>
+
+                    <!-- Receipt Screenshot Upload Input -->
+                    <div class="bg-white p-3.5 rounded-xl border-2 border-dashed border-teal-400">
+                        <label for="receipt-upload" class="block text-xs font-extrabold text-teal-900 mb-1 cursor-pointer">
+                            <i class="fa-solid fa-cloud-arrow-up text-brand-600 mr-1"></i> Upload Bank Payment Receipt Image (`bank_receipts`) *
+                        </label>
+                        <input type="file" id="receipt-upload" accept="image/*"
+                            class="w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100">
+                        <p class="text-[11px] text-slate-500 mt-1">
+                            Once uploaded, you can continue browsing MediRadar while the pharmacy POS Cashier reviews and approves your payment.
+                        </p>
+                    </div>
                 </div>
+
+                <!-- Save updated delivery/card details checkbox -->
+                <label class="inline-flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                    <input id="saveChangesToProfileCheckbox" type="checkbox" checked class="rounded text-brand-600">
+                    <span>Save any updated delivery address, bank, or card details to my customer profile</span>
+                </label>
 
                 <!-- Total & Submit -->
                 <div class="bg-slate-900 text-white p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4">
@@ -964,10 +1197,10 @@
                         <span class="text-[11px] text-slate-400 uppercase font-semibold block">Total Payable Amount</span>
                         <span id="checkoutTotalAmount" class="text-2xl font-extrabold text-brand-300">Rs. 0.00</span>
                     </div>
-                    <button type="submit"
+                    <button type="submit" id="submitOrderBtn"
                         class="bg-gradient-to-r from-brand-500 to-teal-500 hover:from-brand-400 hover:to-teal-400 text-slate-950 font-extrabold text-sm px-6 py-3.5 rounded-xl shadow-lg transition flex items-center gap-2">
                         <i class="fa-solid fa-circle-check"></i>
-                        <span>Complete Pharmacy Purchase</span>
+                        <span>Submit Pharmacy Order</span>
                     </button>
                 </div>
             </form>
@@ -975,33 +1208,59 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- MODAL 3: RECENT ORDERS / RECEIPTS MODAL    -->
+    <!-- MODAL 5: MY ORDERS & RECEIPTS TABLE MODAL  -->
+    <!-- (Shows ONLY this logged-in customer's rows)-->
     <!-- ========================================== -->
-    <div id="ordersModal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden">
-            <div class="bg-slate-900 text-white p-5 flex items-center justify-between">
-                <div class="flex items-center gap-2.5">
-                    <i class="fa-solid fa-file-invoice text-brand-400 text-lg"></i>
-                    <h3 class="text-base font-bold">Your Pharmacy Purchase Receipts (`sales_transactions`)</h3>
+    <div id="ordersModal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-5xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
+            <div class="bg-slate-900 text-white p-5 sm:p-6 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-file-invoice text-brand-400 text-xl"></i>
+                    <div>
+                        <h3 class="text-base sm:text-lg font-extrabold">My Online Pharmacy Orders & Live Approval Status</h3>
+                        <p id="ordersModalSubtitle" class="text-xs text-teal-300">Showing only purchases made by your registered customer account</p>
+                    </div>
                 </div>
-                <button onclick="closeOrdersModal()" class="text-slate-400 hover:text-white">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="fetchMyCustomerOrders()" class="text-xs bg-slate-800 hover:bg-slate-700 text-teal-300 px-3 py-1.5 rounded-xl border border-slate-700">
+                        <i class="fa-solid fa-arrows-rotate mr-1"></i> Refresh Status
+                    </button>
+                    <button onclick="closeOrdersModal()" class="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
             </div>
-            <div id="ordersListContainer" class="p-6 max-h-[65vh] overflow-y-auto space-y-3 bg-slate-50">
-                <!-- Populated dynamically -->
+
+            <div class="p-5 sm:p-6 max-h-[70vh] overflow-y-auto bg-slate-50">
+                <div class="overflow-x-auto bg-white rounded-2xl border border-slate-200 shadow-sm">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-900 text-slate-200 uppercase text-[10px] tracking-wider">
+                                <th class="py-3 px-4">Invoice / Date</th>
+                                <th class="py-3 px-4">Pharmacy</th>
+                                <th class="py-3 px-4">Bought Medicines</th>
+                                <th class="py-3 px-4">Payment & Slip</th>
+                                <th class="py-3 px-4">Total (LKR)</th>
+                                <th class="py-3 px-4">Cashier Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody" class="divide-y divide-slate-200 text-slate-700">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Toast Notification Banner -->
-    <div id="toastNotification" class="fixed bottom-5 right-5 z-50 hidden max-w-sm bg-slate-900 text-white px-4 py-3.5 rounded-2xl shadow-2xl border border-teal-500/50 flex items-center gap-3">
-        <div id="toastIcon" class="w-8 h-8 rounded-xl bg-brand-500/20 text-brand-400 flex items-center justify-center flex-shrink-0">
-            <i class="fa-solid fa-check"></i>
+    <div id="toastNotification" class="fixed bottom-5 right-5 z-50 hidden max-w-md bg-slate-900 text-white px-4 py-3.5 rounded-2xl shadow-2xl border-2 border-teal-400 flex items-center gap-3">
+        <div id="toastIcon" class="w-9 h-9 rounded-xl bg-brand-500/20 text-brand-400 flex items-center justify-center flex-shrink-0 text-base">
+            <i class="fa-solid fa-bell"></i>
         </div>
         <div class="text-xs">
-            <div id="toastTitle" class="font-bold text-white">Updated</div>
-            <div id="toastMessage" class="text-slate-300 mt-0.5">Action completed successfully.</div>
+            <div id="toastTitle" class="font-extrabold text-white">Notification</div>
+            <div id="toastMessage" class="text-slate-300 mt-0.5 leading-relaxed">Action completed successfully.</div>
         </div>
     </div>
 
@@ -1010,15 +1269,12 @@
     <!-- ========================================== -->
     <script>
         // ---------------------------------------------------------
-        // 1. LIVE SUPABASE CONNECTION (Pre-configured with your keys)
+        // 1. LIVE SUPABASE CONNECTION
         // ---------------------------------------------------------
         const SUPABASE_URL = 'https://juobkaftyrzlxbviudpy.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_qdME8AYk9rz5B4FHs4Eb1g_0vvhN73v';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // ---------------------------------------------------------
-        // 2. EXACT CATEGORIES FROM USER SCREENSHOT
-        // ---------------------------------------------------------
         const MEDICINE_CATEGORIES = [
             { id: 'ALL', label: 'All Categories', icon: 'fa-border-all' },
             { id: 'Tablet / Pill', label: 'Tablet / Pill', icon: 'fa-tablets' },
@@ -1030,14 +1286,21 @@
         ];
 
         // ---------------------------------------------------------
-        // 3. LIVE STATE ARRAYS (Populated directly from Supabase)
+        // 2. GLOBAL STATE & REQUIRED mediRadarCart ARRAY
         // ---------------------------------------------------------
+        let mediRadarCart = JSON.parse(localStorage.getItem('mediradar_cart') || '[]');
+        let currentCustomer = JSON.parse(localStorage.getItem('mediradar_customer') || 'null');
+
         let pharmaciesTable = [];
+        let pharmacyBanksTable = [];
         let medicinesTable = [];
         let grnStockTable = [];
         let salesTransactionsTable = [];
+        let myCustomerOrders = [];
+        let knownOrderStatuses = {}; // Tracks status changes for live notifications
+        let checkoutItemsQueue = []; // Items currently being checked out
+        let orderRealtimeChannel = null;
 
-        // Default user coordinates (Moratuwa) until GPS is fetched
         let userLocation = {
             lat: 6.79652,
             lng: 79.90053,
@@ -1047,11 +1310,11 @@
 
         let selectedCategory = 'ALL';
         let sidebarOpen = true;
-        let currentCheckoutContext = null;
         let selectedPaymentMethod = 'CARD';
+        let postAuthCallback = null;
 
         // ---------------------------------------------------------
-        // 4. FETCH LIVE DATA FROM SUPABASE
+        // 3. FETCH LIVE DATA FROM SUPABASE
         // ---------------------------------------------------------
         async function fetchLiveSupabaseData() {
             const statusDot = document.getElementById('dbStatusDot');
@@ -1059,11 +1322,12 @@
             statusText.textContent = "Syncing Supabase...";
 
             try {
-                const [pharmRes, medRes, stockRes, salesRes] = await Promise.all([
+                const [pharmRes, banksRes, medRes, stockRes, salesRes] = await Promise.all([
                     supabaseClient.from('pharmacies').select('*'),
+                    supabaseClient.from('pharmacy_banks').select('*'),
                     supabaseClient.from('medicines').select('*'),
                     supabaseClient.from('grn_stock').select('*'),
-                    supabaseClient.from('sales_transactions').select('*').order('sold_at', { ascending: false }).limit(25)
+                    supabaseClient.from('sales_transactions').select('*').order('sold_at', { ascending: false }).limit(50)
                 ]);
 
                 if (pharmRes.error) throw pharmRes.error;
@@ -1071,6 +1335,7 @@
                 if (stockRes.error) throw stockRes.error;
 
                 pharmaciesTable = pharmRes.data || [];
+                pharmacyBanksTable = banksRes.data || [];
                 medicinesTable = medRes.data || [];
                 grnStockTable = stockRes.data || [];
                 if (salesRes.data) salesTransactionsTable = salesRes.data;
@@ -1082,16 +1347,18 @@
                 renderCategorySidebar();
                 applyFiltersAndRender();
                 renderPharmaciesDirectory();
-                updateOrdersBadge();
+                updateCartBadges();
+
+                if (currentCustomer) {
+                    await fetchMyCustomerOrders(true);
+                }
             } catch (err) {
                 console.error("Supabase Fetch Error:", err);
                 statusDot.className = "w-2 h-2 rounded-full bg-rose-500 flex-shrink-0";
                 statusText.textContent = "Database Connection Error";
-                showToast("Database Error", err.message || "Could not load tables from Supabase.", "warning");
             }
         }
 
-        // Dynamically populate City, Supplier, and Max Price slider based on real DB contents
         function populateDynamicFilterDropdowns() {
             const citySelect = document.getElementById('cityFilter');
             const supplierSelect = document.getElementById('supplierFilter');
@@ -1100,29 +1367,16 @@
             const currentCity = citySelect.value || 'ALL';
             const currentSupplier = supplierSelect.value || 'ALL';
 
-            // Extract unique non-empty cities from pharmaciesTable
-            const cities = [...new Set(
-                pharmaciesTable
-                    .map(p => (p.city || '').trim())
-                    .filter(Boolean)
-            )].sort();
-
+            const cities = [...new Set(pharmaciesTable.map(p => (p.city || '').trim()).filter(Boolean))].sort();
             citySelect.innerHTML = `<option value="ALL">All Cities (${cities.length})</option>` +
                 cities.map(c => `<option value="${c}">${c}</option>`).join('');
             if (cities.includes(currentCity)) citySelect.value = currentCity;
 
-            // Extract unique non-empty suppliers from grnStockTable
-            const suppliers = [...new Set(
-                grnStockTable
-                    .map(s => (s.supplier_name || '').trim())
-                    .filter(Boolean)
-            )].sort();
-
+            const suppliers = [...new Set(grnStockTable.map(s => (s.supplier_name || '').trim()).filter(Boolean))].sort();
             supplierSelect.innerHTML = `<option value="ALL">All Verified Suppliers (${suppliers.length})</option>` +
                 suppliers.map(s => `<option value="${s}">${s}</option>`).join('');
             if (suppliers.includes(currentSupplier)) supplierSelect.value = currentSupplier;
 
-            // Dynamically adjust Max Price slider if database has medicines above Rs. 25,000
             const prices = grnStockTable.map(s => parseFloat(s.selling_price || 0)).filter(p => !isNaN(p) && p > 0);
             const highestDbPrice = prices.length > 0 ? Math.max(...prices) : 25000;
             const sliderMax = Math.max(25000, Math.ceil(highestDbPrice / 1000) * 1000);
@@ -1132,14 +1386,875 @@
         }
 
         // ---------------------------------------------------------
-        // 5. HAVERSINE DISTANCE & GOOGLE MAPS URL BUILDER
+        // 4. CART IMPLEMENTATION (mediRadarCart & removeFromCart)
+        // ---------------------------------------------------------
+        function saveCartState() {
+            localStorage.setItem('mediradar_cart', JSON.stringify(mediRadarCart));
+            updateCartBadges();
+        }
+
+        function updateCartBadges() {
+            const totalItems = mediRadarCart.reduce((sum, i) => sum + Number(i.qty || 1), 0);
+            document.getElementById('cartCountBadge').textContent = totalItems;
+            const sideBadge = document.getElementById('sidebarCartBadge');
+            if (sideBadge) sideBadge.textContent = totalItems;
+        }
+
+        function addToCart(grnStockId, qtyToAdd = 1, openCartAfter = false) {
+            const stockRow = grnStockTable.find(s => String(s.id) === String(grnStockId));
+            if (!stockRow) return;
+
+            const pharm = pharmaciesTable.find(p => p.id === stockRow.pharmacy_id) || {
+                id: stockRow.pharmacy_id,
+                pharmacy_name: "Registered Pharmacy",
+                city: "Sri Lanka",
+                license_no: "Verified"
+            };
+
+            const existingIndex = mediRadarCart.findIndex(item => String(item.stock_id) === String(grnStockId));
+            if (existingIndex > -1) {
+                const newQty = mediRadarCart[existingIndex].qty + qtyToAdd;
+                if (newQty > Number(stockRow.current_quantity)) {
+                    showToast("Stock Limit Reached", `Only ${stockRow.current_quantity} units available in ${pharm.pharmacy_name}.`);
+                    return;
+                }
+                mediRadarCart[existingIndex].qty = newQty;
+            } else {
+                mediRadarCart.push({
+                    stock_id: stockRow.id,
+                    medicine_id: stockRow.medicine_id,
+                    medicine_name: stockRow.medicine_name,
+                    pharmacy_id: pharm.id,
+                    pharmacy_name: pharm.pharmacy_name,
+                    pharmacy_city: pharm.city || '',
+                    unit_price: parseFloat(stockRow.selling_price || 0),
+                    unit_cost: parseFloat(stockRow.unit_cost || 0),
+                    max_stock: parseInt(stockRow.current_quantity || 1, 10),
+                    batch_number: stockRow.batch_number || 'N/A',
+                    rack_location: stockRow.rack_location || 'Main Shelf',
+                    qty: qtyToAdd
+                });
+            }
+
+            saveCartState();
+            showToast("Added to Cart", `${stockRow.medicine_name} (${pharm.pharmacy_name}) added to your shopping cart.`);
+            if (openCartAfter) {
+                closeNearestModal();
+                openCartModal();
+            }
+        }
+
+        function removeFromCart(index) {
+            if (index < 0 || index >= mediRadarCart.length) return;
+            const removed = mediRadarCart.splice(index, 1)[0];
+            saveCartState();
+            renderCartModalItems();
+            if (removed) {
+                showToast("Removed from Cart", `${removed.medicine_name} removed from your cart.`);
+            }
+        }
+
+        function updateCartQty(index, delta) {
+            const item = mediRadarCart[index];
+            if (!item) return;
+            const nextQty = item.qty + delta;
+            if (nextQty <= 0) {
+                removeFromCart(index);
+                return;
+            }
+            if (nextQty > item.max_stock) {
+                showToast("Max Stock", `Only ${item.max_stock} units available.`);
+                return;
+            }
+            item.qty = nextQty;
+            saveCartState();
+            renderCartModalItems();
+        }
+
+        function clearEntireCart() {
+            mediRadarCart = [];
+            saveCartState();
+            renderCartModalItems();
+        }
+
+        function openCartModal() {
+            renderCartModalItems();
+            document.getElementById('cartModal').classList.remove('hidden');
+        }
+
+        function closeCartModal() {
+            document.getElementById('cartModal').classList.add('hidden');
+        }
+
+        function renderCartModalItems() {
+            const container = document.getElementById('cartItemsContainer');
+            const totalEl = document.getElementById('cartTotalDisplay');
+
+            if (mediRadarCart.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-10 text-slate-400">
+                        <i class="fa-solid fa-cart-shopping text-3xl mb-2"></i>
+                        <p class="text-sm font-semibold text-slate-600">Your MediRadar Cart is empty.</p>
+                        <p class="text-xs text-slate-400 mt-1">Click "Show Nearest 5 Pharmacies & Buy" on any medicine tile to add items.</p>
+                    </div>
+                `;
+                totalEl.textContent = "Rs. 0.00";
+                return;
+            }
+
+            let grandTotal = 0;
+            container.innerHTML = mediRadarCart.map((item, index) => {
+                const lineTotal = item.qty * item.unit_price;
+                grandTotal += lineTotal;
+                return `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200">
+                                <i class="fa-solid fa-store mr-1"></i>${item.pharmacy_name} (${item.pharmacy_city})
+                            </span>
+                            <h4 class="text-sm font-extrabold text-slate-900 mt-1">${item.medicine_name}</h4>
+                            <p class="text-xs text-slate-500">Batch: ${item.batch_number} • Rs. ${item.unit_price.toFixed(2)} / unit</p>
+                        </div>
+
+                        <div class="flex items-center justify-between sm:justify-end gap-3">
+                            <div class="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-xl">
+                                <button type="button" onclick="updateCartQty(${index}, -1)" class="w-6 h-6 rounded-lg bg-white font-bold text-slate-700 shadow-sm">-</button>
+                                <span class="w-8 text-center text-xs font-extrabold">${item.qty}</span>
+                                <button type="button" onclick="updateCartQty(${index}, 1)" class="w-6 h-6 rounded-lg bg-white font-bold text-slate-700 shadow-sm">+</button>
+                            </div>
+
+                            <div class="text-right min-w-[90px]">
+                                <span class="text-sm font-extrabold text-slate-900">Rs. ${lineTotal.toFixed(2)}</span>
+                            </div>
+
+                            <button type="button" onclick="removeFromCart(${index})"
+                                class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold transition">
+                                <i class="fa-solid fa-trash-can mr-1"></i>Remove
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            totalEl.textContent = `Rs. ${grandTotal.toFixed(2)}`;
+        }
+
+        function proceedFromCartToCheckout() {
+            if (mediRadarCart.length === 0) {
+                showToast("Cart Empty", "Please add at least one medicine to your cart first.");
+                return;
+            }
+            closeCartModal();
+            initiateCheckoutFlow([...mediRadarCart], true);
+        }
+
+        // Direct single-item Buy button inside Nearest 5 Modal also pushes to cart or opens checkout
+        function buySingleStockItemNow(grnStockId) {
+            const stockRow = grnStockTable.find(s => String(s.id) === String(grnStockId));
+            if (!stockRow) return;
+            const pharm = pharmaciesTable.find(p => p.id === stockRow.pharmacy_id) || {
+                id: stockRow.pharmacy_id,
+                pharmacy_name: "Registered Pharmacy",
+                city: "Sri Lanka"
+            };
+
+            const singleItem = [{
+                stock_id: stockRow.id,
+                medicine_id: stockRow.medicine_id,
+                medicine_name: stockRow.medicine_name,
+                pharmacy_id: pharm.id,
+                pharmacy_name: pharm.pharmacy_name,
+                pharmacy_city: pharm.city || '',
+                unit_price: parseFloat(stockRow.selling_price || 0),
+                unit_cost: parseFloat(stockRow.unit_cost || 0),
+                max_stock: parseInt(stockRow.current_quantity || 1, 10),
+                batch_number: stockRow.batch_number || 'N/A',
+                rack_location: stockRow.rack_location || 'Main Shelf',
+                qty: 1
+            }];
+
+            closeNearestModal();
+            initiateCheckoutFlow(singleItem, false);
+        }
+
+        // ---------------------------------------------------------
+        // 5. CUSTOMER REGISTRATION, LOGIN & AUTO-FILL PROFILE
+        // ---------------------------------------------------------
+        function updateCustomerHeaderUI() {
+            const label = document.getElementById('headerAccountLabel');
+            const logoutBtn = document.getElementById('logoutCustomerBtn');
+            if (currentCustomer) {
+                label.textContent = currentCustomer.full_name || currentCustomer.email;
+                if (logoutBtn) logoutBtn.classList.remove('hidden');
+            } else {
+                label.textContent = "Sign In / Register";
+                if (logoutBtn) logoutBtn.classList.add('hidden');
+            }
+        }
+
+        function openCustomerAccountModal() {
+            const modal = document.getElementById('customerAccountModal');
+            if (currentCustomer) {
+                switchAuthTab('REGISTER');
+                document.getElementById('accountModalTitle').textContent = "Edit Your Customer Profile & Payment Defaults";
+                document.getElementById('saveProfileSubmitBtn').textContent = "Update My Profile";
+                document.getElementById('profFullName').value = currentCustomer.full_name || '';
+                document.getElementById('profEmail').value = currentCustomer.email || '';
+                document.getElementById('profPassword').value = currentCustomer.password || '';
+                document.getElementById('profPhone').value = currentCustomer.phone || '';
+                document.getElementById('profAddress').value = currentCustomer.address || '';
+                document.getElementById('profBankName').value = currentCustomer.bank_name || 'Bank of Ceylon (BOC)';
+                document.getElementById('profBankAccountNo').value = currentCustomer.bank_account_no || '';
+                document.getElementById('profCardNumber').value = currentCustomer.card_number || '';
+                document.getElementById('profCardExpiry').value = currentCustomer.card_expiry || '';
+                document.getElementById('profCardCvv').value = currentCustomer.card_cvv || '';
+            } else {
+                document.getElementById('accountModalTitle').textContent = "Register Customer Account Before Online Purchase";
+                document.getElementById('saveProfileSubmitBtn').textContent = "Complete Customer Registration";
+                switchAuthTab('REGISTER');
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeCustomerAccountModal() {
+            document.getElementById('customerAccountModal').classList.add('hidden');
+        }
+
+        function switchAuthTab(mode) {
+            const regForm = document.getElementById('customerProfileForm');
+            const loginForm = document.getElementById('customerLoginForm');
+            const tabReg = document.getElementById('tabRegisterMode');
+            const tabLog = document.getElementById('tabLoginMode');
+
+            if (mode === 'LOGIN') {
+                regForm.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+                tabLog.className = "flex-1 py-2 rounded-xl text-xs font-extrabold bg-white text-slate-900 shadow-sm transition";
+                tabReg.className = "flex-1 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 transition";
+            } else {
+                loginForm.classList.add('hidden');
+                regForm.classList.remove('hidden');
+                tabReg.className = "flex-1 py-2 rounded-xl text-xs font-extrabold bg-white text-slate-900 shadow-sm transition";
+                tabLog.className = "flex-1 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 transition";
+            }
+        }
+
+        async function handleSaveCustomerProfile(event) {
+            event.preventDefault();
+            const btn = document.getElementById('saveProfileSubmitBtn');
+            btn.disabled = true;
+            btn.textContent = "Saving to Supabase...";
+
+            const payload = {
+                full_name: document.getElementById('profFullName').value.trim(),
+                email: document.getElementById('profEmail').value.trim().toLowerCase(),
+                password: document.getElementById('profPassword').value.trim(),
+                phone: document.getElementById('profPhone').value.trim(),
+                address: document.getElementById('profAddress').value.trim(),
+                bank_name: document.getElementById('profBankName').value,
+                bank_account_no: document.getElementById('profBankAccountNo').value.trim(),
+                card_number: document.getElementById('profCardNumber').value.trim(),
+                card_expiry: document.getElementById('profCardExpiry').value.trim(),
+                card_cvv: document.getElementById('profCardCvv').value.trim(),
+                latitude: String(userLocation.lat),
+                longitude: String(userLocation.lng)
+            };
+
+            try {
+                let savedRow = null;
+                if (currentCustomer && currentCustomer.id) {
+                    const { data, error } = await supabaseClient
+                        .from('customers')
+                        .update(payload)
+                        .eq('id', currentCustomer.id)
+                        .select()
+                        .single();
+                    if (error) throw error;
+                    savedRow = data;
+                } else {
+                    // Check if email already exists
+                    const { data: existing } = await supabaseClient
+                        .from('customers')
+                        .select('*')
+                        .eq('email', payload.email)
+                        .maybeSingle();
+
+                    if (existing) {
+                        const { data, error } = await supabaseClient
+                            .from('customers')
+                            .update(payload)
+                            .eq('id', existing.id)
+                            .select()
+                            .single();
+                        if (error) throw error;
+                        savedRow = data;
+                    } else {
+                        const { data, error } = await supabaseClient
+                            .from('customers')
+                            .insert([payload])
+                            .select()
+                            .single();
+                        if (error) throw error;
+                        savedRow = data;
+                    }
+                }
+
+                currentCustomer = savedRow;
+                localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+                updateCustomerHeaderUI();
+                subscribeToCustomerOrderUpdates();
+                await fetchMyCustomerOrders(true);
+                closeCustomerAccountModal();
+                showToast("Account Saved", `Welcome ${currentCustomer.full_name}! Your payment & delivery preferences are ready.`);
+
+                if (typeof postAuthCallback === 'function') {
+                    const cb = postAuthCallback;
+                    postAuthCallback = null;
+                    cb();
+                }
+            } catch (err) {
+                console.error("Customer Save Error:", err);
+                showToast("Registration Error", err.message || "Please run the provided SQL script in Supabase first.");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Save Customer Account";
+            }
+        }
+
+        async function handleCustomerLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('loginEmailInput').value.trim().toLowerCase();
+            const pass = document.getElementById('loginPasswordInput').value.trim();
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('customers')
+                    .select('*')
+                    .eq('email', email)
+                    .eq('password', pass)
+                    .maybeSingle();
+
+                if (error) throw error;
+                if (!data) {
+                    showToast("Sign In Failed", "Invalid email or password. Please register if you are a new customer.");
+                    return;
+                }
+
+                currentCustomer = data;
+                localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+                updateCustomerHeaderUI();
+                subscribeToCustomerOrderUpdates();
+                await fetchMyCustomerOrders(true);
+                closeCustomerAccountModal();
+                showToast("Signed In!", `Welcome back, ${currentCustomer.full_name}.`);
+
+                if (typeof postAuthCallback === 'function') {
+                    const cb = postAuthCallback;
+                    postAuthCallback = null;
+                    cb();
+                }
+            } catch (err) {
+                showToast("Login Error", err.message);
+            }
+        }
+
+        function logoutCustomer() {
+            currentCustomer = null;
+            myCustomerOrders = [];
+            localStorage.removeItem('mediradar_customer');
+            updateCustomerHeaderUI();
+            updateOrdersBadge();
+            closeCustomerAccountModal();
+            showToast("Signed Out", "You have signed out of your customer account.");
+        }
+
+        // ---------------------------------------------------------
+        // 6. CHECKOUT FLOW (AUTO-FILLS CARD/BANK/ADDRESS & UPLOADS SLIP)
+        // ---------------------------------------------------------
+        let isCheckingOutFromCart = false;
+
+        function initiateCheckoutFlow(itemsToBuy, fromCart = false) {
+            // Require registration before online purchase
+            if (!currentCustomer) {
+                showToast("Registration Required", "Please register or sign in with your delivery, bank, and card details first.");
+                postAuthCallback = () => initiateCheckoutFlow(itemsToBuy, fromCart);
+                openCustomerAccountModal();
+                return;
+            }
+
+            checkoutItemsQueue = itemsToBuy;
+            isCheckingOutFromCart = fromCart;
+
+            // Populate summary
+            const uniquePharmIds = [...new Set(itemsToBuy.map(i => i.pharmacy_id))];
+            const pharmNames = uniquePharmIds.map(pid => {
+                const p = pharmaciesTable.find(ph => ph.id === pid);
+                return p ? `${p.pharmacy_name} (${p.city || ''})` : 'Registered Pharmacy';
+            });
+
+            document.getElementById('checkoutPharmacyName').textContent = pharmNames.join(' + ');
+            document.getElementById('checkoutItemsCountBadge').textContent = `${itemsToBuy.reduce((s, i) => s + i.qty, 0)} Unit(s)`;
+
+            const itemsListEl = document.getElementById('checkoutOrderItemsList');
+            let total = 0;
+            itemsListEl.innerHTML = itemsToBuy.map(item => {
+                const line = item.qty * item.unit_price;
+                total += line;
+                return `
+                    <div class="flex items-center justify-between">
+                        <span><strong>${item.qty}x ${item.medicine_name}</strong> <span class="text-slate-400">(${item.pharmacy_name})</span></span>
+                        <span class="font-bold text-slate-900">Rs. ${line.toFixed(2)}</span>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('checkoutTotalAmount').textContent = `Rs. ${total.toFixed(2)}`;
+
+            // Auto-fill customer details & saved payment methods (all editable)
+            document.getElementById('custName').value = currentCustomer.full_name || '';
+            document.getElementById('custPhone').value = currentCustomer.phone || '';
+            document.getElementById('custAddress').value = currentCustomer.address || '';
+            document.getElementById('cardNumberInput').value = currentCustomer.card_number || '';
+            document.getElementById('cardExpiryInput').value = currentCustomer.card_expiry || '';
+            document.getElementById('cardCvvInput').value = currentCustomer.card_cvv || '';
+            document.getElementById('bankNameSelect').value =
+                `${currentCustomer.bank_name || 'BOC'} - Acc: ${currentCustomer.bank_account_no || ''}`;
+
+            // Render Pharmacy Bank Details from Supabase (`pharmacy_banks` + fallback to `pharmacies` columns)
+            renderCheckoutPharmacyBankDetails(uniquePharmIds);
+
+            selectPaymentMethod('CARD');
+            document.getElementById('checkoutModal').classList.remove('hidden');
+        }
+
+        function renderCheckoutPharmacyBankDetails(pharmacyIds) {
+            const container = document.getElementById('checkoutPharmacyBanksList');
+            const blocks = [];
+
+            pharmacyIds.forEach(pid => {
+                const pharm = pharmaciesTable.find(p => p.id === pid);
+                const multiBanks = pharmacyBanksTable.filter(b => b.pharmacy_id === pid);
+
+                if (multiBanks.length > 0) {
+                    multiBanks.forEach(b => {
+                        blocks.push(`
+                            <div class="bg-white p-3 rounded-xl border border-teal-200 text-xs space-y-0.5">
+                                <div class="font-extrabold text-teal-900">${pharm ? pharm.pharmacy_name : 'Pharmacy'} — ${b.bank_name} (${b.branch_name || 'Main Branch'})</div>
+                                <div class="text-slate-600">Account Name: <strong>${b.account_name}</strong></div>
+                                <div class="text-slate-600">Account Number: <strong class="font-mono text-brand-700">${b.account_number}</strong></div>
+                            </div>
+                        `);
+                    });
+                } else if (pharm && (pharm.bank_name || pharm.account_number)) {
+                    blocks.push(`
+                        <div class="bg-white p-3 rounded-xl border border-teal-200 text-xs space-y-0.5">
+                            <div class="font-extrabold text-teal-900">${pharm.pharmacy_name} — ${pharm.bank_name || 'Commercial Bank'} (${pharm.bank_branch || pharm.city || 'Main Branch'})</div>
+                            <div class="text-slate-600">Account Name: <strong>${pharm.account_name || pharm.pharmacy_name}</strong></div>
+                            <div class="text-slate-600">Account Number: <strong class="font-mono text-brand-700">${pharm.account_number || 'Contact Pharmacy'}</strong></div>
+                        </div>
+                    `);
+                } else {
+                    blocks.push(`
+                        <div class="bg-white p-3 rounded-xl border border-slate-200 text-xs space-y-0.5">
+                            <div class="font-extrabold text-slate-800">${pharm ? pharm.pharmacy_name : 'Pharmacy'} Official Account</div>
+                            <div class="text-slate-500">Phone: ${pharm ? pharm.phone : 'N/A'} • Transfer & upload receipt slip below for Cashier verification.</div>
+                        </div>
+                    `);
+                }
+            });
+
+            container.innerHTML = blocks.join('');
+        }
+
+        function closeCheckoutModal() {
+            document.getElementById('checkoutModal').classList.add('hidden');
+        }
+
+        function selectPaymentMethod(method) {
+            selectedPaymentMethod = method;
+            const tabCard = document.getElementById('payTabCard');
+            const tabBank = document.getElementById('payTabBank');
+            const cardSec = document.getElementById('cardPaymentSection');
+            const bankSec = document.getElementById('bankPaymentSection');
+
+            if (method === 'CARD') {
+                tabCard.className = "p-3.5 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-3";
+                tabBank.className = "p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-3";
+                cardSec.classList.remove('hidden');
+                bankSec.classList.add('hidden');
+            } else {
+                tabBank.className = "p-3.5 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-3";
+                tabCard.className = "p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-3";
+                bankSec.classList.remove('hidden');
+                cardSec.classList.add('hidden');
+            }
+        }
+
+        async function submitPharmacyOrder(event) {
+            event.preventDefault();
+            if (!currentCustomer || checkoutItemsQueue.length === 0) return;
+
+            const custName = document.getElementById('custName').value.trim();
+            const custPhone = document.getElementById('custPhone').value.trim();
+            const custAddress = document.getElementById('custAddress').value.trim();
+            const cardNo = document.getElementById('cardNumberInput').value.trim();
+            const cardExp = document.getElementById('cardExpiryInput').value.trim();
+            const cardCvv = document.getElementById('cardCvvInput').value.trim();
+            const sendingBank = document.getElementById('bankNameSelect').value.trim();
+            const bankRef = document.getElementById('bankRefInput').value.trim();
+            const receiptFileInput = document.getElementById('receipt-upload');
+
+            const submitBtn = document.getElementById('submitOrderBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing Order...`;
+
+            try {
+                let uploadedReceiptUrl = null;
+
+                if (selectedPaymentMethod === 'CARD') {
+                    if (cardNo.length < 8) {
+                        throw new Error("Please enter a valid 16-digit Visa or MasterCard number.");
+                    }
+                } else {
+                    if (!bankRef) {
+                        throw new Error("Please enter your Bank Transfer Reference / Slip Number.");
+                    }
+                    if (!receiptFileInput.files || receiptFileInput.files.length === 0) {
+                        throw new Error("Please upload a screenshot/photo of your bank transfer receipt.");
+                    }
+
+                    // Upload receipt image to Supabase Storage bucket `bank_receipts`
+                    const file = receiptFileInput.files[0];
+                    const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+                    const filePath = `receipt_${currentCustomer.id}_${Date.now()}.${ext}`;
+
+                    const { error: upErr } = await supabaseClient
+                        .storage
+                        .from('bank_receipts')
+                        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+
+                    if (upErr) throw new Error(`Receipt Upload Failed: ${upErr.message}`);
+
+                    const { data: pubUrlData } = supabaseClient
+                        .storage
+                        .from('bank_receipts')
+                        .getPublicUrl(filePath);
+
+                    uploadedReceiptUrl = pubUrlData.publicUrl;
+                }
+
+                // Optionally update customer's saved profile if checkbox is ticked
+                if (document.getElementById('saveChangesToProfileCheckbox').checked) {
+                    const updatedProfile = {
+                        full_name: custName,
+                        phone: custPhone,
+                        address: custAddress,
+                        card_number: cardNo || currentCustomer.card_number,
+                        card_expiry: cardExp || currentCustomer.card_expiry,
+                        card_cvv: cardCvv || currentCustomer.card_cvv
+                    };
+                    const { data: profData } = await supabaseClient
+                        .from('customers')
+                        .update(updatedProfile)
+                        .eq('id', currentCustomer.id)
+                        .select()
+                        .maybeSingle();
+                    if (profData) {
+                        currentCustomer = profData;
+                        localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+                        updateCustomerHeaderUI();
+                    }
+                }
+
+                // Group checkout items by pharmacy_id so each pharmacy gets its own order & invoice
+                const itemsByPharmacy = {};
+                checkoutItemsQueue.forEach(item => {
+                    if (!itemsByPharmacy[item.pharmacy_id]) itemsByPharmacy[item.pharmacy_id] = [];
+                    itemsByPharmacy[item.pharmacy_id].push(item);
+                });
+
+                for (const pharmacyId of Object.keys(itemsByPharmacy)) {
+                    const pharmItems = itemsByPharmacy[pharmacyId];
+                    const orderTotal = pharmItems.reduce((sum, i) => sum + (i.qty * i.unit_price), 0);
+                    const invoiceNo = `MR-${Math.floor(100000 + Math.random() * 900000)}`;
+                    const isCard = selectedPaymentMethod === 'CARD';
+
+                    // 1. Insert into public.customer_orders
+                    const { data: insertedOrder, error: orderErr } = await supabaseClient
+                        .from('customer_orders')
+                        .insert([{
+                            customer_id: currentCustomer.id,
+                            pharmacy_id: pharmacyId,
+                            invoice_no: invoiceNo,
+                            total_amount: orderTotal,
+                            payment_method: isCard ? 'Card' : 'Bank Transaction',
+                            payment_status: isCard ? 'Paid' : 'Pending',
+                            order_status: isCard ? 'Ready for Pickup' : 'Processing',
+                            cashier_approval_status: isCard ? 'Accepted' : 'Pending',
+                            delivery_address: custAddress,
+                            customer_phone: custPhone,
+                            customer_name: custName,
+                            sending_bank: isCard ? `Card (••• ${cardNo.slice(-4)})` : sendingBank,
+                            bank_reference: isCard ? `CARD-${cardNo.slice(-4)}` : bankRef,
+                            receipt_image_url: uploadedReceiptUrl
+                        }])
+                        .select()
+                        .single();
+
+                    if (orderErr) throw orderErr;
+
+                    // Track initial status so Realtime/Polling knows when it changes
+                    knownOrderStatuses[insertedOrder.id] = insertedOrder.cashier_approval_status;
+
+                    // 2. Insert items into public.customer_order_items
+                    const orderItemsPayload = pharmItems.map(i => ({
+                        order_id: insertedOrder.id,
+                        medicine_id: i.medicine_id || null,
+                        grn_stock_id: i.stock_id,
+                        medicine_name: i.medicine_name,
+                        quantity: i.qty,
+                        unit_price: i.unit_price
+                    }));
+
+                    const { error: itemsErr } = await supabaseClient
+                        .from('customer_order_items')
+                        .insert(orderItemsPayload);
+
+                    if (itemsErr) throw itemsErr;
+
+                    // 3. If Card Payment (instant paid), deduct GRN stock and record in sales_transactions immediately so Admin & POS see it right away!
+                    if (isCard) {
+                        for (const item of pharmItems) {
+                            const stockRow = grnStockTable.find(s => String(s.id) === String(item.stock_id));
+                            const newQty = stockRow ? Math.max(0, Number(stockRow.current_quantity) - item.qty) : 0;
+                            if (stockRow) stockRow.current_quantity = newQty;
+
+                            await supabaseClient
+                                .from('grn_stock')
+                                .update({ current_quantity: newQty })
+                                .eq('id', item.stock_id);
+
+                            await supabaseClient
+                                .from('sales_transactions')
+                                .insert([{
+                                    pharmacy_id: pharmacyId,
+                                    invoice_no: invoiceNo,
+                                    counter_name: 'MediRadar Online (Card)',
+                                    cashier_username: `${custName} (${custPhone})`,
+                                    medicine_name: item.medicine_name,
+                                    quantity_sold: item.qty,
+                                    unit_cost: item.unit_cost,
+                                    unit_price: item.unit_price,
+                                    total_amount: item.qty * item.unit_price,
+                                    profit_amount: item.qty * (item.unit_price - item.unit_cost)
+                                }]);
+                        }
+                    }
+                }
+
+                if (isCheckingOutFromCart) {
+                    clearEntireCart();
+                }
+
+                closeCheckoutModal();
+                await fetchLiveSupabaseData();
+                await fetchMyCustomerOrders(true);
+
+                if (selectedPaymentMethod === 'BANK') {
+                    showToast(
+                        "Receipt Uploaded! Awaiting Cashier Approval",
+                        "You can continue browsing MediRadar! We will notify you here as soon as the pharmacy Cashier accepts your bank transfer."
+                    );
+                } else {
+                    showToast(
+                        "Card Payment Complete!",
+                        "Your order is paid and visible in the pharmacy POS & Admin console."
+                    );
+                }
+            } catch (err) {
+                console.error("Order Submit Error:", err);
+                showToast("Checkout Error", err.message || "Could not submit order.");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>Submit Pharmacy Order</span>`;
+            }
+        }
+
+        // ---------------------------------------------------------
+        // 7. CUSTOMER-ONLY ORDERS TABLE & LIVE CASHIER APPROVAL LISTENER
+        // ---------------------------------------------------------
+        async function fetchMyCustomerOrders(silent = false) {
+            if (!currentCustomer) {
+                myCustomerOrders = [];
+                updateOrdersBadge();
+                return;
+            }
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('customer_orders')
+                    .select('*, customer_order_items(*)')
+                    .eq('customer_id', currentCustomer.id)
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                const incomingOrders = data || [];
+
+                // Check if any order's cashier_approval_status changed from Pending -> Accepted / Rejected
+                incomingOrders.forEach(order => {
+                    const prevStatus = knownOrderStatuses[order.id];
+                    const newStatus = order.cashier_approval_status || 'Pending';
+
+                    if (prevStatus && prevStatus !== newStatus) {
+                        const pharm = pharmaciesTable.find(p => p.id === order.pharmacy_id);
+                        const pharmName = pharm ? pharm.pharmacy_name : 'Pharmacy';
+                        if (newStatus === 'Accepted') {
+                            showToast(
+                                `Payment Accepted by ${pharmName}!`,
+                                `Your bank transfer for Invoice ${order.invoice_no || ''} (Rs. ${parseFloat(order.total_amount).toFixed(2)}) was verified and accepted by the Cashier!`
+                            );
+                        } else if (newStatus === 'Rejected') {
+                            showToast(
+                                `Payment Rejected by ${pharmName}`,
+                                `Invoice ${order.invoice_no || ''} was rejected. Reason: ${order.rejection_reason || 'Invalid bank slip.'}`
+                            );
+                        }
+                    }
+                    knownOrderStatuses[order.id] = newStatus;
+                });
+
+                myCustomerOrders = incomingOrders;
+                updateOrdersBadge();
+                if (!silent) renderMyOrdersTable();
+            } catch (err) {
+                console.warn("Customer orders fetch error:", err);
+            }
+        }
+
+        function subscribeToCustomerOrderUpdates() {
+            if (!currentCustomer) return;
+            if (orderRealtimeChannel) {
+                supabaseClient.removeChannel(orderRealtimeChannel);
+            }
+
+            orderRealtimeChannel = supabaseClient
+                .channel(`customer-orders-${currentCustomer.id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'customer_orders',
+                        filter: `customer_id=eq.${currentCustomer.id}`
+                    },
+                    async () => {
+                        await fetchMyCustomerOrders(false);
+                        await fetchLiveSupabaseData();
+                    }
+                )
+                .subscribe();
+        }
+
+        // Poll every 5 seconds as a rock-solid backup so the customer gets notified while browsing
+        setInterval(() => {
+            if (currentCustomer) {
+                fetchMyCustomerOrders(false);
+            }
+        }, 5000);
+
+        function updateOrdersBadge() {
+            const count = myCustomerOrders.length;
+            document.getElementById('orderCountBadge').textContent = count;
+            const sidebarBadge = document.getElementById('sidebarOrderBadge');
+            if (sidebarBadge) sidebarBadge.textContent = count;
+        }
+
+        function openOrdersModal() {
+            if (!currentCustomer) {
+                showToast("Sign In Required", "Please sign in or register to view your personal order history.");
+                openCustomerAccountModal();
+                return;
+            }
+            fetchMyCustomerOrders(false);
+            renderMyOrdersTable();
+            document.getElementById('ordersModal').classList.remove('hidden');
+        }
+
+        function closeOrdersModal() {
+            document.getElementById('ordersModal').classList.add('hidden');
+        }
+
+        function renderMyOrdersTable() {
+            const tbody = document.getElementById('ordersTableBody');
+            const subtitle = document.getElementById('ordersModalSubtitle');
+            if (currentCustomer) {
+                subtitle.textContent = `Showing orders exclusively for ${currentCustomer.full_name} (${currentCustomer.email})`;
+            }
+
+            if (myCustomerOrders.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-10 text-center text-slate-400">
+                            You haven't placed any online orders under this account yet.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = myCustomerOrders.map(order => {
+                const pharm = pharmaciesTable.find(p => p.id === order.pharmacy_id);
+                const pharmName = pharm ? `${pharm.pharmacy_name} (${pharm.city || ''})` : 'Registered Pharmacy';
+                const items = order.customer_order_items || [];
+                const itemsHtml = items.map(i => `<div>• <strong>${i.quantity}x</strong> ${i.medicine_name || 'Medicine'} (Rs. ${parseFloat(i.unit_price).toFixed(2)})</div>`).join('');
+
+                const approval = order.cashier_approval_status || 'Pending';
+                let statusBadge = '';
+                if (approval === 'Accepted') {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300"><i class="fa-solid fa-circle-check mr-1"></i>Accepted (${order.payment_status})</span>`;
+                } else if (approval === 'Rejected') {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-circle-xmark mr-1"></i>Rejected</span>
+                                   ${order.rejection_reason ? `<div class="text-[10px] text-rose-600 mt-1">Reason: ${order.rejection_reason}</div>` : ''}`;
+                } else {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse"><i class="fa-solid fa-clock mr-1"></i>Pending Cashier Review</span>`;
+                }
+
+                const slipLink = order.receipt_image_url
+                    ? `<a href="${order.receipt_image_url}" target="_blank" class="text-brand-600 font-bold hover:underline block mt-0.5"><i class="fa-solid fa-image mr-1"></i>View Uploaded Slip</a>`
+                    : '';
+
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="py-3.5 px-4">
+                            <span class="font-extrabold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">${order.invoice_no || order.id.slice(0, 8)}</span>
+                            <div class="text-[11px] text-slate-400 mt-1">${new Date(order.created_at).toLocaleString()}</div>
+                        </td>
+                        <td class="py-3.5 px-4 font-bold text-slate-800">
+                            ${pharmName}
+                            <div class="text-[10px] text-slate-400 font-normal">Deliver to: ${order.delivery_address || '-'}</div>
+                        </td>
+                        <td class="py-3.5 px-4 space-y-0.5">${itemsHtml || '1x Medicine'}</td>
+                        <td class="py-3.5 px-4">
+                            <span class="font-semibold">${order.payment_method}</span>
+                            <div class="text-[11px] text-slate-500">${order.bank_reference || ''}</div>
+                            ${slipLink}
+                        </td>
+                        <td class="py-3.5 px-4 font-extrabold text-slate-900">Rs. ${parseFloat(order.total_amount || 0).toFixed(2)}</td>
+                        <td class="py-3.5 px-4">${statusBadge}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ---------------------------------------------------------
+        // 8. HAVERSINE DISTANCE & GOOGLE MAPS URL BUILDER
         // ---------------------------------------------------------
         function calculateDistanceKm(lat1, lon1, lat2, lon2) {
             const parsedLat2 = parseFloat(lat2);
             const parsedLon2 = parseFloat(lon2);
             if (isNaN(parsedLat2) || isNaN(parsedLon2)) return 999.99;
 
-            const R = 6371; // km
+            const R = 6371;
             const dLat = (parsedLat2 - lat1) * Math.PI / 180;
             const dLon = (parsedLon2 - lon1) * Math.PI / 180;
             const a =
@@ -1163,7 +2278,6 @@
             return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${destination}&travelmode=driving`;
         }
 
-        // Category matching helper
         function matchesCategoryFilter(stockCategory, filterCategory) {
             if (filterCategory === 'ALL') return true;
             if (!stockCategory) return false;
@@ -1179,16 +2293,13 @@
             return false;
         }
 
-        // ---------------------------------------------------------
-        // 6. FETCH USER GPS LOCATION
-        // ---------------------------------------------------------
         function fetchUserLocation() {
             const btnTitle = document.getElementById('locationBtnTitle');
             const coordsBadge = document.getElementById('locationCoordsBadge');
             btnTitle.textContent = "Locating GPS...";
 
             if (!navigator.geolocation) {
-                showToast("Geolocation Unsupported", "Using default Moratuwa coordinates.", "warning");
+                showToast("Geolocation Unsupported", "Using default Moratuwa coordinates.");
                 btnTitle.textContent = "Location Active";
                 return;
             }
@@ -1205,7 +2316,7 @@
 
                     applyFiltersAndRender();
                     renderPharmaciesDirectory();
-                    showToast("Current Location Fetched!", `Distances & Google Maps routes updated from ${userLocation.label}.`, "success");
+                    showToast("Current Location Fetched!", `Distances & Google Maps routes updated from ${userLocation.label}.`);
                 },
                 () => {
                     userLocation.lat = 6.79652;
@@ -1216,19 +2327,18 @@
 
                     applyFiltersAndRender();
                     renderPharmaciesDirectory();
-                    showToast("Location Calibrated", "Using Moratuwa coordinates (6.7965, 79.9005) to rank pharmacies.", "info");
+                    showToast("Location Calibrated", "Using Moratuwa coordinates (6.7965, 79.9005) to rank pharmacies.");
                 },
                 { enableHighAccuracy: true, timeout: 6000 }
             );
         }
 
         // ---------------------------------------------------------
-        // 7. GEMINI-STYLE COLLAPSIBLE LEFT SIDEBAR
+        // 9. SIDEBAR, AGGREGATION & TILE RENDERING
         // ---------------------------------------------------------
         function toggleSidebar() {
             const sidebar = document.getElementById('geminiSidebar');
             sidebarOpen = !sidebarOpen;
-
             if (sidebarOpen) {
                 sidebar.classList.remove('sidebar-collapsed');
                 sidebar.classList.add('sidebar-expanded');
@@ -1283,13 +2393,9 @@
             applyFiltersAndRender();
         }
 
-        // ---------------------------------------------------------
-        // 8. AGGREGATE MEDICINES BY NAME ACROSS ALL PHARMACIES
-        // ---------------------------------------------------------
         function getAggregatedMedicines() {
             const groupedByName = new Map();
 
-            // Group from grn_stock first so every stocked medicine and its pharmacy is linked
             grnStockTable.forEach(stock => {
                 const rawName = (stock.medicine_name || '').trim();
                 if (!rawName) return;
@@ -1308,12 +2414,7 @@
                     image_url: ""
                 };
 
-                const distKm = calculateDistanceKm(
-                    userLocation.lat,
-                    userLocation.lng,
-                    pharm.latitude,
-                    pharm.longitude
-                );
+                const distKm = calculateDistanceKm(userLocation.lat, userLocation.lng, pharm.latitude, pharm.longitude);
 
                 const enrichedStock = {
                     ...stock,
@@ -1335,58 +2436,12 @@
                 }
             });
 
-            // Also include any medicine from medicinesTable that might not have a grn_stock row yet
-            medicinesTable.forEach(med => {
-                const rawName = (med.name || '').trim();
-                if (!rawName) return;
-                const key = rawName.toLowerCase();
-                if (!groupedByName.has(key)) {
-                    const pharm = pharmaciesTable.find(p => p.id === med.pharmacy_id) || pharmaciesTable[0] || {
-                        id: med.pharmacy_id,
-                        pharmacy_name: "Registered Pharmacy",
-                        city: "Moratuwa",
-                        address: "",
-                        latitude: "6.79652",
-                        longitude: "79.90053"
-                    };
-                    const distKm = calculateDistanceKm(userLocation.lat, userLocation.lng, pharm.latitude, pharm.longitude);
-                    groupedByName.set(key, {
-                        id: med.id,
-                        key: key,
-                        name: rawName,
-                        pharmacyStocks: [{
-                            id: med.id,
-                            pharmacy_id: pharm.id,
-                            medicine_id: med.id,
-                            medicine_name: rawName,
-                            grn_number: "N/A",
-                            batch_number: "N/A",
-                            supplier_name: "Verified Supplier",
-                            category: "Tablet / Pill",
-                            quantity_received: 0,
-                            current_quantity: 0,
-                            current_quantity_num: 0,
-                            selling_price: "0.00",
-                            selling_price_num: 0,
-                            expiry_date: "N/A",
-                            rack_location: "N/A",
-                            pharmacy: pharm,
-                            distanceKm: distKm
-                        }]
-                    });
-                }
-            });
-
-            // Convert map to list & compute popularity metric
             const list = Array.from(groupedByName.values()).map(group => {
-                // Sort pharmacy stocks by distance
                 group.pharmacyStocks.sort((a, b) => a.distanceKm - b.distanceKm);
-
                 const primary = group.pharmacyStocks[0];
                 const totalStock = group.pharmacyStocks.reduce((sum, s) => sum + s.current_quantity_num, 0);
                 const totalReceived = group.pharmacyStocks.reduce((sum, s) => sum + parseInt(s.quantity_received || 0, 10), 0);
 
-                // Calculate popularity score from sales_transactions + stock turnover + branch count
                 const txSold = salesTransactionsTable
                     .filter(tx => (tx.medicine_name || '').toLowerCase() === group.key)
                     .reduce((sum, tx) => sum + parseInt(tx.quantity_sold || 0, 10), 0);
@@ -1395,9 +2450,7 @@
                 const popularityScore = (txSold * 100) + (group.pharmacyStocks.length * 50) + (turnover * 5) + totalStock;
 
                 const allCategories = [...new Set(group.pharmacyStocks.map(s => s.category).filter(Boolean))];
-                const allSuppliers = [...new Set(group.pharmacyStocks.map(s => s.supplier_name).filter(Boolean))];
                 const displayCategory = primary.category === "Inhaler" ? "Inhaler / Drops" : (primary.category || "Tablet / Pill");
-
                 const validPrices = group.pharmacyStocks.map(s => s.selling_price_num).filter(p => p > 0);
                 const minPrice = validPrices.length > 0 ? Math.min(...validPrices) : 0;
 
@@ -1405,32 +2458,22 @@
                     ...group,
                     category: displayCategory,
                     allCategories,
-                    allSuppliers,
                     supplier_name: primary.supplier_name || 'Verified Supplier',
                     minPrice,
                     totalStock,
                     nearestDistanceKm: primary.distanceKm,
                     nearestPharmacyName: primary.pharmacy.pharmacy_name,
-                    nearestPharmacyCity: primary.pharmacy.city,
                     expiry_date: primary.expiry_date || 'N/A',
-                    rack_location: primary.rack_location || 'N/A',
                     batch_number: primary.batch_number || 'N/A',
                     popularityScore
                 };
             });
 
-            // Assign ascending popularity rank (1 = Most Popular, 2 = 2nd Most Popular, etc.)
             list.sort((a, b) => b.popularityScore - a.popularityScore);
-            list.forEach((item, idx) => {
-                item.popularityRank = idx + 1;
-            });
-
+            list.forEach((item, idx) => { item.popularityRank = idx + 1; });
             return list;
         }
 
-        // ---------------------------------------------------------
-        // 9. APPLY WORKING FILTERS & RENDER MEDICINE TILES
-        // ---------------------------------------------------------
         function getCategoryIcon(category) {
             const c = (category || '').toLowerCase();
             if (c.includes('inhaler') || c.includes('drop')) return 'fa-lungs';
@@ -1456,7 +2499,6 @@
 
             const rawAggregated = getAggregatedMedicines();
 
-            // Filter each medicine's pharmacyStocks so filters actively narrow down relevant stock rows
             let filteredMedicines = rawAggregated.map(med => {
                 const matchingStocks = med.pharmacyStocks.filter(s => {
                     const catMatch = matchesCategoryFilter(s.category, selectedCategory);
@@ -1469,7 +2511,6 @@
 
                 if (matchingStocks.length === 0) return null;
 
-                // Search query check across medicine name, category, supplier, or pharmacy name/city
                 if (searchVal) {
                     const nameMatch = med.name.toLowerCase().includes(searchVal);
                     const stockSearchMatch = matchingStocks.some(s =>
@@ -1481,7 +2522,6 @@
                     if (!nameMatch && !stockSearchMatch) return null;
                 }
 
-                // Recompute summary metrics based on the filtered stocks
                 matchingStocks.sort((a, b) => a.distanceKm - b.distanceKm);
                 const closest = matchingStocks[0];
                 const filteredTotalStock = matchingStocks.reduce((sum, s) => sum + s.current_quantity_num, 0);
@@ -1496,22 +2536,11 @@
                     totalStock: filteredTotalStock,
                     nearestDistanceKm: closest.distanceKm,
                     nearestPharmacyName: closest.pharmacy.pharmacy_name,
-                    nearestPharmacyCity: closest.pharmacy.city,
                     expiry_date: closest.expiry_date || med.expiry_date,
                     batch_number: closest.batch_number || med.batch_number,
                     filteredPharmacyStocks: matchingStocks
                 };
             }).filter(Boolean);
-
-            // Sort items
-            const sortLabels = {
-                'popular_asc': 'Most Popular First (Ascending Order)',
-                'price_asc': 'Selling Price: Low to High',
-                'price_desc': 'Selling Price: High to Low',
-                'nearest': 'Nearest Pharmacy Distance',
-                'name_asc': 'Medicine Name (A - Z)'
-            };
-            document.getElementById('activeSortLabel').textContent = sortLabels[sortVal] || sortLabels['popular_asc'];
 
             filteredMedicines.sort((a, b) => {
                 if (sortVal === 'popular_asc') return a.popularityRank - b.popularityRank;
@@ -1535,12 +2564,12 @@
 
             emptyState.classList.add('hidden');
 
-            // Render tiles: Top 3 get "#1/2/3 Most Popular" badge; others just show "#4", "#5", etc. in order
             grid.innerHTML = filteredMedicines.map((item, displayIdx) => {
                 const nearest5Count = Math.min(5, item.filteredPharmacyStocks.length);
                 const iconClass = getCategoryIcon(item.category);
                 const rankNumber = sortVal === 'popular_asc' ? item.popularityRank : (displayIdx + 1);
                 const isTopThreePopular = item.popularityRank <= 3;
+                const closestStockId = item.filteredPharmacyStocks[0].id;
 
                 const rankBadgeHtml = isTopThreePopular
                     ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
@@ -1553,30 +2582,23 @@
 
                 return `
                     <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm card-hover flex flex-col justify-between overflow-hidden">
-                        
                         <div>
-                            <!-- Top Card Header -->
                             <div class="p-4 pb-3 bg-gradient-to-br from-slate-50 to-teal-50/40 border-b border-slate-100 flex items-center justify-between gap-2">
                                 ${rankBadgeHtml}
-
                                 <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
                                     <i class="fa-solid ${iconClass}"></i>
                                     ${item.category}
                                 </span>
                             </div>
 
-                            <!-- Medicine Details Body -->
                             <div class="p-4">
                                 <div class="flex items-start justify-between gap-3 mb-3">
-                                    <h3 class="text-base font-extrabold text-slate-900 leading-snug">
-                                        ${item.name}
-                                    </h3>
+                                    <h3 class="text-base font-extrabold text-slate-900 leading-snug">${item.name}</h3>
                                     <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 border border-brand-100 flex items-center justify-center flex-shrink-0 text-lg">
                                         <i class="fa-solid ${iconClass}"></i>
                                     </div>
                                 </div>
 
-                                <!-- Metadata Badges from grn_stock -->
                                 <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100 space-y-1.5 text-[11px] text-slate-600">
                                     <div class="flex items-center justify-between">
                                         <span class="text-slate-400">Supplier:</span>
@@ -1596,7 +2618,6 @@
                             </div>
                         </div>
 
-                        <!-- Bottom Price & Action Footer -->
                         <div class="px-4 pb-4 pt-2 border-t border-slate-100">
                             <div class="flex items-end justify-between mb-3">
                                 <div>
@@ -1608,47 +2629,28 @@
                                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                         ${item.totalStock} Units in Stock
                                     </span>
-                                    <span class="block text-[10px] text-slate-400 mt-0.5">Available in ${nearest5Count} Pharmacy${nearest5Count === 1 ? '' : 's'}</span>
+                                    <span class="block text-[10px] text-slate-400 mt-0.5">In ${nearest5Count} Nearest Pharmacy${nearest5Count === 1 ? '' : 's'}</span>
                                 </div>
                             </div>
 
-                            <button onclick="openNearestPharmaciesModal('${encodeURIComponent(item.key)}')"
-                                class="w-full bg-gradient-to-r from-brand-600 to-teal-700 hover:from-brand-500 hover:to-teal-600 text-white font-bold text-xs sm:text-sm py-2.5 px-4 rounded-xl shadow-md shadow-teal-600/15 transition flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-map-location-dot"></i>
-                                <span>Show Nearest 5 Pharmacies & Buy</span>
-                            </button>
+                            <div class="flex gap-2">
+                                <button onclick="addToCart('${closestStockId}', 1, false)" title="Quick Add Closest Pharmacy Stock to Cart"
+                                    class="px-3.5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs transition flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-cart-plus"></i>
+                                    <span>Add</span>
+                                </button>
+                                <button onclick="openNearestPharmaciesModal('${encodeURIComponent(item.key)}')"
+                                    class="flex-1 bg-gradient-to-r from-brand-600 to-teal-700 hover:from-brand-500 hover:to-teal-600 text-white font-bold text-xs py-2.5 px-3 rounded-xl shadow-md transition flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-map-location-dot"></i>
+                                    <span>Nearest 5 Pharmacies & Buy</span>
+                                </button>
+                            </div>
                         </div>
-
                     </div>
                 `;
             }).join('');
         }
 
-        function updatePriceLabel() {
-            const val = document.getElementById('priceFilter').value;
-            document.getElementById('priceRangeLabel').textContent = `Rs. ${Number(val).toLocaleString()}`;
-        }
-
-        function clearSearch() {
-            document.getElementById('searchInput').value = '';
-            applyFiltersAndRender();
-        }
-
-        function resetAllFilters() {
-            document.getElementById('searchInput').value = '';
-            document.getElementById('sortFilter').value = 'popular_asc';
-            document.getElementById('cityFilter').value = 'ALL';
-            document.getElementById('supplierFilter').value = 'ALL';
-            const priceSlider = document.getElementById('priceFilter');
-            priceSlider.value = priceSlider.max || 25000;
-            document.getElementById('inStockOnlyFilter').checked = true;
-            updatePriceLabel();
-            selectCategory('ALL');
-        }
-
-        // ---------------------------------------------------------
-        // 10. NEAREST 5 PHARMACIES MODAL + GOOGLE MAPS ROUTE BUTTON
-        // ---------------------------------------------------------
         function openNearestPharmaciesModal(encodedMedKey) {
             const medKey = decodeURIComponent(encodedMedKey);
             const med = getAggregatedMedicines().find(m => m.key === medKey);
@@ -1680,7 +2682,6 @@
                             isClosest ? 'border-brand-500 shadow-md' : 'border-slate-200'
                         } flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                             
-                            <!-- Left: Pharmacy Image & Details -->
                             <div class="flex items-start gap-4">
                                 <div class="relative flex-shrink-0">
                                     <img src="${p.image_url || ''}"
@@ -1705,7 +2706,7 @@
 
                                     <p class="text-xs text-slate-600">
                                         <i class="fa-solid fa-location-dot text-teal-600 mr-1"></i>
-                                        <strong>${p.address || ''}${p.address && p.city ? ', ' : ''}${p.city || ''}</strong> (Lat: ${p.latitude}, Lng: ${p.longitude})
+                                        <strong>${p.address || ''}${p.address && p.city ? ', ' : ''}${p.city || ''}</strong>
                                     </p>
 
                                     <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 pt-1">
@@ -1716,10 +2717,7 @@
 
                                     <div class="flex flex-wrap items-center gap-2 pt-1.5">
                                         <span class="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">
-                                            Rack: <strong>${entry.rack_location || 'N/A'}</strong>
-                                        </span>
-                                        <span class="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">
-                                            GRN: <strong>${entry.grn_number || 'N/A'}</strong>
+                                            Rack: <strong>${entry.rack_location || 'Main Shelf'}</strong>
                                         </span>
                                         <span class="text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-bold">
                                             ${entry.current_quantity_num} units in stock
@@ -1728,24 +2726,27 @@
                                 </div>
                             </div>
 
-                            <!-- Right: Price, Google Maps Route Button & Direct Pharmacy Buy Button -->
                             <div class="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end justify-between border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100 flex-shrink-0 gap-2.5">
                                 <div class="text-left lg:text-right">
                                     <span class="text-[10px] uppercase font-bold text-slate-400 block">Pharmacy Unit Price</span>
                                     <span class="text-xl font-extrabold text-slate-900">Rs. ${entry.selling_price_num.toFixed(2)}</span>
                                 </div>
 
-                                <!-- Action Buttons Side-by-Side: Google Maps + Buy from Pharmacy -->
                                 <div class="flex flex-wrap items-center gap-2">
                                     <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
-                                        title="Get Google Maps directions from your location to ${p.pharmacy_name}"
-                                        class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-sm transition flex items-center justify-center gap-1.5">
+                                        class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs px-3 py-2.5 rounded-xl shadow-sm transition flex items-center justify-center gap-1.5">
                                         <i class="fa-solid fa-diamond-turn-right text-emerald-600"></i>
                                         <span>Google Maps</span>
                                     </a>
 
-                                    <button onclick="openCheckoutModal('${entry.id}')"
-                                        class="bg-slate-900 hover:bg-brand-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition flex items-center justify-center gap-2">
+                                    <button onclick="addToCart('${entry.id}', 1, false)"
+                                        class="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 font-bold text-xs px-3.5 py-2.5 rounded-xl transition flex items-center justify-center gap-1.5">
+                                        <i class="fa-solid fa-cart-plus"></i>
+                                        <span>Add to Cart</span>
+                                    </button>
+
+                                    <button onclick="buySingleStockItemNow('${entry.id}')"
+                                        class="bg-slate-900 hover:bg-brand-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition flex items-center justify-center gap-1.5">
                                         <i class="fa-solid fa-bag-shopping"></i>
                                         <span>Buy from ${p.pharmacy_name}</span>
                                     </button>
@@ -1764,226 +2765,11 @@
             document.getElementById('nearestPharmaciesModal').classList.add('hidden');
         }
 
-        // ---------------------------------------------------------
-        // 11. PHARMACY-DIRECT CHECKOUT (CARD OR BANK TRANSACTION)
-        // ---------------------------------------------------------
-        function openCheckoutModal(grnStockId) {
-            const stockRow = grnStockTable.find(s => String(s.id) === String(grnStockId));
-            if (!stockRow) return;
-            const pharm = pharmaciesTable.find(p => p.id === stockRow.pharmacy_id) || pharmaciesTable[0] || {
-                id: stockRow.pharmacy_id,
-                pharmacy_name: "Pharmacy",
-                city: "",
-                license_no: "Verified"
-            };
-
-            currentCheckoutContext = {
-                stockRow,
-                pharmacy: pharm
-            };
-
-            document.getElementById('checkoutPharmacyName').textContent = `${pharm.pharmacy_name} (${pharm.city || 'Sri Lanka'})`;
-            document.getElementById('checkoutPharmacyMeta').textContent = `License: ${pharm.license_no || 'Verified'} • ${stockRow.rack_location || 'Main Rack'} • Batch: ${stockRow.batch_number || 'N/A'}`;
-            document.getElementById('checkoutMedicineName').textContent = stockRow.medicine_name;
-            document.getElementById('checkoutUnitPriceLabel').textContent = `(Rs. ${parseFloat(stockRow.selling_price || 0).toFixed(2)} / unit)`;
-            document.getElementById('checkoutMaxStockNote').textContent = `${stockRow.current_quantity} Available in Stock`;
-            document.getElementById('bankBeneficiaryName').textContent = `${pharm.pharmacy_name} Official Account`;
-
-            const qtyInput = document.getElementById('checkoutQtyInput');
-            qtyInput.value = 1;
-            qtyInput.max = stockRow.current_quantity;
-
-            selectPaymentMethod('CARD');
-            recalculateCheckoutTotal();
-
-            closeNearestModal();
-            document.getElementById('checkoutModal').classList.remove('hidden');
-        }
-
-        function closeCheckoutModal() {
-            document.getElementById('checkoutModal').classList.add('hidden');
-        }
-
-        function adjustCheckoutQty(delta) {
-            if (!currentCheckoutContext) return;
-            const input = document.getElementById('checkoutQtyInput');
-            let val = parseInt(input.value || '1', 10) + delta;
-            val = Math.max(1, Math.min(parseInt(currentCheckoutContext.stockRow.current_quantity || 1, 10), val));
-            input.value = val;
-            recalculateCheckoutTotal();
-        }
-
-        function recalculateCheckoutTotal() {
-            if (!currentCheckoutContext) return;
-            const qty = Math.max(1, parseInt(document.getElementById('checkoutQtyInput').value || '1', 10));
-            const price = parseFloat(currentCheckoutContext.stockRow.selling_price || 0);
-            const total = qty * price;
-            document.getElementById('checkoutTotalAmount').textContent = `Rs. ${total.toFixed(2)}`;
-        }
-
-        function selectPaymentMethod(method) {
-            selectedPaymentMethod = method;
-            const tabCard = document.getElementById('payTabCard');
-            const tabBank = document.getElementById('payTabBank');
-            const cardSec = document.getElementById('cardPaymentSection');
-            const bankSec = document.getElementById('bankPaymentSection');
-
-            if (method === 'CARD') {
-                tabCard.className = "p-3.5 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-3";
-                tabBank.className = "p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-3";
-                cardSec.classList.remove('hidden');
-                bankSec.classList.add('hidden');
-            } else {
-                tabBank.className = "p-3.5 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-3";
-                tabCard.className = "p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-3";
-                bankSec.classList.remove('hidden');
-                cardSec.classList.add('hidden');
-            }
-        }
-
-        async function submitPharmacyOrder(event) {
-            event.preventDefault();
-            if (!currentCheckoutContext) return;
-
-            const custName = document.getElementById('custName').value.trim();
-            const custPhone = document.getElementById('custPhone').value.trim();
-            const qty = Math.max(1, parseInt(document.getElementById('checkoutQtyInput').value || '1', 10));
-
-            let paymentLabel = '';
-            if (selectedPaymentMethod === 'CARD') {
-                const cardNo = document.getElementById('cardNumberInput').value.trim();
-                if (cardNo.length < 4) {
-                    showToast("Card Verification", "Please enter a valid card number to complete payment.", "warning");
-                    return;
-                }
-                paymentLabel = `Card Payment (••• ${cardNo.slice(-4)})`;
-            } else {
-                const bankName = document.getElementById('bankNameSelect').value;
-                const bankRef = document.getElementById('bankRefInput').value.trim();
-                if (!bankRef) {
-                    showToast("Bank Reference Required", "Please provide your Bank Transfer Reference / Slip No.", "warning");
-                    return;
-                }
-                paymentLabel = `Bank Transaction (${bankName} - Ref: ${bankRef})`;
-            }
-
-            const { stockRow, pharmacy } = currentCheckoutContext;
-            const unitPrice = parseFloat(stockRow.selling_price || 0);
-            const unitCost = parseFloat(stockRow.unit_cost || (unitPrice * 0.75));
-            const totalAmount = qty * unitPrice;
-            const profitAmount = (unitPrice - unitCost) * qty;
-            const invoiceNo = `INV-${Math.floor(100000 + Math.random() * 900000)}`;
-
-            // 1. Decrement GRN stock quantity locally
-            stockRow.current_quantity = Math.max(0, Number(stockRow.current_quantity) - qty);
-
-            // 2. Push update to live Supabase
-            try {
-                await supabaseClient
-                    .from('grn_stock')
-                    .update({ current_quantity: stockRow.current_quantity })
-                    .eq('id', stockRow.id);
-
-                await supabaseClient
-                    .from('sales_transactions')
-                    .insert([{
-                        pharmacy_id: pharmacy.id,
-                        invoice_no: invoiceNo,
-                        counter_name: `Web (${paymentLabel})`,
-                        cashier_username: `${custName} (${custPhone})`,
-                        medicine_name: stockRow.medicine_name,
-                        quantity_sold: qty,
-                        unit_cost: unitCost,
-                        unit_price: unitPrice,
-                        total_amount: totalAmount,
-                        profit_amount: profitAmount
-                    }]);
-            } catch (e) {
-                console.warn("Live Supabase write notice:", e);
-            }
-
-            salesTransactionsTable.unshift({
-                id: `tx-${Date.now()}`,
-                pharmacy_id: pharmacy.id,
-                pharmacy_name: pharmacy.pharmacy_name,
-                invoice_no: invoiceNo,
-                counter_name: `Web (${paymentLabel})`,
-                cashier_username: custName,
-                medicine_name: stockRow.medicine_name,
-                quantity_sold: qty,
-                unit_cost: unitCost.toFixed(2),
-                unit_price: unitPrice.toFixed(2),
-                total_amount: totalAmount.toFixed(2),
-                profit_amount: profitAmount.toFixed(2),
-                sold_at: new Date().toLocaleString()
-            });
-
-            updateOrdersBadge();
-            closeCheckoutModal();
-            applyFiltersAndRender();
-            renderCategorySidebar();
-            showToast(
-                `Order Confirmed (${invoiceNo})`,
-                `Purchased ${qty}x ${stockRow.medicine_name} from ${pharmacy.pharmacy_name}.`,
-                "success"
-            );
-            openOrdersModal();
-        }
-
-        function updateOrdersBadge() {
-            const count = salesTransactionsTable.length;
-            document.getElementById('orderCountBadge').textContent = count;
-            const sidebarBadge = document.getElementById('sidebarOrderBadge');
-            if (sidebarBadge) sidebarBadge.textContent = count;
-        }
-
-        function openOrdersModal() {
-            const container = document.getElementById('ordersListContainer');
-            if (salesTransactionsTable.length === 0) {
-                container.innerHTML = `<p class="text-sm text-slate-500 text-center py-6">No pharmacy orders recorded yet.</p>`;
-            } else {
-                container.innerHTML = salesTransactionsTable.map(tx => {
-                    const pharm = pharmaciesTable.find(p => p.id === tx.pharmacy_id);
-                    const pharmName = tx.pharmacy_name || (pharm ? pharm.pharmacy_name : 'Registered Pharmacy');
-                    return `
-                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xs font-extrabold px-2 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200">${tx.invoice_no || 'INV'}</span>
-                                    <span class="text-xs font-bold text-slate-800">${pharmName}</span>
-                                    <span class="text-[11px] text-slate-400">• ${tx.sold_at ? new Date(tx.sold_at).toLocaleString() : 'Just now'}</span>
-                                </div>
-                                <h4 class="text-sm font-extrabold text-slate-900 mt-1">${tx.medicine_name} (Qty: ${tx.quantity_sold})</h4>
-                                <p class="text-xs text-slate-500 mt-0.5"><i class="fa-solid fa-credit-card text-teal-600 mr-1"></i>${tx.counter_name || 'Direct Pharmacy Checkout'}</p>
-                            </div>
-                            <div class="text-left sm:text-right">
-                                <span class="text-[10px] uppercase font-bold text-slate-400 block">Total Paid</span>
-                                <span class="text-lg font-extrabold text-brand-700">Rs. ${parseFloat(tx.total_amount || 0).toFixed(2)}</span>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-            document.getElementById('ordersModal').classList.remove('hidden');
-        }
-
-        function closeOrdersModal() {
-            document.getElementById('ordersModal').classList.add('hidden');
-        }
-
-        // ---------------------------------------------------------
-        // 12. RENDER REGISTERED PHARMACIES DIRECTORY WITH GOOGLE MAPS
-        // ---------------------------------------------------------
         function renderPharmaciesDirectory() {
             const container = document.getElementById('pharmaciesDirectoryGrid');
             const ranked = pharmaciesTable.map(p => ({
                 ...p,
-                distanceKm: calculateDistanceKm(
-                    userLocation.lat,
-                    userLocation.lng,
-                    p.latitude,
-                    p.longitude
-                )
+                distanceKm: calculateDistanceKm(userLocation.lat, userLocation.lng, p.latitude, p.longitude)
             })).sort((a, b) => a.distanceKm - b.distanceKm);
 
             if (ranked.length === 0) {
@@ -2023,9 +2809,28 @@
             }).join('');
         }
 
-        // ---------------------------------------------------------
-        // 13. NAVIGATION (HOME, ABOUT US, SUPPORT)
-        // ---------------------------------------------------------
+        function updatePriceLabel() {
+            const val = document.getElementById('priceFilter').value;
+            document.getElementById('priceRangeLabel').textContent = `Rs. ${Number(val).toLocaleString()}`;
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            applyFiltersAndRender();
+        }
+
+        function resetAllFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('sortFilter').value = 'popular_asc';
+            document.getElementById('cityFilter').value = 'ALL';
+            document.getElementById('supplierFilter').value = 'ALL';
+            const priceSlider = document.getElementById('priceFilter');
+            priceSlider.value = priceSlider.max || 25000;
+            document.getElementById('inStockOnlyFilter').checked = true;
+            updatePriceLabel();
+            selectCategory('ALL');
+        }
+
         function switchView(view) {
             const homeView = document.getElementById('homeView');
             const aboutView = document.getElementById('aboutView');
@@ -2055,9 +2860,6 @@
             setTimeout(() => box.classList.remove('ring-4', 'ring-amber-400'), 2500);
         }
 
-        // ---------------------------------------------------------
-        // 14. TOAST NOTIFICATION HELPER
-        // ---------------------------------------------------------
         let toastTimer = null;
         function showToast(title, message) {
             const toast = document.getElementById('toastNotification');
@@ -2067,15 +2869,17 @@
             if (toastTimer) clearTimeout(toastTimer);
             toastTimer = setTimeout(() => {
                 toast.classList.add('hidden');
-            }, 4500);
+            }, 6000);
         }
 
-        // ---------------------------------------------------------
-        // 15. INITIALIZE ON PAGE LOAD
-        // ---------------------------------------------------------
         window.addEventListener('DOMContentLoaded', () => {
+            updateCustomerHeaderUI();
+            updateCartBadges();
             renderCategorySidebar();
             fetchLiveSupabaseData();
+            if (currentCustomer) {
+                subscribeToCustomerOrderUpdates();
+            }
         });
     </script>
 </body>
