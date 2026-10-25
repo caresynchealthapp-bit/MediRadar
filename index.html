@@ -1024,36 +1024,6 @@
                     </div>
                 </div>
 
-                <!-- Optional Visa / MasterCard Details -->
-                <div class="bg-teal-50/50 p-4 rounded-2xl border border-teal-200/80 space-y-3">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-extrabold text-teal-950 uppercase tracking-wider">
-                            <i class="fa-regular fa-credit-card text-brand-600 mr-1"></i> Saved Visa / MasterCard Details (Optional - Auto-Fills Card Checkout)
-                        </span>
-                        <div class="flex gap-1.5 text-base">
-                            <i class="fa-brands fa-cc-visa text-blue-700"></i>
-                            <i class="fa-brands fa-cc-mastercard text-orange-600"></i>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Card Number (Optional)</label>
-                        <input id="profCardNumber" type="text" maxlength="19" placeholder="5468 8956 4526 7546"
-                            class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Expiry Date (MM/YY)</label>
-                            <input id="profCardExpiry" type="text" maxlength="5" placeholder="08/29"
-                                class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">CVV / CVC</label>
-                            <input id="profCardCvv" type="password" maxlength="4" placeholder="123"
-                                class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
-                        </div>
-                    </div>
-                </div>
-
                 <div class="pt-2 flex flex-wrap items-center justify-between gap-3">
                     <button type="button" id="logoutCustomerBtn" onclick="logoutCustomer()" class="hidden px-4 py-2.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold">
                         <i class="fa-solid fa-right-from-bracket mr-1"></i> Sign Out
@@ -1196,7 +1166,7 @@
                 <div id="bankPaymentSection" class="hidden bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3.5">
                     <div>
                         <div class="text-xs font-bold text-slate-800 mb-1.5">
-                            <i class="fa-solid fa-building-columns text-brand-600 mr-1"></i> Transfer to Pharmacy Designated Bank Account(s) (From Supabase):
+                            <i class="fa-solid fa-building-columns text-brand-600 mr-1"></i> Transfer to Pharmacy Designated Bank Account(s):
                         </div>
                         <div id="checkoutPharmacyBanksList" class="space-y-2">
                             <!-- Dynamically populated from pharmacy_banks & pharmacies table -->
@@ -1219,7 +1189,7 @@
                     <!-- Receipt Screenshot Upload Input -->
                     <div class="bg-white p-3.5 rounded-xl border-2 border-dashed border-teal-400">
                         <label for="receipt-upload" class="block text-xs font-extrabold text-teal-900 mb-1 cursor-pointer">
-                            <i class="fa-solid fa-cloud-arrow-up text-brand-600 mr-1"></i> Upload Bank Payment Receipt Image
+                            <i class="fa-solid fa-cloud-arrow-up text-brand-600 mr-1"></i> Upload Bank Payment Receipt Image *
                         </label>
                         <div class="flex items-center gap-2">
                             <input type="file" id="receipt-upload" accept="image/*" onchange="handleReceiptSelection(event)"
@@ -1660,9 +1630,6 @@
                 document.getElementById('profAddress').value = currentCustomer.address || '';
                 document.getElementById('profBankName').value = currentCustomer.bank_name || 'Bank of Ceylon (BOC)';
                 document.getElementById('profBankAccountNo').value = currentCustomer.bank_account_no || '';
-                document.getElementById('profCardNumber').value = currentCustomer.card_number || '';
-                document.getElementById('profCardExpiry').value = currentCustomer.card_expiry || '';
-                document.getElementById('profCardCvv').value = currentCustomer.card_cvv || '';
             } else {
                 document.getElementById('accountModalTitle').textContent = "Register Customer Account Before Online Purchase";
                 document.getElementById('saveProfileSubmitBtn').textContent = "Complete Customer Registration";
@@ -1708,9 +1675,6 @@
                 address: document.getElementById('profAddress').value.trim(),
                 bank_name: document.getElementById('profBankName').value,
                 bank_account_no: document.getElementById('profBankAccountNo').value.trim(),
-                card_number: document.getElementById('profCardNumber').value.trim(),
-                card_expiry: document.getElementById('profCardExpiry').value.trim(),
-                card_cvv: document.getElementById('profCardCvv').value.trim(),
                 latitude: String(userLocation.lat),
                 longitude: String(userLocation.lng)
             };
