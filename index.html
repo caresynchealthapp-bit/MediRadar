@@ -219,7 +219,7 @@
                         </button>
                     </nav>
 
-                    <!-- Right: Location, Account, Cart & My Orders Buttons -->
+                    <!-- Right: Location, Account, Cart, Orders & Sign Out Button -->
                     <div class="flex items-center space-x-2.5">
                         <!-- Fetch GPS Button -->
                         <button id="fetchLocationBtn" onclick="fetchUserLocation()"
@@ -255,6 +255,13 @@
                             <span id="orderCountBadge" class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center shadow">
                                 0
                             </span>
+                        </button>
+
+                        <!-- Red Sign Out Button (Visible only when logged in) -->
+                        <button onclick="logoutCustomer()" id="headerSignOutBtn" title="Sign Out of Customer Account"
+                            class="hidden p-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white border border-rose-500 text-xs font-bold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-right-from-bracket text-sm"></i>
+                            <span class="hidden md:inline">Sign Out</span>
                         </button>
                     </div>
 
@@ -1585,12 +1592,16 @@
         function updateCustomerHeaderUI() {
             const label = document.getElementById('headerAccountLabel');
             const logoutBtn = document.getElementById('logoutCustomerBtn');
+            const headerSignOutBtn = document.getElementById('headerSignOutBtn');
+
             if (currentCustomer) {
                 label.textContent = currentCustomer.full_name || currentCustomer.email;
                 if (logoutBtn) logoutBtn.classList.remove('hidden');
+                if (headerSignOutBtn) headerSignOutBtn.classList.remove('hidden');
             } else {
                 label.textContent = "Sign In / Register";
                 if (logoutBtn) logoutBtn.classList.add('hidden');
+                if (headerSignOutBtn) headerSignOutBtn.classList.add('hidden');
             }
         }
 
