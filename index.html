@@ -2516,6 +2516,14 @@
                 const validPrices = group.pharmacyStocks.map(s => s.selling_price_num).filter(p => p > 0);
                 const minPrice = validPrices.length > 0 ? Math.min(...validPrices) : 0;
 
+                // Collect all uploaded photos for this medicine across the medicines catalog
+                const medicineImages = [...new Set(
+                    medicinesTable
+                        .filter(m => (m.name || '').trim().toLowerCase() === group.key && Array.isArray(m.image_urls))
+                        .flatMap(m => m.image_urls)
+                        .filter(Boolean)
+                )];
+
                 return {
                     ...group,
                     category: displayCategory,
@@ -2528,6 +2536,7 @@
                     expiry_date: primary.expiry_date || 'N/A',
                     batch_number: primary.batch_number || 'N/A',
                     popularityScore
+                    images: medicineImages
                 };
             });
 
@@ -2632,6 +2641,7 @@
                 const rankNumber = sortVal === 'popular_asc' ? item.popularityRank : (displayIdx + 1);
                 const isTopThreePopular = item.popularityRank <= 3;
                 const closestStockId = item.filteredPharmacyStocks[0].id;
+                const photos = Array.isArray(item.images) ? item.images : [];
 
                 const rankBadgeHtml = isTopThreePopular
                     ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
@@ -2641,6 +2651,27 @@
                     : `<span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
                            #${rankNumber}
                        </span>`;
+
+                // Build single photo or auto-looping multi-photo banner
+                const photoBannerHtml = photos.length > 0 ? `
+                    <div class="relative w-full h-44 bg-slate-100 border-b border-slate-100 overflow-hidden group"
+                         data-med-carousel="${photos.length > 1 ? 'true' : 'false'}"
+                         data-active-index="0"
+                         data-total-slides="${photos.length}">
+                        ${photos.map((imgUrl, imgIdx) => `
+                            <img src="${imgUrl}" alt="${item.name}"
+                                 data-carousel-slide="${imgIdx}"
+                                 class="w-full h-full object-contain p-2 bg-white transition-opacity duration-700 absolute inset-0 ${imgIdx === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0'}">
+                        `).join('')}
+                        ${photos.length > 1 ? `
+                            <div class="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-slate-900/60 backdrop-blur-sm px-2.5 py-1 rounded-full">
+                                ${photos.map((_, dotIdx) => `
+                                    <span data-carousel-dot="${dotIdx}" class="w-1.5 h-1.5 rounded-full transition-all ${dotIdx === 0 ? 'bg-brand-400 w-3.5' : 'bg-white/60'}"></span>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : '';
 
                 return `
                     <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm card-hover flex flex-col justify-between overflow-hidden">
@@ -2652,6 +2683,8 @@
                                     ${item.category}
                                 </span>
                             </div>
+
+                            ${photoBannerHtml}
 
                             <div class="p-4">
                                 <div class="flex items-start justify-between gap-3 mb-3">
@@ -2933,6 +2966,30 @@
                 toast.classList.add('hidden');
             }, 6000);
         }
+
+        // Automatically cycle multi-photo carousels on medicine tiles every 2.8 seconds
+        setInterval(() => {
+            document.querySelectorAll('[data-med-carousel="true"]').forEach(carousel => {
+                const total = parseInt(carousel.getAttribute('data-total-slides') || '1', 10);
+                if (total <= 1) return;
+
+                const current = parseInt(carousel.getAttribute('data-active-index') || '0', 10);
+                const next = (current + 1) % total;
+                carousel.setAttribute('data-active-index', String(next));
+
+                carousel.querySelectorAll('[data-carousel-slide]').forEach((img, idx) => {
+                    img.className = `w-full h-full object-contain p-2 bg-white transition-opacity duration-700 absolute inset-0 ${
+                        idx === next ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                    }`;
+                });
+
+                carousel.querySelectorAll('[data-carousel-dot]').forEach((dot, idx) => {
+                    dot.className = `w-1.5 h-1.5 rounded-full transition-all ${
+                        idx === next ? 'bg-brand-400 w-3.5' : 'bg-white/60'
+                    }`;
+                });
+            });
+        }, 2800);
 
         window.addEventListener('DOMContentLoaded', () => {
             updateCustomerHeaderUI();
