@@ -1,0 +1,64 @@
+body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 9999px;
+        }
+        #geminiSidebar {
+            transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        /* Desktop: pushes content cleanly */
+        @media (min-width: 1024px) {
+            .sidebar-expanded {
+                width: 280px;
+                transform: translateX(0);
+            }
+            .sidebar-collapsed {
+                width: 0px;
+                overflow: hidden;
+                border-right-width: 0px;
+            }
+        }
+        /* Mobile & Tablet (<1024px): fixed slide-over drawer so it never squishes the page! */
+        @media (max-width: 1023px) {
+            #geminiSidebar {
+                position: fixed !important;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: 280px !important;
+                z-index: 60 !important;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            }
+            .sidebar-expanded {
+                transform: translateX(0);
+            }
+            .sidebar-collapsed {
+                transform: translateX(-100%);
+                pointer-events: none;
+            }
+        }
+        .card-hover {
+            transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(13, 148, 136, 0.12), 0 8px 10px -6px rgba(13, 148, 136, 0.08);
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(20, 184, 166, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(20, 184, 166, 0); }
+        }
+        .gps-pulse {
+            animation: pulse-ring 2s infinite;
+        }
