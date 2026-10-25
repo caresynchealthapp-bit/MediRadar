@@ -176,104 +176,111 @@
     <div class="flex-1 flex flex-col min-w-0 min-h-screen">
 
         <!-- Sticky Eye-Catching Header -->
-        <!-- Sticky Eye-Catching Header -->
-        <header class="sticky top-0 z-30 bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white shadow-xl border-b border-teal-800/60">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    
-                    <!-- Left: Sidebar Toggle Button & MediRadar Logo -->
-                    <div class="flex items-center space-x-3">
-                        <button id="headerSidebarToggleBtn" onclick="toggleSidebar()" title="Extend or Hide Categories Menu"
-                            class="p-2.5 rounded-xl bg-teal-800/50 hover:bg-teal-700/70 text-teal-200 border border-teal-700/60 transition focus:outline-none">
-                            <i class="fa-solid fa-table-columns text-base"></i>
-                        </button>
-                        
-                        <a href="#" onclick="switchView('home'); return false;" class="flex items-center space-x-2.5 group">
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/30 group-hover:scale-105 transition">
-                                <i class="fa-solid fa-capsules text-white text-lg"></i>
-                            </div>
-                            <div>
-                                <span class="text-lg sm:text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-teal-100 to-brand-300">
-                                    MediRadar
-                                </span>
-                                <p class="text-[10px] text-teal-300/80 hidden sm:block">Live Pharmacy Stock Locator</p>
-                            </div>
-                        </a>
+<header class="sticky top-0 z-30 bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white shadow-xl border-b border-teal-800/60 backdrop-blur-md">
+    <div class="w-full max-w-[1600px] mx-auto px-4 sm:px-6 py-3">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            
+            <!-- Left: Sidebar Toggle Button & MediRadar Logo -->
+            <div class="flex items-center space-x-3.5">
+                <button id="headerSidebarToggleBtn" onclick="toggleSidebar()" title="Extend or Hide Categories Menu"
+                    class="w-10 h-10 rounded-xl bg-teal-800/50 hover:bg-teal-700/70 text-teal-200 border border-teal-700/60 flex items-center justify-center transition shadow-sm focus:outline-none">
+                    <i class="fa-solid fa-table-columns text-base"></i>
+                </button>
+                
+                <div class="h-6 w-px bg-teal-800/60 hidden sm:block"></div>
+
+                <a href="#" onclick="switchView('home'); return false;" class="flex items-center space-x-3 group">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/30 group-hover:scale-105 transition">
+                        <i class="fa-solid fa-capsules text-white text-lg"></i>
                     </div>
-
-                    <!-- Middle: Primary Navigation Buttons (Home, About Us, Support) -->
-                    <nav class="flex items-center bg-slate-800/80 p-1 rounded-xl border border-slate-700/80 space-x-1">
-                        <button id="navHomeBtn" onclick="switchView('home')"
-                            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-brand-600 text-white shadow">
-                            <i class="fa-solid fa-house-medical"></i>
-                            <span>Home</span>
-                        </button>
-                        <button id="navAboutBtn" onclick="switchView('about')"
-                            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-700/60 transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-users-gear"></i>
-                            <span>About Us</span>
-                        </button>
-                        <button id="navSupportBtn" onclick="scrollToSupport(event)"
-                            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-700/60 transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-headset"></i>
-                            <span>Support</span>
-                        </button>
-                    </nav>
-
-                    <!-- Right Column: Top (Username & Sign Out) + Bottom (Location, Cart, Orders) -->
-                    <div class="flex flex-col items-end gap-1.5">
-                        
-                        <!-- Row 1 (Top Right): Username / Account & Red Sign Out Button -->
-                        <div class="flex items-center space-x-2">
-                            <button onclick="openCustomerAccountModal()" id="headerAccountBtn" title="Customer Account"
-                                class="flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-200 border border-slate-700 text-xs font-bold transition">
-                                <i class="fa-solid fa-user-check text-brand-400"></i>
-                                <span id="headerAccountLabel" class="max-w-[130px] truncate">Sign In / Register</span>
-                            </button>
-
-                            <button onclick="logoutCustomer()" id="headerSignOutBtn" title="Sign Out"
-                                class="hidden px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white border border-rose-500 text-xs font-bold transition flex items-center gap-1">
-                                <i class="fa-solid fa-right-from-bracket text-xs"></i>
-                                <span>Sign Out</span>
-                            </button>
-                        </div>
-
-                        <!-- Row 2 (Right Under): Fetch Location, Cart, and My Orders -->
-                        <div class="flex items-center space-x-2">
-                            <!-- Fetch GPS Button -->
-                            <button id="fetchLocationBtn" onclick="fetchUserLocation()" title="Fetch GPS Location"
-                                class="flex items-center space-x-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-[11px] px-3 py-1.5 rounded-xl shadow transition">
-                                <span class="w-2 h-2 rounded-full bg-slate-950 gps-pulse"></span>
-                                <i class="fa-solid fa-location-crosshairs text-xs"></i>
-                                <span>Fetch Location</span>
-                            </button>
-
-                            <!-- Shopping Cart Button -->
-                            <button onclick="openCartModal()" title="View Shopping Cart"
-                                class="relative px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 text-[11px] font-bold transition flex items-center gap-1.5">
-                                <i class="fa-solid fa-cart-shopping"></i>
-                                <span>Cart</span>
-                                <span id="cartCountBadge" class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 text-slate-950 text-[9px] font-extrabold flex items-center justify-center shadow">
-                                    0
-                                </span>
-                            </button>
-
-                            <!-- My Orders / Receipts Button -->
-                            <button onclick="openOrdersModal()" title="View My Orders & Receipts"
-                                class="relative px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-200 border border-slate-700 text-[11px] font-bold transition flex items-center gap-1.5">
-                                <i class="fa-solid fa-receipt"></i>
-                                <span>Orders</span>
-                                <span id="orderCountBadge" class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-brand-500 text-white text-[9px] font-bold flex items-center justify-center shadow">
-                                    0
-                                </span>
-                            </button>
-                        </div>
-
+                    <div class="leading-tight">
+                        <span class="text-lg sm:text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-teal-100 to-brand-300 block">
+                            MediRadar
+                        </span>
+                        <p class="text-[10px] font-medium tracking-wide text-teal-300/80 hidden sm:block">
+                            Live Pharmacy Stock Locator
+                        </p>
                     </div>
-
-                </div>
+                </a>
             </div>
-        </header>
+
+            <!-- Middle: Primary Navigation Pill (Home, About Us, Support) -->
+            <nav class="flex items-center bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700/80 shadow-inner space-x-1 order-3 xl:order-2 w-full xl:w-auto justify-center">
+                <button id="navHomeBtn" onclick="switchView('home')"
+                    class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-brand-600 text-white shadow-md shadow-brand-600/30">
+                    <i class="fa-solid fa-house-medical"></i>
+                    <span>Home</span>
+                </button>
+                <button id="navAboutBtn" onclick="switchView('about')"
+                    class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-700/60 transition flex items-center gap-2">
+                    <i class="fa-solid fa-users-gear"></i>
+                    <span>About Us</span>
+                </button>
+                <button id="navSupportBtn" onclick="scrollToSupport(event)"
+                    class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-700/60 transition flex items-center gap-2">
+                    <i class="fa-solid fa-headset"></i>
+                    <span>Support</span>
+                </button>
+            </nav>
+
+            <!-- Right: Unified Single-Row Action Bar & Account Controls -->
+            <div class="flex flex-wrap items-center justify-end gap-2.5 order-2 xl:order-3">
+                
+                <!-- Group 1: Location, Cart & Orders -->
+                <div class="flex items-center gap-2.5">
+                    <!-- Fetch GPS Button -->
+                    <button id="fetchLocationBtn" onclick="fetchUserLocation()" title="Fetch GPS Location"
+                        class="h-9 flex items-center space-x-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-xs px-3.5 rounded-xl shadow-md transition">
+                        <span class="w-2 h-2 rounded-full bg-slate-950 gps-pulse"></span>
+                        <i class="fa-solid fa-location-crosshairs text-xs"></i>
+                        <span id="locationBtnTitle">Fetch Location</span>
+                        <span id="locationCoordsBadge" class="hidden"></span>
+                    </button>
+
+                    <!-- Shopping Cart Button -->
+                    <button onclick="openCartModal()" title="View Shopping Cart"
+                        class="relative h-9 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 text-xs font-bold transition flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                        <span class="hidden sm:inline">Cart</span>
+                        <span id="cartCountBadge" class=" -top-1.5 -right-1.5 absolute min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-extrabold flex items-center justify-center shadow">
+                            0
+                        </span>
+                    </button>
+
+                    <!-- My Orders / Receipts Button -->
+                    <button onclick="openOrdersModal()" title="View My Orders & Receipts"
+                        class="relative h-9 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-200 border border-slate-700 text-xs font-bold transition flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span class="hidden sm:inline">Orders</span>
+                        <span id="orderCountBadge" class="-top-1.5 -right-1.5 absolute min-w-[18px] h-[18px] px-1 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center shadow">
+                            0
+                        </span>
+                    </button>
+                </div>
+
+                <!-- Vertical Divider -->
+                <div class="h-6 w-px bg-teal-800/60 hidden sm:block mx-0.5"></div>
+
+                <!-- Group 2: Customer Profile & Sign Out -->
+                <div class="flex items-center gap-2">
+                    <button onclick="openCustomerAccountModal()" id="headerAccountBtn" title="Customer Account"
+                        class="h-9 flex items-center space-x-2 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-200 border border-slate-700 text-xs font-bold transition shadow-sm">
+                        <i class="fa-solid fa-user-check text-brand-400"></i>
+                        <span id="headerAccountLabel" class="max-w-[140px] truncate">Sign In / Register</span>
+                    </button>
+
+                    <button onclick="logoutCustomer()" id="headerSignOutBtn" title="Sign Out"
+                        class="hidden h-9 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white border border-rose-500 text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-right-from-bracket text-xs"></i>
+                        <span class="hidden md:inline">Sign Out</span>
+                    </button>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+</header>
 
         <!-- ========================================== -->
         <!-- VIEW 1: HOME (SHOPPING & MEDICINE FINDER)  -->
