@@ -1221,8 +1221,15 @@
                         <label for="receipt-upload" class="block text-xs font-extrabold text-teal-900 mb-1 cursor-pointer">
                             <i class="fa-solid fa-cloud-arrow-up text-brand-600 mr-1"></i> Upload Bank Payment Receipt Image (`bank_receipts`) *
                         </label>
-                        <input type="file" id="receipt-upload" accept="image/*"
-                            class="w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100">
+                        <div class="flex items-center gap-2">
+                            <input type="file" id="receipt-upload" accept="image/*" onchange="handleReceiptSelection(event)"
+                                class="flex-1 text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100">
+                            
+                            <!-- New Hidden Remove Button -->
+                            <button type="button" id="remove-receipt-btn" onclick="clearReceiptUpload()" class="hidden px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 text-xs font-bold transition hover:bg-rose-100 whitespace-nowrap">
+                                <i class="fa-solid fa-trash-can mr-1"></i> Remove
+                            </button>
+                        </div>
                         <p class="text-[11px] text-slate-500 mt-1">
                             Once uploaded, you can continue browsing MediRadar while the pharmacy POS Cashier reviews and approves your payment.
                         </p>
@@ -1950,6 +1957,22 @@
 
         function closeCheckoutModal() {
             document.getElementById('checkoutModal').classList.add('hidden');
+        }
+
+        function handleReceiptSelection(event) {
+            const removeBtn = document.getElementById('remove-receipt-btn');
+            if (event.target.files && event.target.files.length > 0) {
+                removeBtn.classList.remove('hidden');
+            } else {
+                removeBtn.classList.add('hidden');
+            }
+        }
+
+        function clearReceiptUpload() {
+            const fileInput = document.getElementById('receipt-upload');
+            const removeBtn = document.getElementById('remove-receipt-btn');
+            fileInput.value = ''; // Clears the file input
+            removeBtn.classList.add('hidden'); // Hides the remove button again
         }
 
         function selectPaymentMethod(method) {
