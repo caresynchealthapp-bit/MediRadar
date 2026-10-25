@@ -66,13 +66,36 @@
         #geminiSidebar {
             transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .sidebar-expanded {
-            width: 280px;
+        /* Desktop: pushes content cleanly */
+        @media (min-width: 1024px) {
+            .sidebar-expanded {
+                width: 280px;
+                transform: translateX(0);
+            }
+            .sidebar-collapsed {
+                width: 0px;
+                overflow: hidden;
+                border-right-width: 0px;
+            }
         }
-        .sidebar-collapsed {
-            width: 0px;
-            overflow: hidden;
-            border-right-width: 0px;
+        /* Mobile & Tablet (<1024px): fixed slide-over drawer so it never squishes the page! */
+        @media (max-width: 1023px) {
+            #geminiSidebar {
+                position: fixed !important;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: 280px !important;
+                z-index: 60 !important;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            }
+            .sidebar-expanded {
+                transform: translateX(0);
+            }
+            .sidebar-collapsed {
+                transform: translateX(-100%);
+                pointer-events: none;
+            }
         }
         .card-hover {
             transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
@@ -92,6 +115,9 @@
     </style>
 </head>
 <body class="text-slate-800 min-h-screen flex">
+
+<!-- Mobile Dark Backdrop when Sidebar is open on Phone -->
+    <div id="mobileSidebarBackdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 hidden lg:hidden"></div>
 
     <!-- ===================================================== -->
     <!-- GEMINI-STYLE FULL-HEIGHT COLLAPSIBLE DARK LEFT SIDEBAR -->
@@ -1104,26 +1130,19 @@
                     </div>
                 </div>
 
-                <!-- Payment Method Selector -->
+                <!-- Payment Method Selector (Bank Transaction First on Left, Card Payment on Right) -->
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-2">
-                        Select Pharmacy Payment Method (Card or Bank Transaction Only) *
+                        Select Pharmacy Payment Method (Bank Transaction Recommended) *
                     </label>
-                    <div class="grid grid-cols-2 gap-3">
-                        <button type="button" id="payTabCard" onclick="selectPaymentMethod('CARD')"
-                            class="p-3.5 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center text-lg">
-                                <i class="fa-regular fa-credit-card"></i>
-                            </div>
-                            <div>
-                                <div class="text-xs sm:text-sm font-extrabold text-slate-900">Card Payment</div>
-                                <div class="text-[11px] text-slate-500">Auto-filled Visa / MasterCard</div>
-                            </div>
-                        </button>
-
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <!-- LEFT (First & Default): Bank Transaction -->
                         <button type="button" id="payTabBank" onclick="selectPaymentMethod('BANK')"
-                            class="p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-lg">
+                            class="p-3.5 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-3 relative">
+                            <span class="absolute -top-2 right-3 px-2 py-0.5 rounded-full bg-brand-600 text-white text-[9px] font-extrabold uppercase tracking-wider shadow">
+                                Recommended
+                            </span>
+                            <div class="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center text-lg flex-shrink-0">
                                 <i class="fa-solid fa-building-columns"></i>
                             </div>
                             <div>
@@ -1131,39 +1150,23 @@
                                 <div class="text-[11px] text-slate-500">Upload Slip for Cashier Review</div>
                             </div>
                         </button>
+
+                        <!-- RIGHT (Second): Card Payment (Temporary Input Only) -->
+                        <button type="button" id="payTabCard" onclick="selectPaymentMethod('CARD')"
+                            class="p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-lg flex-shrink-0">
+                                <i class="fa-regular fa-credit-card"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs sm:text-sm font-extrabold text-slate-900">Card Payment</div>
+                                <div class="text-[11px] text-slate-500">One-Time Visa / MasterCard</div>
+                            </div>
+                        </button>
                     </div>
                 </div>
 
-                <!-- Option A: Card Payment Fields (Auto-filled from Customer Profile & Editable) -->
-                <div id="cardPaymentSection" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-shield-halved text-teal-600 mr-1"></i> Card Details (Auto-filled from Profile — You can edit below)</span>
-                        <div class="flex gap-1.5 text-lg text-slate-600">
-                            <i class="fa-brands fa-cc-visa text-blue-700"></i>
-                            <i class="fa-brands fa-cc-mastercard text-orange-600"></i>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Card Number (16 Digits)</label>
-                        <input id="cardNumberInput" type="text" maxlength="19" placeholder="4532 •••• •••• 8891"
-                            class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Expiry Date (MM/YY)</label>
-                            <input id="cardExpiryInput" type="text" maxlength="5" placeholder="08/29"
-                                class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">CVV / CVC</label>
-                            <input id="cardCvvInput" type="password" maxlength="4" placeholder="•••"
-                                class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Option B: Bank Transaction Fields (Live Pharmacy Bank Accounts + Receipt File Upload) -->
-                <div id="bankPaymentSection" class="hidden bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3.5">
+                <!-- Option A (DEFAULT VISIBLE): Bank Transaction Fields -->
+                <div id="bankPaymentSection" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3.5">
                     <div>
                         <div class="text-xs font-bold text-slate-800 mb-1.5">
                             <i class="fa-solid fa-building-columns text-brand-600 mr-1"></i> Transfer to Pharmacy Designated Bank Account(s):
@@ -1186,7 +1189,7 @@
                         </div>
                     </div>
 
-                    <!-- Receipt Screenshot Upload Input -->
+                    <!-- Receipt Screenshot Upload Input (Auto-deleted after 24 hours) -->
                     <div class="bg-white p-3.5 rounded-xl border-2 border-dashed border-teal-400">
                         <label for="receipt-upload" class="block text-xs font-extrabold text-teal-900 mb-1 cursor-pointer">
                             <i class="fa-solid fa-cloud-arrow-up text-brand-600 mr-1"></i> Upload Bank Payment Receipt Image *
@@ -1195,21 +1198,50 @@
                             <input type="file" id="receipt-upload" accept="image/*" onchange="handleReceiptSelection(event)"
                                 class="flex-1 text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100">
                             
-                            <!-- New Hidden Remove Button -->
                             <button type="button" id="remove-receipt-btn" onclick="clearReceiptUpload()" class="hidden px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 text-xs font-bold transition hover:bg-rose-100 whitespace-nowrap">
                                 <i class="fa-solid fa-trash-can mr-1"></i> Remove
                             </button>
                         </div>
                         <p class="text-[11px] text-slate-500 mt-1">
-                            Once uploaded, you can continue browsing MediRadar while the pharmacy POS Cashier reviews and approves your payment.
+                            <i class="fa-regular fa-clock text-amber-600 mr-1"></i> For your privacy, uploaded bank transfer slips are automatically deleted after 24 hours.
                         </p>
                     </div>
                 </div>
 
-                <!-- Save updated delivery/card details checkbox -->
+                <!-- Option B (HIDDEN UNTIL CLICKED): Temporary One-Time Card Payment Fields (Never Saved) -->
+                <div id="cardPaymentSection" class="hidden bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-700">
+                            <i class="fa-solid fa-shield-halved text-teal-600 mr-1"></i> One-Time Card Gateway (Temporary — Never Stored in Database)
+                        </span>
+                        <div class="flex gap-1.5 text-lg text-slate-600">
+                            <i class="fa-brands fa-cc-visa text-blue-700"></i>
+                            <i class="fa-brands fa-cc-mastercard text-orange-600"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-600 mb-1">Card Number (16 Digits)</label>
+                        <input id="cardNumberInput" type="text" maxlength="19" autocomplete="off" placeholder="4532 •••• •••• 8891"
+                            class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Expiry Date (MM/YY)</label>
+                            <input id="cardExpiryInput" type="text" maxlength="5" autocomplete="off" placeholder="08/29"
+                                class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">CVV / CVC</label>
+                            <input id="cardCvvInput" type="password" maxlength="4" autocomplete="off" placeholder="•••"
+                                class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-brand-600">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Save updated delivery/bank details checkbox (No card details saved) -->
                 <label class="inline-flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
                     <input id="saveChangesToProfileCheckbox" type="checkbox" checked class="rounded text-brand-600">
-                    <span>Save any updated delivery address, bank, or card details to my customer profile</span>
+                    <span>Save updated delivery address & phone number to my customer profile</span>
                 </label>
 
                 <!-- Total & Submit -->
@@ -1307,10 +1339,27 @@
         ];
 
         // ---------------------------------------------------------
-        // 2. GLOBAL STATE & REQUIRED mediRadarCart ARRAY
+        // 2. GLOBAL STATE, PASSWORD ENCRYPTION & IN-MEMORY LOCATION
         // ---------------------------------------------------------
-        let mediRadarCart = JSON.parse(localStorage.getItem('mediradar_cart') || '[]');
+        let mediRadarCart = [];
         let currentCustomer = JSON.parse(localStorage.getItem('mediradar_customer') || 'null');
+
+        // Customer password encryption helpers (Matches PharmaConnect security standard)
+        const CUST_SECRET_KEY = "MR_CUST_2026_";
+        function encryptCustomerPassword(rawPwd) {
+            return btoa(CUST_SECRET_KEY + rawPwd).split('').reverse().join('');
+        }
+        function decryptCustomerPassword(encPwd) {
+            try {
+                const decoded = atob(encPwd.split('').reverse().join(''));
+                if (decoded.startsWith(CUST_SECRET_KEY)) {
+                    return decoded.replace(CUST_SECRET_KEY, '');
+                }
+                return encPwd;
+            } catch (e) {
+                return encPwd;
+            }
+        }
 
         let pharmaciesTable = [];
         let pharmacyBanksTable = [];
@@ -1318,21 +1367,62 @@
         let grnStockTable = [];
         let salesTransactionsTable = [];
         let myCustomerOrders = [];
-        let knownOrderStatuses = {}; // Tracks status changes for live notifications
-        let checkoutItemsQueue = []; // Items currently being checked out
+        let knownOrderStatuses = {};
+        let checkoutItemsQueue = [];
         let orderRealtimeChannel = null;
 
+        // Strictly temporary in-memory location for the current browser tab only (Never saved to DB or shared)
         let userLocation = {
             lat: 6.79652,
             lng: 79.90053,
-            label: "Moratuwa (6.7965, 79.9005)",
+            label: "Default Location (Click Fetch Location)",
             isLiveGps: false
         };
 
         let selectedCategory = 'ALL';
-        let sidebarOpen = true;
-        let selectedPaymentMethod = 'CARD';
+        let sidebarOpen = window.innerWidth >= 1024; // Collapsed by default on mobile phones!
+        let selectedPaymentMethod = 'BANK'; // Bank Transaction suggested first by default
         let postAuthCallback = null;
+
+        // Automatically purge bank receipt images older than 24 hours from Supabase Storage & Orders
+        async function cleanupExpiredBankReceipts() {
+            try {
+                // 1. Trigger SQL RPC cleanup if available
+                await supabaseClient.rpc('cleanup_expired_bank_receipts');
+            } catch ( _ ) {}
+
+            try {
+                // 2. Client-side Storage & URL cleanup for orders > 24 hours old
+                const cutoffIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+                const { data: expiredOrders } = await supabaseClient
+                    .from('customer_orders')
+                    .select('id, receipt_image_url')
+                    .not('receipt_image_url', 'is', null)
+                    .lt('created_at', cutoffIso);
+
+                if (expiredOrders && expiredOrders.length > 0) {
+                    const filesToDelete = [];
+                    expiredOrders.forEach(o => {
+                        if (o.receipt_image_url && o.receipt_image_url.includes('/bank_receipts/')) {
+                            const fileName = o.receipt_image_url.split('/bank_receipts/').pop().split('?')[0];
+                            if (fileName) filesToDelete.push(fileName);
+                        }
+                    });
+
+                    if (filesToDelete.length > 0) {
+                        await supabaseClient.storage.from('bank_receipts').remove(filesToDelete);
+                    }
+
+                    const expiredIds = expiredOrders.map(o => o.id);
+                    await supabaseClient
+                        .from('customer_orders')
+                        .update({ receipt_image_url: null })
+                        .in('id', expiredIds);
+                }
+            } catch (e) {
+                console.warn("24h receipt cleanup check:", e);
+            }
+        }
 
         // ---------------------------------------------------------
         // 3. FETCH LIVE DATA FROM SUPABASE
@@ -1343,6 +1433,8 @@
             statusText.textContent = "Syncing Supabase...";
 
             try {
+                cleanupExpiredBankReceipts();
+
                 const [pharmRes, banksRes, medRes, stockRes, salesRes] = await Promise.all([
                     supabaseClient.from('pharmacies').select('*'),
                     supabaseClient.from('pharmacy_banks').select('*'),
@@ -1368,10 +1460,13 @@
                 renderCategorySidebar();
                 applyFiltersAndRender();
                 renderPharmaciesDirectory();
-                updateCartBadges();
 
                 if (currentCustomer) {
+                    await loadCustomerCartFromSupabase();
                     await fetchMyCustomerOrders(true);
+                } else {
+                    mediRadarCart = [];
+                    updateCartBadges();
                 }
             } catch (err) {
                 console.error("Supabase Fetch Error:", err);
@@ -1407,13 +1502,9 @@
         }
 
         // ---------------------------------------------------------
-        // 4. CART IMPLEMENTATION (mediRadarCart & removeFromCart)
+        // 4. PERSISTENT DATABASE CART (`customer_cart_items` TABLE)
+        //    Requires Sign-In to Add to Cart; Persists Across Logouts
         // ---------------------------------------------------------
-        function saveCartState() {
-            localStorage.setItem('mediradar_cart', JSON.stringify(mediRadarCart));
-            updateCartBadges();
-        }
-
         function updateCartBadges() {
             const totalItems = mediRadarCart.reduce((sum, i) => sum + Number(i.qty || 1), 0);
             document.getElementById('cartCountBadge').textContent = totalItems;
@@ -1421,25 +1512,82 @@
             if (sideBadge) sideBadge.textContent = totalItems;
         }
 
-        function addToCart(grnStockId, qtyToAdd = 1, openCartAfter = false) {
+        async function loadCustomerCartFromSupabase() {
+            if (!currentCustomer || !currentCustomer.id) {
+                mediRadarCart = [];
+                updateCartBadges();
+                return;
+            }
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('customer_cart_items')
+                    .select('*')
+                    .eq('customer_id', currentCustomer.id)
+                    .order('created_at', { ascending: true });
+
+                if (error) throw error;
+
+                mediRadarCart = (data || []).map(row => {
+                    const stockRow = grnStockTable.find(s => String(s.id) === String(row.grn_stock_id));
+                    const pharm = pharmaciesTable.find(p => String(p.id) === String(row.pharmacy_id)) || {
+                        id: row.pharmacy_id,
+                        pharmacy_name: "Registered Pharmacy",
+                        city: "Sri Lanka"
+                    };
+
+                    const maxStock = stockRow ? parseInt(stockRow.current_quantity || 0, 10) : row.quantity;
+                    return {
+                        cart_row_id: row.id,
+                        stock_id: row.grn_stock_id,
+                        medicine_id: row.medicine_id || (stockRow ? stockRow.medicine_id : null),
+                        medicine_name: row.medicine_name || (stockRow ? stockRow.medicine_name : 'Medicine'),
+                        pharmacy_id: row.pharmacy_id,
+                        pharmacy_name: pharm.pharmacy_name,
+                        pharmacy_city: pharm.city || '',
+                        unit_price: stockRow ? parseFloat(stockRow.selling_price || row.unit_price) : parseFloat(row.unit_price || 0),
+                        unit_cost: stockRow ? parseFloat(stockRow.unit_cost || 0) : 0,
+                        max_stock: maxStock,
+                        batch_number: stockRow ? (stockRow.batch_number || 'N/A') : 'N/A',
+                        rack_location: stockRow ? (stockRow.rack_location || 'Main Shelf') : 'Main Shelf',
+                        qty: Math.min(row.quantity, Math.max(1, maxStock))
+                    };
+                }).filter(item => item.max_stock > 0);
+
+                updateCartBadges();
+            } catch (err) {
+                console.warn("Could not load customer cart from Supabase:", err);
+            }
+        }
+
+        async function addToCart(grnStockId, qtyToAdd = 1, openCartAfter = false) {
+            // Require customer to Sign In / Register before adding to cart
+            if (!currentCustomer) {
+                showToast("Sign In Required", "Please sign in or register an account to save medicines to your cart.");
+                postAuthCallback = () => addToCart(grnStockId, qtyToAdd, openCartAfter);
+                openCustomerAccountModal();
+                return;
+            }
+
             const stockRow = grnStockTable.find(s => String(s.id) === String(grnStockId));
             if (!stockRow) return;
 
             const pharm = pharmaciesTable.find(p => p.id === stockRow.pharmacy_id) || {
                 id: stockRow.pharmacy_id,
                 pharmacy_name: "Registered Pharmacy",
-                city: "Sri Lanka",
-                license_no: "Verified"
+                city: "Sri Lanka"
             };
 
             const existingIndex = mediRadarCart.findIndex(item => String(item.stock_id) === String(grnStockId));
+            let targetQty = qtyToAdd;
+
             if (existingIndex > -1) {
-                const newQty = mediRadarCart[existingIndex].qty + qtyToAdd;
-                if (newQty > Number(stockRow.current_quantity)) {
+                targetQty = mediRadarCart[existingIndex].qty + qtyToAdd;
+                if (targetQty > Number(stockRow.current_quantity)) {
                     showToast("Stock Limit Reached", `Only ${stockRow.current_quantity} units available in ${pharm.pharmacy_name}.`);
                     return;
                 }
-                mediRadarCart[existingIndex].qty = newQty;
+                mediRadarCart[existingIndex].qty = targetQty;
             } else {
                 mediRadarCart.push({
                     stock_id: stockRow.id,
@@ -1453,34 +1601,62 @@
                     max_stock: parseInt(stockRow.current_quantity || 1, 10),
                     batch_number: stockRow.batch_number || 'N/A',
                     rack_location: stockRow.rack_location || 'Main Shelf',
-                    qty: qtyToAdd
+                    qty: targetQty
                 });
             }
 
-            saveCartState();
-            showToast("Added to Cart", `${stockRow.medicine_name} (${pharm.pharmacy_name}) added to your shopping cart.`);
+            updateCartBadges();
+
+            // Persist in Supabase `customer_cart_items`
+            try {
+                await supabaseClient
+                    .from('customer_cart_items')
+                    .upsert([{
+                        customer_id: currentCustomer.id,
+                        grn_stock_id: stockRow.id,
+                        medicine_id: stockRow.medicine_id || null,
+                        pharmacy_id: pharm.id,
+                        medicine_name: stockRow.medicine_name,
+                        quantity: targetQty,
+                        unit_price: parseFloat(stockRow.selling_price || 0)
+                    }], { onConflict: 'customer_id,grn_stock_id' });
+            } catch (e) {
+                console.warn("Cart DB sync error:", e);
+            }
+
+            showToast("Saved to Your Cart", `${stockRow.medicine_name} (${pharm.pharmacy_name}) saved to your account cart.`);
             if (openCartAfter) {
                 closeNearestModal();
                 openCartModal();
             }
         }
 
-        function removeFromCart(index) {
+        async function removeFromCart(index) {
             if (index < 0 || index >= mediRadarCart.length) return;
             const removed = mediRadarCart.splice(index, 1)[0];
-            saveCartState();
+            updateCartBadges();
             renderCartModalItems();
-            if (removed) {
+
+            if (removed && currentCustomer) {
+                try {
+                    await supabaseClient
+                        .from('customer_cart_items')
+                        .delete()
+                        .eq('customer_id', currentCustomer.id)
+                        .eq('grn_stock_id', removed.stock_id);
+                } catch (e) {
+                    console.warn("Remove cart item DB error:", e);
+                }
                 showToast("Removed from Cart", `${removed.medicine_name} removed from your cart.`);
             }
         }
 
-        function updateCartQty(index, delta) {
+        async function updateCartQty(index, delta) {
             const item = mediRadarCart[index];
             if (!item) return;
             const nextQty = item.qty + delta;
             if (nextQty <= 0) {
-                removeFromCart(index);
+                await removeFromCart(index);
                 return;
             }
             if (nextQty > item.max_stock) {
@@ -1488,17 +1664,46 @@
                 return;
             }
             item.qty = nextQty;
-            saveCartState();
+            updateCartBadges();
             renderCartModalItems();
+
+            if (currentCustomer) {
+                try {
+                    await supabaseClient
+                        .from('customer_cart_items')
+                        .update({ quantity: nextQty })
+                        .eq('customer_id', currentCustomer.id)
+                        .eq('grn_stock_id', item.stock_id);
+                } catch (e) {
+                    console.warn("Cart qty DB update error:", e);
+                }
+            }
         }
 
-        function clearEntireCart() {
+        async function clearEntireCart() {
             mediRadarCart = [];
-            saveCartState();
+            updateCartBadges();
             renderCartModalItems();
+
+            if (currentCustomer) {
+                try {
+                    await supabaseClient
+                        .from('customer_cart_items')
+                        .delete()
+                        .eq('customer_id', currentCustomer.id);
+                } catch (e) {
+                    console.warn("Clear cart DB error:", e);
+                }
+            }
         }
 
         function openCartModal() {
+            if (!currentCustomer) {
+                showToast("Sign In Required", "Please sign in to view your saved shopping cart.");
+                postAuthCallback = () => openCartModal();
+                openCustomerAccountModal();
+                return;
+            }
             renderCartModalItems();
             document.getElementById('cartModal').classList.remove('hidden');
         }
@@ -1516,7 +1721,7 @@
                     <div class="text-center py-10 text-slate-400">
                         <i class="fa-solid fa-cart-shopping text-3xl mb-2"></i>
                         <p class="text-sm font-semibold text-slate-600">Your MediRadar Cart is empty.</p>
-                        <p class="text-xs text-slate-400 mt-1">Click "Show Nearest 5 Pharmacies & Buy" on any medicine tile to add items.</p>
+                        <p class="text-xs text-slate-400 mt-1">Items you add while signed in are saved to your account until bought.</p>
                     </div>
                 `;
                 totalEl.textContent = "Rs. 0.00";
@@ -1569,7 +1774,6 @@
             initiateCheckoutFlow([...mediRadarCart], true);
         }
 
-        // Direct single-item Buy button inside Nearest 5 Modal also pushes to cart or opens checkout
         function buySingleStockItemNow(grnStockId) {
             const stockRow = grnStockTable.find(s => String(s.id) === String(grnStockId));
             if (!stockRow) return;
@@ -1599,7 +1803,7 @@
         }
 
         // ---------------------------------------------------------
-        // 5. CUSTOMER REGISTRATION, LOGIN & AUTO-FILL PROFILE
+        // 5. CUSTOMER REGISTRATION & LOGIN (ENCRYPTED PASSWORD, NO CARD/GPS SAVED)
         // ---------------------------------------------------------
         function updateCustomerHeaderUI() {
             const label = document.getElementById('headerAccountLabel');
@@ -1621,17 +1825,18 @@
             const modal = document.getElementById('customerAccountModal');
             if (currentCustomer) {
                 switchAuthTab('REGISTER');
-                document.getElementById('accountModalTitle').textContent = "Edit Your Customer Profile & Payment Defaults";
+                document.getElementById('accountModalTitle').textContent = "Edit Your Customer Profile & Bank Defaults";
                 document.getElementById('saveProfileSubmitBtn').textContent = "Update My Profile";
                 document.getElementById('profFullName').value = currentCustomer.full_name || '';
                 document.getElementById('profEmail').value = currentCustomer.email || '';
-                document.getElementById('profPassword').value = currentCustomer.password || '';
+                document.getElementById('profPassword').value = decryptCustomerPassword(currentCustomer.password || '');
                 document.getElementById('profPhone').value = currentCustomer.phone || '';
                 document.getElementById('profAddress').value = currentCustomer.address || '';
-                document.getElementById('profBankName').value = currentCustomer.bank_name || 'Bank of Ceylon (BOC)';
+                document.getElementById('profBankName').value = currentCustomer.bank_name || '';
                 document.getElementById('profBankAccountNo').value = currentCustomer.bank_account_no || '';
             } else {
-                document.getElementById('accountModalTitle').textContent = "Register Customer Account Before Online Purchase";
+                document.getElementById('customerProfileForm').reset();
+                document.getElementById('accountModalTitle').textContent = "Register Customer Account";
                 document.getElementById('saveProfileSubmitBtn').textContent = "Complete Customer Registration";
                 switchAuthTab('REGISTER');
             }
@@ -1667,16 +1872,18 @@
             btn.disabled = true;
             btn.textContent = "Saving to Supabase...";
 
+            const rawPassword = document.getElementById('profPassword').value.trim();
+            const encryptedPassword = encryptCustomerPassword(rawPassword);
+
+            // Notice: No card details and no GPS coordinates are ever stored in Supabase
             const payload = {
                 full_name: document.getElementById('profFullName').value.trim(),
                 email: document.getElementById('profEmail').value.trim().toLowerCase(),
-                password: document.getElementById('profPassword').value.trim(),
+                password: encryptedPassword,
                 phone: document.getElementById('profPhone').value.trim(),
                 address: document.getElementById('profAddress').value.trim(),
                 bank_name: document.getElementById('profBankName').value,
-                bank_account_no: document.getElementById('profBankAccountNo').value.trim(),
-                latitude: String(userLocation.lat),
-                longitude: String(userLocation.lng)
+                bank_account_no: document.getElementById('profBankAccountNo').value.trim()
             };
 
             try {
@@ -1691,7 +1898,6 @@
                     if (error) throw error;
                     savedRow = data;
                 } else {
-                    // Check if email already exists
                     const { data: existing } = await supabaseClient
                         .from('customers')
                         .select('*')
@@ -1699,14 +1905,7 @@
                         .maybeSingle();
 
                     if (existing) {
-                        const { data, error } = await supabaseClient
-                            .from('customers')
-                            .update(payload)
-                            .eq('id', existing.id)
-                            .select()
-                            .single();
-                        if (error) throw error;
-                        savedRow = data;
+                        throw new Error("An account with this email already exists. Please use the 'Returning Customer Sign In' tab.");
                     } else {
                         const { data, error } = await supabaseClient
                             .from('customers')
@@ -1722,9 +1921,10 @@
                 localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
                 updateCustomerHeaderUI();
                 subscribeToCustomerOrderUpdates();
+                await loadCustomerCartFromSupabase();
                 await fetchMyCustomerOrders(true);
                 closeCustomerAccountModal();
-                showToast("Account Saved", `Welcome ${currentCustomer.full_name}! Your payment & delivery preferences are ready.`);
+                showToast("Account Saved", `Welcome ${currentCustomer.full_name}!`);
 
                 if (typeof postAuthCallback === 'function') {
                     const cb = postAuthCallback;
@@ -1733,7 +1933,7 @@
                 }
             } catch (err) {
                 console.error("Customer Save Error:", err);
-                showToast("Registration Error", err.message || "Please run the provided SQL script in Supabase first.");
+                showToast("Account Notice", err.message || "Could not save customer profile.");
             } finally {
                 btn.disabled = false;
                 btn.textContent = "Save Customer Account";
@@ -1743,29 +1943,38 @@
         async function handleCustomerLogin(event) {
             event.preventDefault();
             const email = document.getElementById('loginEmailInput').value.trim().toLowerCase();
-            const pass = document.getElementById('loginPasswordInput').value.trim();
+            const rawPass = document.getElementById('loginPasswordInput').value.trim();
+            const encPass = encryptCustomerPassword(rawPass);
 
             try {
                 const { data, error } = await supabaseClient
                     .from('customers')
                     .select('*')
                     .eq('email', email)
-                    .eq('password', pass)
                     .maybeSingle();
 
                 if (error) throw error;
-                if (!data) {
-                    showToast("Sign In Failed", "Invalid email or password. Please register if you are a new customer.");
+
+                // Match encrypted password (or legacy plain password if created before encryption)
+                if (!data || (data.password !== encPass && data.password !== rawPass)) {
+                    showToast("Sign In Failed", "Invalid email or password.");
                     return;
+                }
+
+                // Upgrade legacy plaintext password to encrypted automatically on login
+                if (data.password === rawPass && data.password !== encPass) {
+                    await supabaseClient.from('customers').update({ password: encPass }).eq('id', data.id);
+                    data.password = encPass;
                 }
 
                 currentCustomer = data;
                 localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
                 updateCustomerHeaderUI();
                 subscribeToCustomerOrderUpdates();
+                await loadCustomerCartFromSupabase();
                 await fetchMyCustomerOrders(true);
                 closeCustomerAccountModal();
-                showToast("Signed In!", `Welcome back, ${currentCustomer.full_name}.`);
+                showToast("Signed In!", `Welcome back, ${currentCustomer.full_name}. Your saved cart items have been restored.`);
 
                 if (typeof postAuthCallback === 'function') {
                     const cb = postAuthCallback;
@@ -1780,21 +1989,23 @@
         function logoutCustomer() {
             currentCustomer = null;
             myCustomerOrders = [];
+            mediRadarCart = []; // Clear local view; items remain safely in `customer_cart_items` table for next login
             localStorage.removeItem('mediradar_customer');
             updateCustomerHeaderUI();
+            updateCartBadges();
             updateOrdersBadge();
             closeCustomerAccountModal();
-            showToast("Signed Out", "You have signed out of your customer account.");
+            showToast("Signed Out", "Your unbought cart items are safely saved in your account for your next sign-in.");
         }
 
         // ---------------------------------------------------------
-        // 6. CHECKOUT FLOW (AUTO-FILLS CARD/BANK/ADDRESS & UPLOADS SLIP)
+        // 6. CHECKOUT FLOW (BANK FIRST, TEMPORARY CARD INPUT, CART CLEANUP)
         // ---------------------------------------------------------
         let isCheckingOutFromCart = false;
 
         function initiateCheckoutFlow(itemsToBuy, fromCart = false) {
             if (!currentCustomer) {
-                showToast("Registration Required", "Please register or sign in with your delivery, bank, and card details first.");
+                showToast("Registration Required", "Please register or sign in before purchasing medicines online.");
                 postAuthCallback = () => initiateCheckoutFlow(itemsToBuy, fromCart);
                 openCustomerAccountModal();
                 return;
@@ -1808,16 +2019,20 @@
             document.getElementById('custName').value = currentCustomer.full_name || '';
             document.getElementById('custPhone').value = currentCustomer.phone || '';
             document.getElementById('custAddress').value = currentCustomer.address || '';
-            document.getElementById('cardNumberInput').value = currentCustomer.card_number || '';
-            document.getElementById('cardExpiryInput').value = currentCustomer.card_expiry || '';
-            document.getElementById('cardCvvInput').value = currentCustomer.card_cvv || '';
+
+            // Always start card inputs blank (temporary per-transaction only, never stored)
+            document.getElementById('cardNumberInput').value = '';
+            document.getElementById('cardExpiryInput').value = '';
+            document.getElementById('cardCvvInput').value = '';
+
             document.getElementById('bankNameSelect').value =
-                `${currentCustomer.bank_name || 'BOC'} - Acc: ${currentCustomer.bank_account_no || ''}`;
+                `${currentCustomer.bank_name || ''} - Acc: ${currentCustomer.bank_account_no || ''}`;
 
             const uniquePharmIds = [...new Set(itemsToBuy.map(i => i.pharmacy_id))];
             renderCheckoutPharmacyBankDetails(uniquePharmIds);
 
-            selectPaymentMethod('CARD');
+            // Suggest Bank Transaction first by default
+            selectPaymentMethod('BANK');
             document.getElementById('checkoutModal').classList.remove('hidden');
         }
 
@@ -1858,7 +2073,7 @@
             document.getElementById('checkoutTotalAmount').textContent = `Rs. ${total.toFixed(2)}`;
         }
 
-        function updateCheckoutItemQty(index, delta) {
+        async function updateCheckoutItemQty(index, delta) {
             const item = checkoutItemsQueue[index];
             if (!item) return;
 
@@ -1872,9 +2087,14 @@
 
             item.qty = nextQty;
             
-            if (isCheckingOutFromCart) {
-                saveCartState();
+            if (isCheckingOutFromCart && currentCustomer) {
+                updateCartBadges();
                 renderCartModalItems();
+                await supabaseClient
+                    .from('customer_cart_items')
+                    .update({ quantity: nextQty })
+                    .eq('customer_id', currentCustomer.id)
+                    .eq('grn_stock_id', item.stock_id);
             }
             
             renderCheckoutSummary();
@@ -1920,6 +2140,10 @@
         }
 
         function closeCheckoutModal() {
+            // Wipe temporary card inputs immediately when modal closes
+            document.getElementById('cardNumberInput').value = '';
+            document.getElementById('cardExpiryInput').value = '';
+            document.getElementById('cardCvvInput').value = '';
             document.getElementById('checkoutModal').classList.add('hidden');
         }
 
@@ -1935,8 +2159,8 @@
         function clearReceiptUpload() {
             const fileInput = document.getElementById('receipt-upload');
             const removeBtn = document.getElementById('remove-receipt-btn');
-            fileInput.value = ''; // Clears the file input
-            removeBtn.classList.add('hidden'); // Hides the remove button again
+            fileInput.value = '';
+            removeBtn.classList.add('hidden');
         }
 
         function selectPaymentMethod(method) {
@@ -1946,16 +2170,16 @@
             const cardSec = document.getElementById('cardPaymentSection');
             const bankSec = document.getElementById('bankPaymentSection');
 
-            if (method === 'CARD') {
-                tabCard.className = "p-3.5 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-3";
-                tabBank.className = "p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-3";
-                cardSec.classList.remove('hidden');
-                bankSec.classList.add('hidden');
-            } else {
-                tabBank.className = "p-3.5 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-3";
+            if (method === 'BANK') {
+                tabBank.className = "p-3.5 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-3 relative";
                 tabCard.className = "p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-3";
                 bankSec.classList.remove('hidden');
                 cardSec.classList.add('hidden');
+            } else {
+                tabCard.className = "p-3.5 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-3";
+                tabBank.className = "p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-3 relative";
+                cardSec.classList.remove('hidden');
+                bankSec.classList.add('hidden');
             }
         }
 
@@ -1966,7 +2190,7 @@
             const custName = document.getElementById('custName').value.trim();
             const custPhone = document.getElementById('custPhone').value.trim();
             const custAddress = document.getElementById('custAddress').value.trim();
-            const cardNo = document.getElementById('cardNumberInput').value.trim();
+            const cardNo = document.getElementById('cardNumberInput').value.replace(/\s+/g, '').trim();
             const cardExp = document.getElementById('cardExpiryInput').value.trim();
             const cardCvv = document.getElementById('cardCvvInput').value.trim();
             const sendingBank = document.getElementById('bankNameSelect').value.trim();
@@ -1981,8 +2205,8 @@
                 let uploadedReceiptUrl = null;
 
                 if (selectedPaymentMethod === 'CARD') {
-                    if (cardNo.length < 8) {
-                        throw new Error("Please enter a valid 16-digit Visa or MasterCard number.");
+                    if (cardNo.length < 12 || !cardExp || cardCvv.length < 3) {
+                        throw new Error("Please enter valid temporary Card Number, Expiry Date, and CVV to process this transaction.");
                     }
                 } else {
                     if (!bankRef) {
@@ -1992,7 +2216,6 @@
                         throw new Error("Please upload a screenshot/photo of your bank transfer receipt.");
                     }
 
-                    // Upload receipt image to Supabase Storage bucket `bank_receipts`
                     const file = receiptFileInput.files[0];
                     const ext = (file.name.split('.').pop() || 'png').toLowerCase();
                     const filePath = `receipt_${currentCustomer.id}_${Date.now()}.${ext}`;
@@ -2012,15 +2235,12 @@
                     uploadedReceiptUrl = pubUrlData.publicUrl;
                 }
 
-                // Optionally update customer's saved profile if checkbox is ticked
+                // Only save non-sensitive delivery details (never save card numbers or GPS location!)
                 if (document.getElementById('saveChangesToProfileCheckbox').checked) {
                     const updatedProfile = {
                         full_name: custName,
                         phone: custPhone,
-                        address: custAddress,
-                        card_number: cardNo || currentCustomer.card_number,
-                        card_expiry: cardExp || currentCustomer.card_expiry,
-                        card_cvv: cardCvv || currentCustomer.card_cvv
+                        address: custAddress
                     };
                     const { data: profData } = await supabaseClient
                         .from('customers')
@@ -2035,7 +2255,6 @@
                     }
                 }
 
-                // Group checkout items by pharmacy_id so each pharmacy gets its own order & invoice
                 const itemsByPharmacy = {};
                 checkoutItemsQueue.forEach(item => {
                     if (!itemsByPharmacy[item.pharmacy_id]) itemsByPharmacy[item.pharmacy_id] = [];
@@ -2048,7 +2267,6 @@
                     const invoiceNo = `MR-${Math.floor(100000 + Math.random() * 900000)}`;
                     const isCard = selectedPaymentMethod === 'CARD';
 
-                    // 1. Insert into public.customer_orders
                     const { data: insertedOrder, error: orderErr } = await supabaseClient
                         .from('customer_orders')
                         .insert([{
@@ -2063,8 +2281,8 @@
                             delivery_address: custAddress,
                             customer_phone: custPhone,
                             customer_name: custName,
-                            sending_bank: isCard ? `Card (••• ${cardNo.slice(-4)})` : sendingBank,
-                            bank_reference: isCard ? `CARD-${cardNo.slice(-4)}` : bankRef,
+                            sending_bank: isCard ? `One-Time Card Payment` : sendingBank,
+                            bank_reference: isCard ? `CARD-TXN` : bankRef,
                             receipt_image_url: uploadedReceiptUrl
                         }])
                         .select()
@@ -2072,10 +2290,8 @@
 
                     if (orderErr) throw orderErr;
 
-                    // Track initial status so Realtime/Polling knows when it changes
                     knownOrderStatuses[insertedOrder.id] = insertedOrder.cashier_approval_status;
 
-                    // 2. Insert items into public.customer_order_items
                     const orderItemsPayload = pharmItems.map(i => ({
                         order_id: insertedOrder.id,
                         medicine_id: i.medicine_id || null,
@@ -2091,7 +2307,6 @@
 
                     if (itemsErr) throw itemsErr;
 
-                    // 3. If Card Payment (instant paid), deduct GRN stock and record in sales_transactions immediately so Admin & POS see it right away!
                     if (isCard) {
                         for (const item of pharmItems) {
                             const stockRow = grnStockTable.find(s => String(s.id) === String(item.stock_id));
@@ -2121,10 +2336,15 @@
                     }
                 }
 
-                if (isCheckingOutFromCart) {
-                    clearEntireCart();
-                }
+                // Remove purchased items from `customer_cart_items` table & local cart
+                const boughtStockIds = checkoutItemsQueue.map(i => i.stock_id);
+                await supabaseClient
+                    .from('customer_cart_items')
+                    .delete()
+                    .eq('customer_id', currentCustomer.id)
+                    .in('grn_stock_id', boughtStockIds);
 
+                clearReceiptUpload();
                 closeCheckoutModal();
                 await fetchLiveSupabaseData();
                 await fetchMyCustomerOrders(true);
@@ -2132,12 +2352,12 @@
                 if (selectedPaymentMethod === 'BANK') {
                     showToast(
                         "Receipt Uploaded! Awaiting Cashier Approval",
-                        "You can continue browsing MediRadar! We will notify you here as soon as the pharmacy Cashier accepts your bank transfer."
+                        "We will notify you here as soon as the pharmacy Cashier verifies your bank transfer."
                     );
                 } else {
                     showToast(
                         "Card Payment Complete!",
-                        "Your order is paid and visible in the pharmacy POS & Admin console."
+                        "Your order is paid and card details were immediately discarded."
                     );
                 }
             } catch (err) {
@@ -2408,13 +2628,16 @@
         // ---------------------------------------------------------
         function toggleSidebar() {
             const sidebar = document.getElementById('geminiSidebar');
+            const backdrop = document.getElementById('mobileSidebarBackdrop');
             sidebarOpen = !sidebarOpen;
             if (sidebarOpen) {
                 sidebar.classList.remove('sidebar-collapsed');
                 sidebar.classList.add('sidebar-expanded');
+                if (backdrop) backdrop.classList.remove('hidden');
             } else {
                 sidebar.classList.remove('sidebar-expanded');
                 sidebar.classList.add('sidebar-collapsed');
+                if (backdrop) backdrop.classList.add('hidden');
             }
         }
 
@@ -3001,6 +3224,13 @@
         }, 2800);
 
         window.addEventListener('DOMContentLoaded', () => {
+            // Start with sidebar collapsed on phones/tablets (<1024px) so the main screen is 100% visible
+            if (window.innerWidth < 1024) {
+                sidebarOpen = false;
+                const sidebar = document.getElementById('geminiSidebar');
+                sidebar.classList.remove('sidebar-expanded');
+                sidebar.classList.add('sidebar-collapsed');
+            }
             updateCustomerHeaderUI();
             updateCartBadges();
             renderCategorySidebar();
