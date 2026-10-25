@@ -2445,11 +2445,12 @@
                 const totalReceived = group.pharmacyStocks.reduce((sum, s) => sum + parseInt(s.quantity_received || 0, 10), 0);
 
                 const txSold = salesTransactionsTable
-                    .filter(tx => (tx.medicine_name || '').toLowerCase() === group.key)
-                    .reduce((sum, tx) => sum + parseInt(tx.quantity_sold || 0, 10), 0);
+            .filter(tx => (tx.medicine_name || '').toLowerCase() === group.key)
+            .reduce((sum, tx) => sum + parseInt(tx.quantity_sold || 0, 10), 0);
 
-                const turnover = Math.max(0, totalReceived - totalStock);
-                const popularityScore = (txSold * 100) + (group.pharmacyStocks.length * 50) + (turnover * 5) + totalStock;
+                // Rank #1 is now strictly the medicine with the highest total quantity sold
+                // The tiny decimal (totalStock / 10000) acts only as a tie-breaker for items with 0 sales
+                const popularityScore = txSold + (totalStock / 10000);
 
                 const allCategories = [...new Set(group.pharmacyStocks.map(s => s.category).filter(Boolean))];
                 const displayCategory = primary.category === "Inhaler" ? "Inhaler / Drops" : (primary.category || "Tablet / Pill");
