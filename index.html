@@ -178,7 +178,7 @@
         <!-- Sticky Eye-Catching Header -->
 <header class="sticky top-0 z-30 bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white shadow-xl border-b border-teal-800/60 backdrop-blur-md">
     <div class="w-full max-w-[1600px] mx-auto px-4 sm:px-6 py-3">
-        <div class="flex items-center justify-between gap-4 relative">
+        <div class="flex flex-wrap items-center justify-between gap-4">
             
             <!-- Left: Sidebar Toggle Button & MediRadar Logo -->
             <div class="flex items-center space-x-3.5">
@@ -205,7 +205,7 @@
             </div>
 
             <!-- Middle: Primary Navigation Pill (Home, About Us, Support) -->
-            <nav class="hidden lg:flex items-center bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700/80 shadow-inner space-x-1 absolute left-1/2 -translate-x-1/2">
+            <nav class="flex items-center bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700/80 shadow-inner space-x-1 order-3 xl:order-2 w-full xl:w-auto justify-center">
                 <button id="navHomeBtn" onclick="switchView('home')"
                     class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-brand-600 text-white shadow-md shadow-brand-600/30">
                     <i class="fa-solid fa-house-medical"></i>
@@ -223,48 +223,73 @@
                 </button>
             </nav>
 
-            <!-- Right: Action Bar (Anchored to the Far Right Corner) -->
-            <div class="flex items-center justify-end gap-3 ml-auto">
+            <!-- Right: Stacked Action Bar (Account Top Right, Tools Below) -->
+            <div class="flex flex-col items-end gap-2 order-2 xl:order-3">
                 
-                <!-- Utilities: Location, Cart & Orders -->
+                <!-- Top Row (Right Corner): Customer Profile & Sign Out -->
                 <div class="flex items-center gap-2">
-                    <button id="fetchLocationBtn" onclick="fetchUserLocation()" title="Fetch GPS Location"
-                        class="h-9 flex items-center space-x-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-xs px-3.5 rounded-xl shadow-md transition">
-                        <span class="w-2 h-2 rounded-full bg-slate-950 gps-pulse"></span>
-                        <i class="fa-solid fa-location-crosshairs text-xs"></i>
-                        <span id="locationBtnTitle" class="hidden xl:inline">Fetch Location</span>
-                        <span id="locationCoordsBadge" class="hidden"></span>
+                    <button onclick="openCustomerAccountModal()" id="headerAccountBtn" title="Customer Account"
+                        class="h-8 flex items-center space-x-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-200 border border-slate-700 text-xs font-bold transition shadow-sm">
+                        <i class="fa-solid fa-user-check text-brand-400"></i>
+                        <span id="headerAccountLabel" class="max-w-[140px] truncate">Sign In / Register</span>
                     </button>
 
-                    <button onclick="openCartModal()" title="View Shopping Cart"
-                        class="relative h-9 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 text-xs font-bold transition flex items-center gap-2 shadow-sm">
-                        <i class="fa-solid fa-cart-shopping"></i>
-                        <span class="hidden xl:inline">Cart</span>
-                        <span id="cartCountBadge" class="-top-1.5 -right-1.5 absolute min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-extrabold flex items-center justify-center shadow">0</span>
-                    </button>
-
-                    <button onclick="openOrdersModal()" title="View My Orders & Receipts"
-                        class="relative h-9 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-200 border border-slate-700 text-xs font-bold transition flex items-center gap-2 shadow-sm">
-                        <i class="fa-solid fa-receipt"></i>
-                        <span class="hidden xl:inline">Orders</span>
-                        <span id="orderCountBadge" class="-top-1.5 -right-1.5 absolute min-w-[18px] h-[18px] px-1 rounded-full bg-brand-500 text-white text-[10px] font-bold flex items-center justify-center shadow">0</span>
+                    <button onclick="logoutCustomer()" id="headerSignOutBtn" title="Sign Out"
+                        class="hidden h-8 px-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white border border-rose-500 text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-right-from-bracket text-xs"></i>
+                        <span>Sign Out</span>
                     </button>
                 </div>
 
-                <div class="h-6 w-px bg-teal-800/60 hidden md:block mx-1"></div>
+                <!-- Bottom Row: Location, Cart & Orders -->
+                <div class="flex items-center gap-2">
+                    <!-- Fetch GPS Button -->
+                    <button id="fetchLocationBtn" onclick="fetchUserLocation()" title="Fetch GPS Location"
+                        class="h-8 flex items-center space-x-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-[11px] px-3 rounded-xl shadow-md transition">
+                        <span class="w-1.5 h-1.5 rounded-full bg-slate-950 gps-pulse"></span>
+                        <i class="fa-solid fa-location-crosshairs text-xs"></i>
+                        <span id="locationBtnTitle">Fetch Location</span>
+                        <span id="locationCoordsBadge" class="hidden"></span>
+                    </button>
 
-                <!-- Account & Sign Out (Far Right Corner) -->
+                    <!-- Shopping Cart Button -->
+                    <button onclick="openCartModal()" title="View Shopping Cart"
+                        class="relative h-8 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 text-[11px] font-bold transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                        <span class="hidden sm:inline">Cart</span>
+                        <span id="cartCountBadge" class="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] px-1 rounded-full bg-emerald-500 text-slate-950 text-[9px] font-extrabold flex items-center justify-center shadow">
+                            0
+                        </span>
+                    </button>
+
+                    <!-- My Orders / Receipts Button -->
+                    <button onclick="openOrdersModal()" title="View My Orders & Receipts"
+                        class="relative h-8 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-200 border border-slate-700 text-[11px] font-bold transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span class="hidden sm:inline">Orders</span>
+                        <span id="orderCountBadge" class="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] px-1 rounded-full bg-brand-500 text-white text-[9px] font-bold flex items-center justify-center shadow">
+                            0
+                        </span>
+                    </button>
+                </div>
+
+            </div>
+
+                <!-- Vertical Divider -->
+                <div class="h-6 w-px bg-teal-800/60 hidden sm:block mx-0.5"></div>
+
+                <!-- Group 2: Customer Profile & Sign Out -->
                 <div class="flex items-center gap-2">
                     <button onclick="openCustomerAccountModal()" id="headerAccountBtn" title="Customer Account"
                         class="h-9 flex items-center space-x-2 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-200 border border-slate-700 text-xs font-bold transition shadow-sm">
                         <i class="fa-solid fa-user-check text-brand-400"></i>
-                        <span id="headerAccountLabel" class="max-w-[140px] truncate hidden sm:inline">Sign In / Register</span>
+                        <span id="headerAccountLabel" class="max-w-[140px] truncate">Sign In / Register</span>
                     </button>
 
                     <button onclick="logoutCustomer()" id="headerSignOutBtn" title="Sign Out"
                         class="hidden h-9 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white border border-rose-500 text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
                         <i class="fa-solid fa-right-from-bracket text-xs"></i>
-                        <span class="hidden sm:inline">Sign Out</span>
+                        <span class="hidden md:inline">Sign Out</span>
                     </button>
                 </div>
 
