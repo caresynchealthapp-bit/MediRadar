@@ -1776,7 +1776,6 @@
         let isCheckingOutFromCart = false;
 
         function initiateCheckoutFlow(itemsToBuy, fromCart = false) {
-            // Require registration before online purchase
             if (!currentCustomer) {
                 showToast("Registration Required", "Please register or sign in with your delivery, bank, and card details first.");
                 postAuthCallback = () => initiateCheckoutFlow(itemsToBuy, fromCart);
@@ -1787,31 +1786,8 @@
             checkoutItemsQueue = itemsToBuy;
             isCheckingOutFromCart = fromCart;
 
-            // Populate summary
-            const uniquePharmIds = [...new Set(itemsToBuy.map(i => i.pharmacy_id))];
-            const pharmNames = uniquePharmIds.map(pid => {
-                const p = pharmaciesTable.find(ph => ph.id === pid);
-                return p ? `${p.pharmacy_name} (${p.city || ''})` : 'Registered Pharmacy';
-            });
+            renderCheckoutSummary();
 
-            document.getElementById('checkoutPharmacyName').textContent = pharmNames.join(' + ');
-            document.getElementById('checkoutItemsCountBadge').textContent = `${itemsToBuy.reduce((s, i) => s + i.qty, 0)} Unit(s)`;
-
-            const itemsListEl = document.getElementById('checkoutOrderItemsList');
-            let total = 0;
-            itemsListEl.innerHTML = itemsToBuy.map(item => {
-                const line = item.qty * item.unit_price;
-                total += line;
-                return `
-                    <div class="flex items-center justify-between">
-                        <span><strong>${item.qty}x ${item.medicine_name}</strong> <span class="text-slate-400">(${item.pharmacy_name})</span></span>
-                        <span class="font-bold text-slate-900">Rs. ${line.toFixed(2)}</span>
-                    </div>
-                `;
-            }).join('');
-            document.getElementById('checkoutTotalAmount').textContent = `Rs. ${total.toFixed(2)}`;
-
-            // Auto-fill customer details & saved payment methods (all editable)
             document.getElementById('custName').value = currentCustomer.full_name || '';
             document.getElementById('custPhone').value = currentCustomer.phone || '';
             document.getElementById('custAddress').value = currentCustomer.address || '';
@@ -1821,11 +1797,70 @@
             document.getElementById('bankNameSelect').value =
                 `${currentCustomer.bank_name || 'BOC'} - Acc: ${currentCustomer.bank_account_no || ''}`;
 
-            // Render Pharmacy Bank Details from Supabase (`pharmacy_banks` + fallback to `pharmacies` columns)
+            const uniquePharmIds = [...new Set(itemsToBuy.map(i => i.pharmacy_id))];
             renderCheckoutPharmacyBankDetails(uniquePharmIds);
 
             selectPaymentMethod('CARD');
             document.getElementById('checkoutModal').classList.remove('hidden');
+        }
+
+        function renderCheckoutSummary() {
+            const uniquePharmIds = [...new Set(checkoutItemsQueue.map(i => i.pharmacy_id))];
+            const pharmNames = uniquePharmIds.map(pid => {
+                const p = pharmaciesTable.find(ph => ph.id === pid);
+                return p ? `${p.pharmacy_name} (${p.city || ''})` : 'Registered Pharmacy';
+            });
+
+            document.getElementById('checkoutPharmacyName').textContent = pharmNames.join(' + ');
+            document.getElementById('checkoutItemsCountBadge').textContent = `${checkoutItemsQueue.reduce((s, i) => s + i.qty, 0)} Unit(s)`;
+
+            const itemsListEl = document.getElementById('checkoutOrderItemsList');
+            let total = 0;
+            
+            itemsListEl.innerHTML = checkoutItemsQueue.map((item, index) => {
+                const line = item.qty * item.unit_price;
+                total += line;
+                return `
+                    <div class="flex items-center justify-between bg-white p-2 rounded-lg border border-teal-100 mb-1.5 shadow-sm">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-slate-800">${item.medicine_name}</span>
+                            <span class="text-[10px] text-slate-500">${item.pharmacy_name} • Rs. ${item.unit_price.toFixed(2)}</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-1 bg-slate-100 px-1.5 py-1 rounded-lg">
+                                <button type="button" onclick="updateCheckoutItemQty(${index}, -1)" class="w-6 h-6 rounded-md bg-white font-bold text-slate-700 shadow-sm leading-none flex items-center justify-center">-</button>
+                                <span class="w-6 text-center text-xs font-extrabold">${item.qty}</span>
+                                <button type="button" onclick="updateCheckoutItemQty(${index}, 1)" class="w-6 h-6 rounded-md bg-white font-bold text-slate-700 shadow-sm leading-none flex items-center justify-center">+</button>
+                            </div>
+                            <span class="font-bold text-slate-900 w-16 text-right">Rs. ${line.toFixed(2)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('checkoutTotalAmount').textContent = `Rs. ${total.toFixed(2)}`;
+        }
+
+        function updateCheckoutItemQty(index, delta) {
+            const item = checkoutItemsQueue[index];
+            if (!item) return;
+
+            const nextQty = item.qty + delta;
+            if (nextQty < 1) return; 
+            
+            if (nextQty > item.max_stock) {
+                showToast("Max Stock", `Only ${item.max_stock} units available.`);
+                return;
+            }
+
+            item.qty = nextQty;
+            
+            if (isCheckingOutFromCart) {
+                saveCartState();
+                renderCartModalItems();
+            }
+            
+            renderCheckoutSummary();
         }
 
         function renderCheckoutPharmacyBankDetails(pharmacyIds) {
