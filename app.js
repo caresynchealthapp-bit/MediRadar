@@ -1,3 +1,6 @@
+let isWaitingForRegistrationOtp = false;
+let currentSearchMode = 'medicines';
+    
     // ---------------------------------------------------------
         // 1. LIVE SUPABASE CONNECTION
         // ---------------------------------------------------------
@@ -499,26 +502,26 @@
         }
 
         function openCustomerAccountModal() {
-            const modal = document.getElementById('customerAccountModal');
-            if (currentCustomer) {
-                switchAuthTab('REGISTER');
-                document.getElementById('accountModalTitle').textContent = "Edit Your Customer Profile & Bank Defaults";
-                document.getElementById('saveProfileSubmitBtn').textContent = "Update My Profile";
-                document.getElementById('profFullName').value = currentCustomer.full_name || '';
-                document.getElementById('profEmail').value = currentCustomer.email || '';
-                document.getElementById('profPassword').value = decryptCustomerPassword(currentCustomer.password || '');
-                document.getElementById('profPhone').value = currentCustomer.phone || '';
-                document.getElementById('profAddress').value = currentCustomer.address || '';
-                document.getElementById('profBankName').value = currentCustomer.bank_name || '';
-                document.getElementById('profBankAccountNo').value = currentCustomer.bank_account_no || '';
-            } else {
-                document.getElementById('customerProfileForm').reset();
-                document.getElementById('accountModalTitle').textContent = "Register Customer Account";
-                document.getElementById('saveProfileSubmitBtn').textContent = "Complete Customer Registration";
-                switchAuthTab('REGISTER');
-            }
-            modal.classList.remove('hidden');
-        }
+    const modal = document.getElementById('customerAccountModal');
+    isWaitingForRegistrationOtp = false;
+    document.getElementById('profileDetailsGroup').classList.remove('hidden');
+    document.getElementById('otpVerificationGroup').classList.add('hidden');
+    document.getElementById('profOtpInput').value = '';
+    
+    if (currentCustomer) {
+        document.getElementById('accountModalTitle').textContent = "Edit Profile";
+        document.getElementById('saveProfileSubmitBtn').textContent = "Update Profile";
+        document.getElementById('profFullName').value = currentCustomer.full_name || '';
+        document.getElementById('profEmail').value = currentCustomer.email || '';
+        document.getElementById('profPhone').value = currentCustomer.phone || '';
+        document.getElementById('profAddress').value = currentCustomer.address || '';
+    } else {
+        document.getElementById('customerProfileForm').reset();
+        document.getElementById('accountModalTitle').textContent = "Register Account";
+        document.getElementById('saveProfileSubmitBtn').textContent = "Continue to Email Verification";
+    }
+    modal.classList.remove('hidden');
+}
 
         function closeCustomerAccountModal() {
             document.getElementById('customerAccountModal').classList.add('hidden');
@@ -543,79 +546,72 @@
             }
         }
 
-        async function handleSaveCustomerProfile(event) {
-            event.preventDefault();
-            const btn = document.getElementById('saveProfileSubmitBtn');
-            btn.disabled = true;
-            btn.textContent = "Saving to Supabase...";
+async function handleSaveCustomerProfile(event) {
+    event.preventDefault();
+    const btn = document.getElementById('saveProfileSubmitBtn');
+    const email = document.getElementById('profEmail').value.trim().toLowerCase();
+    
+    const payload = {
+        full_name: document.getElementById('profFullName').value.trim(),
+        email: email,
+        password: encryptCustomerPassword(document.getElementById('profPassword').value.trim()),
+        phone: document.getElementById('profPhone').value.trim(),
+        address: document.getElementById('profAddress').value.trim(),
+        bank_name: document.getElementById('profBankName').value,
+        bank_account_no: document.getElementById('profBankAccountNo').value.trim()
+    };
 
-            const rawPassword = document.getElementById('profPassword').value.trim();
-            const encryptedPassword = encryptCustomerPassword(rawPassword);
+    if (currentCustomer && currentCustomer.id) {
+        btn.disabled = true;
+        btn.textContent = "Updating...";
+        const { data, error } = await supabaseClient.from('customers').update(payload).eq('id', currentCustomer.id).select().single();
+        btn.disabled = false;
+        if (!error) finalizeCustomerAuth(data, "Profile Updated!");
+        return;
+    }
 
-            // Notice: No card details and no GPS coordinates are ever stored in Supabase
-            const payload = {
-                full_name: document.getElementById('profFullName').value.trim(),
-                email: document.getElementById('profEmail').value.trim().toLowerCase(),
-                password: encryptedPassword,
-                phone: document.getElementById('profPhone').value.trim(),
-                address: document.getElementById('profAddress').value.trim(),
-                bank_name: document.getElementById('profBankName').value,
-                bank_account_no: document.getElementById('profBankAccountNo').value.trim()
-            };
-
-            try {
-                let savedRow = null;
-                if (currentCustomer && currentCustomer.id) {
-                    const { data, error } = await supabaseClient
-                        .from('customers')
-                        .update(payload)
-                        .eq('id', currentCustomer.id)
-                        .select()
-                        .single();
-                    if (error) throw error;
-                    savedRow = data;
-                } else {
-                    const { data: existing } = await supabaseClient
-                        .from('customers')
-                        .select('*')
-                        .eq('email', payload.email)
-                        .maybeSingle();
-
-                    if (existing) {
-                        throw new Error("An account with this email already exists. Please use the 'Returning Customer Sign In' tab.");
-                    } else {
-                        const { data, error } = await supabaseClient
-                            .from('customers')
-                            .insert([payload])
-                            .select()
-                            .single();
-                        if (error) throw error;
-                        savedRow = data;
-                    }
-                }
-
-                currentCustomer = savedRow;
-                localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
-                updateCustomerHeaderUI();
-                subscribeToCustomerOrderUpdates();
-                await loadCustomerCartFromSupabase();
-                await fetchMyCustomerOrders(true);
-                closeCustomerAccountModal();
-                showToast("Account Saved", `Welcome ${currentCustomer.full_name}!`);
-
-                if (typeof postAuthCallback === 'function') {
-                    const cb = postAuthCallback;
-                    postAuthCallback = null;
-                    cb();
-                }
-            } catch (err) {
-                console.error("Customer Save Error:", err);
-                showToast("Account Notice", err.message || "Could not save customer profile.");
-            } finally {
-                btn.disabled = false;
-                btn.textContent = "Save Customer Account";
-            }
+    if (!isWaitingForRegistrationOtp) {
+        btn.disabled = true;
+        btn.textContent = "Sending OTP...";
+        try {
+            const { data: result, error } = await supabaseClient.functions.invoke('auth-otp', {
+                body: { action: 'send_otp', email: payload.email }
+            });
+            if (error || !result.success) throw new Error("Failed to send OTP.");
+            
+            document.getElementById('profileDetailsGroup').classList.add('hidden');
+            document.getElementById('otpVerificationGroup').classList.remove('hidden');
+            isWaitingForRegistrationOtp = true;
+            btn.textContent = "Verify Code";
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            btn.disabled = false;
         }
+        return;
+    }
+
+    if (isWaitingForRegistrationOtp) {
+        btn.disabled = true;
+        btn.textContent = "Verifying...";
+        try {
+            const enteredOtp = document.getElementById('profOtpInput').value.trim();
+            const { data: verifyResult, error: verifyErr } = await supabaseClient.functions.invoke('auth-otp', {
+                body: { action: 'verify_otp', email: payload.email, otp: enteredOtp }
+            });
+            if (verifyErr || !verifyResult.success) throw new Error("Invalid OTP.");
+
+            const { data, error } = await supabaseClient.from('customers').insert([payload]).select().single();
+            if (error) throw error;
+            finalizeCustomerAuth(data, `Welcome, ${data.full_name}!`);
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Verify Code";
+        }
+    }
+}
 
         async function handleCustomerLogin(event) {
             event.preventDefault();
