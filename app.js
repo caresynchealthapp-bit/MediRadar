@@ -584,7 +584,20 @@ async function handleSaveCustomerProfile(event) {
             isWaitingForRegistrationOtp = true;
             btn.textContent = "Verify Code";
         } catch (err) {
-            alert(err.message);
+            const errorDisplay = document.getElementById('otpErrorMessage');
+            
+            // Trigger the gorgeous custom centered modal instead of alert + reload
+            if (err.message.includes("Maximum attempts")) {
+                showLockoutModal();
+                return; 
+            }
+
+            if (errorDisplay) {
+                errorDisplay.textContent = err.message;
+                errorDisplay.classList.remove('hidden');
+                errorDisplay.classList.add('animate-bounce');
+                setTimeout(() => errorDisplay.classList.remove('animate-bounce'), 1000);
+            }
         } finally {
             btn.disabled = false;
         }
@@ -2075,3 +2088,60 @@ document.getElementById('profOtpInput').addEventListener('input', () => {
         errorDisplay.classList.add('hidden');
     }
 });
+
+function showLockoutModal() {
+    const existing = document.getElementById('mr-lockout-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'mr-lockout-overlay';
+    overlay.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm opacity-0 transition-opacity duration-300 px-4';
+    
+    const modal = document.createElement('div');
+    modal.className = 'bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full relative transform scale-90 transition-transform duration-300 text-center border-t-8 border-rose-500';
+    
+    modal.innerHTML = `
+        <div class="mx-auto w-20 h-20 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mb-5 shadow-inner border border-rose-100">
+            <i class="fa-solid fa-triangle-exclamation text-3xl"></i>
+        </div>
+        <h3 class="text-2xl font-extrabold text-slate-800 mb-2">Maximum Attempts</h3>
+        <p class="text-sm text-slate-500 mb-8 leading-relaxed">You have exceeded the maximum verification attempts. Please register again from the beginning.</p>
+        <button onclick="resetRegistrationFlow()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-md active:scale-95">
+            Try Again
+        </button>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    setTimeout(() => {
+        overlay.classList.remove('opacity-0');
+        modal.classList.remove('scale-90');
+        modal.classList.add('scale-100');
+    }, 10);
+}
+
+function resetRegistrationFlow() {
+    const lockoutOverlay = document.getElementById('mr-lockout-overlay');
+    if (lockoutOverlay) lockoutOverlay.remove();
+
+    // Reset registration state
+    isWaitingForRegistrationOtp = false;
+    
+    // Ensure customer account modal is open and reset to Phase 1
+    const modal = document.getElementById('customerAccountModal');
+    if (modal) modal.classList.remove('hidden');
+
+    document.getElementById('profileDetailsGroup').classList.remove('hidden');
+    document.getElementById('otpVerificationGroup').classList.add('hidden');
+    document.getElementById('profOtpInput').value = '';
+    
+    const errorDisplay = document.getElementById('otpErrorMessage');
+    if (errorDisplay) errorDisplay.classList.add('hidden');
+
+    const submitBtn = document.getElementById('saveProfileSubmitBtn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Continue to Email Verification";
+    }
+}
