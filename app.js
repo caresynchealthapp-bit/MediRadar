@@ -586,7 +586,6 @@ async function handleSaveCustomerProfile(event) {
         } catch (err) {
             const errorDisplay = document.getElementById('otpErrorMessage');
             
-            // Trigger the gorgeous custom centered modal instead of alert + reload
             if (err.message.includes("Maximum attempts")) {
                 showLockoutModal();
                 return; 
@@ -626,10 +625,9 @@ async function handleSaveCustomerProfile(event) {
         } catch (err) {
             const errorDisplay = document.getElementById('otpErrorMessage');
             
-            // Detect the 5-strike penalty and reset the page
+            // Replaced alert + reload with the gorgeous custom lockout modal
             if (err.message.includes("Maximum attempts")) {
-                alert("Maximum attempts exceeded. Please register again from the beginning.");
-                window.location.reload();
+                showLockoutModal();
                 return; 
             }
 
