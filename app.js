@@ -600,9 +600,11 @@ async function handleSaveCustomerProfile(event) {
                 body: { action: 'verify_otp', email: payload.email, otp: enteredOtp }
             });
 
-            if (verifyErr) throw new Error(verifyErr.message || verifyErr.context || "Invalid OTP.");
-            if (verifyResult && verifyResult.error) throw new Error(verifyResult.error);
-            if (!verifyResult || !verifyResult.success) throw new Error("Invalid OTP.");
+            // Catch network errors
+            if (verifyErr) throw new Error("Network error connecting to verification server.");
+            
+            // Catch our graceful JSON errors (like "Invalid OTP" or "Maximum attempts")
+            if (!verifyResult.success) throw new Error(verifyResult.error);
 
             const { data, error } = await supabaseClient.from('customers').insert([payload]).select().single();
             if (error) throw error;
@@ -613,16 +615,15 @@ async function handleSaveCustomerProfile(event) {
             finalizeCustomerAuth(data, `Welcome, ${data.full_name}!`);
         } catch (err) {
             const errorDisplay = document.getElementById('otpErrorMessage');
-            let cleanMsg = err.message.replace('Error: ', '').replace(/{"error":"/g, '').replace(/"}/g, '');
             
-            if (cleanMsg.includes("Maximum attempts")) {
+            if (err.message.includes("Maximum attempts")) {
                 alert("Maximum attempts exceeded. Please register again from the beginning.");
                 window.location.reload();
                 return; 
             }
 
             if (errorDisplay) {
-                errorDisplay.textContent = cleanMsg;
+                errorDisplay.textContent = err.message;
                 errorDisplay.classList.remove('hidden');
                 errorDisplay.classList.add('animate-bounce');
                 setTimeout(() => errorDisplay.classList.remove('animate-bounce'), 1000);
