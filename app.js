@@ -1916,3 +1916,71 @@
                 subscribeToCustomerOrderUpdates();
             }
         });
+
+// ---------------------------------------------------------
+// 10. HERO SEARCH ENGINE TOGGLE (MEDICINES VS PHARMACIES)
+// ---------------------------------------------------------
+let currentHeroSearchMode = 'medicines';
+
+function setHeroSearchMode(mode) {
+    currentHeroSearchMode = mode;
+
+    const medBtn = document.getElementById('modeBtnMedicines');
+    const pharmBtn = document.getElementById('modeBtnPharmacies');
+    const searchInput = document.getElementById('searchInput');
+    const searchBtnText = document.getElementById('heroSearchBtnText');
+
+    if (medBtn) medBtn.classList.toggle('active', mode === 'medicines');
+    if (pharmBtn) pharmBtn.classList.toggle('active', mode === 'pharmacies');
+
+    if (mode === 'pharmacies') {
+        searchInput.placeholder = 'Search pharmacies by name, city, phone, or license...';
+        searchBtnText.textContent = 'Find Pharmacy';
+    } else {
+        searchInput.placeholder = 'Search by medicine name, category, pharmacy, or supplier...';
+        searchBtnText.textContent = 'Search Stock';
+    }
+    searchInput.focus();
+    handleUnifiedHeroSearch();
+}
+
+function handleUnifiedHeroSearch() {
+    const query = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+    
+    const clearBtn = document.getElementById('clearSearchBtn');
+    if (query.length > 0) clearBtn.classList.remove('hidden');
+    else clearBtn.classList.add('hidden');
+
+    if (currentHeroSearchMode === 'pharmacies') {
+        filterPharmaciesDirectory(query);
+    } else {
+        filterPharmaciesDirectory(''); // Reset pharmacy cards
+        applyFiltersAndRender(); // Trigger existing medicine filter
+    }
+}
+
+function executeUnifiedHeroSearch() {
+    handleUnifiedHeroSearch();
+    if (currentHeroSearchMode === 'pharmacies') {
+        const dir = document.getElementById('pharmaciesDirectoryGrid');
+        if (dir) dir.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+function clearUnifiedSearch() {
+    document.getElementById('searchInput').value = '';
+    handleUnifiedHeroSearch();
+}
+
+function filterPharmaciesDirectory(query) {
+    const container = document.getElementById('pharmaciesDirectoryGrid');
+    if (!container) return;
+
+    // Grab all generated pharmacy cards from the grid
+    const cards = container.children;
+    for (let i = 0; i < cards.length; i++) {
+        const card = cards[i];
+        const text = card.innerText.toLowerCase();
+        card.style.display = (!query || text.includes(query)) ? '' : 'none';
+    }
+}

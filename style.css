@@ -62,3 +62,47 @@ body {
         .gps-pulse {
             animation: pulse-ring 2s infinite;
         }
+
+        /* Hero Search Mode Toggle */
+.mr-search-mode-wrapper {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.mr-search-mode-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 5px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.mr-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.75);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mr-mode-btn:hover {
+    color: #ffffff;
+}
+
+.mr-mode-btn.active {
+    background: #10b981;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+}

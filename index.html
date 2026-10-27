@@ -267,23 +267,38 @@
                         </p>
                     </div>
 
-                    <!-- Main Search Bar -->
-                    <div class="max-w-4xl mx-auto bg-white p-2 rounded-2xl shadow-2xl border-2 border-teal-500/40 flex flex-col sm:flex-row items-center gap-2">
-                        <div class="flex-1 flex items-center w-full px-3 py-1.5">
-                            <i class="fa-solid fa-magnifying-glass text-teal-600 text-lg mr-3"></i>
-                            <input id="searchInput" type="text" oninput="applyFiltersAndRender()"
-                                placeholder="Search by medicine name, category, pharmacy, or supplier..."
-                                class="w-full text-slate-800 placeholder-slate-400 text-sm sm:text-base font-medium focus:outline-none">
-                            <button id="clearSearchBtn" onclick="clearSearch()" class="hidden text-slate-400 hover:text-slate-600 px-2">
-                                <i class="fa-solid fa-circle-xmark"></i>
-                            </button>
+                    <!-- Main Search Bar with Mode Toggle -->
+                    <div class="max-w-4xl mx-auto flex flex-col items-center">
+                        
+                        <!-- Search Mode Toggle Pills -->
+                        <div class="mr-search-mode-wrapper mb-3">
+                            <div class="mr-search-mode-toggle" role="tablist">
+                                <button type="button" id="modeBtnMedicines" class="mr-mode-btn active" onclick="setHeroSearchMode('medicines')">
+                                    <i class="fa-solid fa-pills"></i> Search Medicines
+                                </button>
+                                <button type="button" id="modeBtnPharmacies" class="mr-mode-btn" onclick="setHeroSearchMode('pharmacies')">
+                                    <i class="fa-solid fa-store"></i> Search Pharmacies
+                                </button>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-2 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
-                            <button onclick="applyFiltersAndRender()"
-                                class="w-full sm:w-auto bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm px-6 py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-sliders"></i>
-                                <span>Search Stock</span>
-                            </button>
+
+                        <div class="w-full bg-white p-2 rounded-2xl shadow-2xl border-2 border-teal-500/40 flex flex-col sm:flex-row items-center gap-2">
+                            <div class="flex-1 flex items-center w-full px-3 py-1.5">
+                                <i class="fa-solid fa-magnifying-glass text-teal-600 text-lg mr-3"></i>
+                                <input id="searchInput" type="text" oninput="handleUnifiedHeroSearch()" onkeydown="if(event.key === 'Enter') executeUnifiedHeroSearch()"
+                                    placeholder="Search by medicine name, category, pharmacy, or supplier..."
+                                    class="w-full text-slate-800 placeholder-slate-400 text-sm sm:text-base font-medium focus:outline-none">
+                                <button id="clearSearchBtn" onclick="clearUnifiedSearch()" class="hidden text-slate-400 hover:text-slate-600 px-2">
+                                    <i class="fa-solid fa-circle-xmark"></i>
+                                </button>
+                            </div>
+                            <div class="flex items-center gap-2 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
+                                <button onclick="executeUnifiedHeroSearch()"
+                                    class="w-full sm:w-auto bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm px-6 py-3 rounded-xl shadow-md transition flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-sliders"></i>
+                                    <span id="heroSearchBtnText">Search Stock</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
