@@ -599,28 +599,37 @@ async function handleSaveCustomerProfile(event) {
             const { data: verifyResult, error: verifyErr } = await supabaseClient.functions.invoke('auth-otp', {
                 body: { action: 'verify_otp', email: payload.email, otp: enteredOtp }
             });
-            if (verifyErr || !verifyResult.success) throw new Error("Invalid OTP.");
+
+            if (verifyErr) throw new Error(verifyErr.message || verifyErr.context || "Invalid OTP.");
+            if (verifyResult && verifyResult.error) throw new Error(verifyResult.error);
+            if (!verifyResult || !verifyResult.success) throw new Error("Invalid OTP.");
 
             const { data, error } = await supabaseClient.from('customers').insert([payload]).select().single();
             if (error) throw error;
+            
+            const errorDisplay = document.getElementById('otpErrorMessage');
+            if (errorDisplay) errorDisplay.classList.add('hidden');
+            
             finalizeCustomerAuth(data, `Welcome, ${data.full_name}!`);
         } catch (err) {
-        const errorDisplay = document.getElementById('otpErrorMessage');
-        let cleanMsg = err.message.replace('Error: ', '').replace(/{"error":"/g, '').replace(/"}/g, '');
-        
-        // Detect the 5-strike failure
-        if (cleanMsg.includes("Maximum attempts")) {
-            alert("Maximum attempts exceeded. Please register again from the beginning.");
-            window.location.reload(); // Instantly resets the entire UI and variables
-            return; 
-        }
+            const errorDisplay = document.getElementById('otpErrorMessage');
+            let cleanMsg = err.message.replace('Error: ', '').replace(/{"error":"/g, '').replace(/"}/g, '');
+            
+            if (cleanMsg.includes("Maximum attempts")) {
+                alert("Maximum attempts exceeded. Please register again from the beginning.");
+                window.location.reload();
+                return; 
+            }
 
-        // For standard 1-4 failures, just show the red text
-        if (errorDisplay) {
-            errorDisplay.textContent = cleanMsg; // Outputs exactly "Invalid OTP."
-            errorDisplay.classList.remove('hidden');
-            errorDisplay.classList.add('animate-bounce');
-            setTimeout(() => errorDisplay.classList.remove('animate-bounce'), 1000);
+            if (errorDisplay) {
+                errorDisplay.textContent = cleanMsg;
+                errorDisplay.classList.remove('hidden');
+                errorDisplay.classList.add('animate-bounce');
+                setTimeout(() => errorDisplay.classList.remove('animate-bounce'), 1000);
+            }
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Verify Code";
         }
     }
 }
