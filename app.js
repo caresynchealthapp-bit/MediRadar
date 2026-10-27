@@ -1990,18 +1990,44 @@ function filterPharmaciesDirectory(query) {
 }
 
 function finalizeCustomerAuth(customerData, successMessage) {
-    // 1. Save the customer globally so the app knows they are logged in
     currentCustomer = customerData;
-    
-    // 2. Save to localStorage so they stay logged in after refreshing
     localStorage.setItem('pharmaConnectUser', JSON.stringify(customerData));
     
-    // 3. Show the welcome message
-    alert(successMessage);
+    // Save the graphical message to survive the reload
+    sessionStorage.setItem('pendingToastMessage', successMessage);
     
-    // 4. Close the modal
     closeCustomerAccountModal();
-    
-    // 5. Reload the page to automatically update the Navbar to show their profile
     window.location.reload();
+}
+
+function showBrandToast(message) {
+    let container = document.getElementById('mr-toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'mr-toast-container';
+        container.className = 'fixed top-5 right-5 z-[9999] flex flex-col gap-3';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'bg-brand-600 text-white px-5 py-3.5 rounded-xl shadow-2xl transform transition-all duration-500 translate-x-[120%] flex items-center gap-3 border-l-4 border-teal-300 min-w-[280px]';
+    toast.innerHTML = `
+        <div class="bg-teal-500 w-8 h-8 flex items-center justify-center rounded-full shadow-inner flex-shrink-0">
+            <i class="fa-solid fa-check text-white text-sm"></i>
+        </div>
+        <div>
+            <h4 class="font-extrabold text-sm tracking-wide">Success</h4>
+            <p class="text-[13px] text-teal-50 font-medium">${message}</p>
+        </div>
+    `;
+    
+    container.appendChild(toast);
+    
+    // Animate in
+    setTimeout(() => toast.classList.remove('translate-x-[120%]'), 10);
+    // Animate out and destroy
+    setTimeout(() => {
+        toast.classList.add('translate-x-[120%]', 'opacity-0');
+        setTimeout(() => toast.remove(), 500);
+    }, 4000);
 }
