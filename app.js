@@ -2022,8 +2022,8 @@ function showCenteredWelcomeModal(title) {
         <button onclick="closeWelcomeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors bg-slate-100 hover:bg-slate-200 rounded-full w-8 h-8 flex items-center justify-center">
             <i class="fa-solid fa-xmark"></i>
         </button>
-        <div class="mx-auto w-20 h-20 bg-teal-50 text-brand-600 rounded-full flex items-center justify-center mb-5 shadow-inner border border-teal-100">
-            <i class="fa-solid fa-shield-check text-4xl"></i>
+        <div class="mx-auto w-20 h-20 bg-gradient-to-br from-teal-500 to-cyan-500 text-white rounded-2xl flex items-center justify-center mb-5 shadow-lg border-4 border-white ring-1 ring-slate-100 transform rotate-3">
+            <i class="fa-solid fa-mortar-pestle text-4xl transform -rotate-3"></i>
         </div>
         <h3 class="text-2xl font-extrabold text-slate-800 mb-2">${title}</h3>
         <p class="text-sm text-slate-500 mb-8 leading-relaxed">Your account has been securely verified. You can now manage your prescriptions and search for local pharmacies.</p>
