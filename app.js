@@ -2031,3 +2031,11 @@ function showBrandToast(message) {
         setTimeout(() => toast.remove(), 500);
     }, 4000);
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const pendingMessage = sessionStorage.getItem('pendingToastMessage');
+    if (pendingMessage) {
+        showBrandToast(pendingMessage);
+        sessionStorage.removeItem('pendingToastMessage');
+    }
+});
