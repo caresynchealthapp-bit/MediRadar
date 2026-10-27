@@ -63,11 +63,10 @@ body {
             animation: pulse-ring 2s infinite;
         }
 
-        /* Hero Search Mode Toggle */
 .mr-search-mode-wrapper {
     display: flex;
     justify-content: center;
-    width: 100%;
+    margin-bottom: 12px;
 }
 
 .mr-search-mode-toggle {
