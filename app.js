@@ -2000,36 +2000,47 @@ function finalizeCustomerAuth(customerData, successMessage) {
     window.location.reload();
 }
 
-function showBrandToast(message) {
-    let container = document.getElementById('mr-toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'mr-toast-container';
-        container.className = 'fixed top-5 right-5 z-[9999] flex flex-col gap-3';
-        document.body.appendChild(container);
+window.closeWelcomeModal = function() {
+    const overlay = document.getElementById('mr-welcome-overlay');
+    if (overlay) {
+        overlay.classList.add('opacity-0');
+        overlay.querySelector('div').classList.remove('scale-100');
+        overlay.querySelector('div').classList.add('scale-90');
+        setTimeout(() => overlay.remove(), 300);
     }
+};
 
-    const toast = document.createElement('div');
-    toast.className = 'bg-brand-600 text-white px-5 py-3.5 rounded-xl shadow-2xl transform transition-all duration-500 translate-x-[120%] flex items-center gap-3 border-l-4 border-teal-300 min-w-[280px]';
-    toast.innerHTML = `
-        <div class="bg-teal-500 w-8 h-8 flex items-center justify-center rounded-full shadow-inner flex-shrink-0">
-            <i class="fa-solid fa-check text-white text-sm"></i>
+function showCenteredWelcomeModal(title) {
+    const overlay = document.createElement('div');
+    overlay.id = 'mr-welcome-overlay';
+    overlay.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm opacity-0 transition-opacity duration-300 px-4';
+    
+    const modal = document.createElement('div');
+    modal.className = 'bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full relative transform scale-90 transition-transform duration-300 text-center border-t-8 border-brand-600';
+    
+    modal.innerHTML = `
+        <button onclick="closeWelcomeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors bg-slate-100 hover:bg-slate-200 rounded-full w-8 h-8 flex items-center justify-center">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+        <div class="mx-auto w-20 h-20 bg-teal-50 text-brand-600 rounded-full flex items-center justify-center mb-5 shadow-inner border border-teal-100">
+            <i class="fa-solid fa-shield-check text-4xl"></i>
         </div>
-        <div>
-            <h4 class="font-extrabold text-sm tracking-wide">Success</h4>
-            <p class="text-[13px] text-teal-50 font-medium">${message}</p>
-        </div>
+        <h3 class="text-2xl font-extrabold text-slate-800 mb-2">${title}</h3>
+        <p class="text-sm text-slate-500 mb-8 leading-relaxed">Your account has been securely verified. You can now manage your prescriptions and search for local pharmacies.</p>
+        <button onclick="closeWelcomeModal()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-md active:scale-95">
+            Let's Get Started
+        </button>
     `;
     
-    container.appendChild(toast);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
     
-    // Animate in
-    setTimeout(() => toast.classList.remove('translate-x-[120%]'), 10);
-    // Animate out and destroy
+    // Trigger the pop-in animation
     setTimeout(() => {
-        toast.classList.add('translate-x-[120%]', 'opacity-0');
-        setTimeout(() => toast.remove(), 500);
-    }, 4000);
+        overlay.classList.remove('opacity-0');
+        modal.classList.remove('scale-90');
+        modal.classList.add('scale-100');
+    }, 10);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
