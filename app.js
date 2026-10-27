@@ -605,10 +605,22 @@ async function handleSaveCustomerProfile(event) {
             if (error) throw error;
             finalizeCustomerAuth(data, `Welcome, ${data.full_name}!`);
         } catch (err) {
-            alert(err.message);
-        } finally {
-            btn.disabled = false;
-            btn.textContent = "Verify Code";
+        const errorDisplay = document.getElementById('otpErrorMessage');
+        let cleanMsg = err.message.replace('Error: ', '').replace(/{"error":"/g, '').replace(/"}/g, '');
+        
+        // Detect the 5-strike failure
+        if (cleanMsg.includes("Maximum attempts")) {
+            alert("Maximum attempts exceeded. Please register again from the beginning.");
+            window.location.reload(); // Instantly resets the entire UI and variables
+            return; 
+        }
+
+        // For standard 1-4 failures, just show the red text
+        if (errorDisplay) {
+            errorDisplay.textContent = cleanMsg; // Outputs exactly "Invalid OTP."
+            errorDisplay.classList.remove('hidden');
+            errorDisplay.classList.add('animate-bounce');
+            setTimeout(() => errorDisplay.classList.remove('animate-bounce'), 1000);
         }
     }
 }
@@ -2048,5 +2060,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (pendingMessage) {
         showCenteredWelcomeModal(pendingMessage);
         sessionStorage.removeItem('pendingToastMessage');
+    }
+});
+
+// Hides the error message as soon as the user starts typing a new OTP
+document.getElementById('profOtpInput').addEventListener('input', () => {
+    const errorDisplay = document.getElementById('otpErrorMessage');
+    if (errorDisplay) {
+        errorDisplay.classList.add('hidden');
     }
 });
