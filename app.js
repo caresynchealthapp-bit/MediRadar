@@ -1917,92 +1917,70 @@
             }
         });
 
-let currentHeroSearchMode = 'medicines'; // 'medicines' | 'pharmacies'
+// ---------------------------------------------------------
+// 10. HERO SEARCH ENGINE TOGGLE (MEDICINES VS PHARMACIES)
+// ---------------------------------------------------------
+let currentHeroSearchMode = 'medicines';
 
 function setHeroSearchMode(mode) {
     currentHeroSearchMode = mode;
 
     const medBtn = document.getElementById('modeBtnMedicines');
     const pharmBtn = document.getElementById('modeBtnPharmacies');
-    
-    // Update the selector below if your existing search input uses a different ID
-    const searchInput = document.getElementById('heroSearchInput') || document.querySelector('input[placeholder*="Search by medicine"]');
+    const searchInput = document.getElementById('searchInput');
     const searchBtnText = document.getElementById('heroSearchBtnText');
 
     if (medBtn) medBtn.classList.toggle('active', mode === 'medicines');
     if (pharmBtn) pharmBtn.classList.toggle('active', mode === 'pharmacies');
 
     if (mode === 'pharmacies') {
-        if (searchInput) {
-            searchInput.placeholder = 'Search pharmacies by name, city (e.g. Moratuwa), phone, or license...';
-            searchInput.focus();
-        }
-        if (searchBtnText) searchBtnText.textContent = 'Find Pharmacy';
+        searchInput.placeholder = 'Search pharmacies by name, city, phone, or license...';
+        searchBtnText.textContent = 'Find Pharmacy';
     } else {
-        if (searchInput) {
-            searchInput.placeholder = 'Search by medicine name, category, pharmacy, or supplier...';
-            searchInput.focus();
-        }
-        if (searchBtnText) searchBtnText.textContent = 'Search Stock';
+        searchInput.placeholder = 'Search by medicine name, category, pharmacy, or supplier...';
+        searchBtnText.textContent = 'Search Stock';
     }
-
-    // Re-run filter immediately when switching tabs
+    searchInput.focus();
     handleUnifiedHeroSearch();
 }
 
 function handleUnifiedHeroSearch() {
-    const searchInput = document.getElementById('heroSearchInput') || document.querySelector('input[placeholder*="Search"]');
-    const query = (searchInput ? searchInput.value : '').trim().toLowerCase();
+    const query = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+    
+    const clearBtn = document.getElementById('clearSearchBtn');
+    if (query.length > 0) clearBtn.classList.remove('hidden');
+    else clearBtn.classList.add('hidden');
 
     if (currentHeroSearchMode === 'pharmacies') {
         filterPharmaciesDirectory(query);
     } else {
-        // Reset all pharmacy cards so none stay hidden when switching back
-        filterPharmaciesDirectory('');
-        
-        // Trigger your existing medicine filter function if you have one
-        if (typeof filterMedicines === 'function') {
-            filterMedicines();
-        } else if (typeof renderMedicines === 'function') {
-            renderMedicines();
-        }
+        filterPharmaciesDirectory(''); // Reset pharmacy cards
+        applyFiltersAndRender(); // Trigger existing medicine filter
     }
 }
 
 function executeUnifiedHeroSearch() {
     handleUnifiedHeroSearch();
-
     if (currentHeroSearchMode === 'pharmacies') {
-        // Smoothly scroll down to the Live Geolocation Directory section
-        const directoryHeading = Array.from(document.querySelectorAll('h2, h3, div')).find(
-            el => el.textContent && el.textContent.includes('Registered Pharmacies Ranked by Distance')
-        );
-        if (directoryHeading) {
-            directoryHeading.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        const dir = document.getElementById('pharmaciesDirectoryGrid');
+        if (dir) dir.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 }
 
+function clearUnifiedSearch() {
+    document.getElementById('searchInput').value = '';
+    handleUnifiedHeroSearch();
+}
+
 function filterPharmaciesDirectory(query) {
-    // Finds all pharmacy cards inside the Live Geolocation Directory
-    // Adjust '.pharmacy-card-item' if your directory cards use a specific container ID
-    const mapLinks = document.querySelectorAll('a[href*="google.com/maps"], button');
-    const pharmacyCards = new Set();
+    const container = document.getElementById('pharmaciesDirectoryGrid');
+    if (!container) return;
 
-    document.querySelectorAll('.pharmacy-card-item').forEach(c => pharmacyCards.add(c));
-
-    // Automatic fallback: locate cards containing "Find on Google Maps" if .pharmacy-card-item wasn't added yet
-    if (pharmacyCards.size === 0) {
-        mapLinks.forEach(el => {
-            if (el.textContent && el.textContent.includes('Find on Google Maps')) {
-                const card = el.closest('div.bg-white, div[class*="rounded"]');
-                if (card) pharmacyCards.add(card);
-            }
-        });
-    }
-
-    pharmacyCards.forEach(card => {
+    // Grab all generated pharmacy cards from the grid
+    const cards = container.children;
+    for (let i = 0; i < cards.length; i++) {
+        const card = cards[i];
         const text = card.innerText.toLowerCase();
         card.style.display = (!query || text.includes(query)) ? '' : 'none';
-    });
+    }
 }
