@@ -1929,6 +1929,10 @@ function setHeroSearchMode(mode) {
     const pharmBtn = document.getElementById('modeBtnPharmacies');
     const searchInput = document.getElementById('searchInput');
     const searchBtnText = document.getElementById('heroSearchBtnText');
+    
+    // Target the new containers
+    const medicinesContainer = document.getElementById('medicinesMainContainer');
+    const pharmaciesContainer = document.getElementById('pharmaciesMainContainer');
 
     if (medBtn) medBtn.classList.toggle('active', mode === 'medicines');
     if (pharmBtn) pharmBtn.classList.toggle('active', mode === 'pharmacies');
@@ -1936,12 +1940,24 @@ function setHeroSearchMode(mode) {
     if (mode === 'pharmacies') {
         searchInput.placeholder = 'Search pharmacies by name, city, phone, or license...';
         searchBtnText.textContent = 'Find Pharmacy';
+        // Hide medicines, show pharmacies
+        if (medicinesContainer) medicinesContainer.classList.add('hidden');
+        if (pharmaciesContainer) pharmaciesContainer.classList.remove('hidden');
     } else {
         searchInput.placeholder = 'Search by medicine name, category, pharmacy, or supplier...';
         searchBtnText.textContent = 'Search Stock';
+        // Hide pharmacies, show medicines
+        if (pharmaciesContainer) pharmaciesContainer.classList.add('hidden');
+        if (medicinesContainer) medicinesContainer.classList.remove('hidden');
     }
+    
     searchInput.focus();
     handleUnifiedHeroSearch();
+}
+
+function executeUnifiedHeroSearch() {
+    handleUnifiedHeroSearch();
+    // Removed the scrolling logic since the views now swap in place instantly
 }
 
 function handleUnifiedHeroSearch() {
@@ -1956,14 +1972,6 @@ function handleUnifiedHeroSearch() {
     } else {
         filterPharmaciesDirectory(''); // Reset pharmacy cards
         applyFiltersAndRender(); // Trigger existing medicine filter
-    }
-}
-
-function executeUnifiedHeroSearch() {
-    handleUnifiedHeroSearch();
-    if (currentHeroSearchMode === 'pharmacies') {
-        const dir = document.getElementById('pharmaciesDirectoryGrid');
-        if (dir) dir.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 }
 

@@ -371,64 +371,65 @@
                 </div>
             </section>
 
-            <!-- Main Content Area: Medicine Tiles & Pharmacies Directory -->
             <main class="max-w-7xl w-full mx-auto flex-1 px-4 sm:px-6 py-6">
-                
-                <!-- Active Category & Results Bar -->
-                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 mb-5 flex flex-wrap items-center justify-between gap-3">
-                    <div class="flex items-center gap-3">
-                        <span id="activeCategoryPill" class="px-3 py-1 rounded-xl bg-brand-50 text-brand-700 border border-brand-200 text-xs font-bold">
-                            All Categories
-                        </span>
-                        <p class="text-xs sm:text-sm text-slate-600">
-                            Showing <span id="resultsCountText" class="font-bold text-slate-900">0</span> medicines sorted by
-                            <span id="activeSortLabel" class="font-semibold text-teal-700">Popularity Rank (Ascending)</span>
-                        </p>
-                    </div>
+    
+    <!-- MEDICINES VIEW CONTAINER (Visible by default) -->
+    <div id="medicinesMainContainer">
+        <!-- Active Category & Results Bar -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <span id="activeCategoryPill" class="px-3 py-1 rounded-xl bg-brand-50 text-brand-700 border border-brand-200 text-xs font-bold">
+                    All Categories
+                </span>
+                <p class="text-xs sm:text-sm text-slate-600">
+                    Showing <span id="resultsCountText" class="font-bold text-slate-900">0</span> medicines sorted by
+                    <span id="activeSortLabel" class="font-semibold text-teal-700">Popularity Rank (Ascending)</span>
+                </p>
+            </div>
+            <div class="flex items-center gap-3 text-xs text-slate-500">
+                <span><i class="fa-solid fa-cart-plus text-emerald-600 mr-1"></i>Add to Cart or Direct Pharmacy Checkout</span>
+            </div>
+        </div>
 
-                    <div class="flex items-center gap-3 text-xs text-slate-500">
-                        <span><i class="fa-solid fa-cart-plus text-emerald-600 mr-1"></i>Add to Cart or Direct Pharmacy Checkout</span>
-                    </div>
-                </div>
+        <!-- Medicine Tiles Grid -->
+        <div id="medicineTilesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <!-- Populated dynamically via JS -->
+        </div>
 
-                <!-- Medicine Tiles Grid -->
-                <div id="medicineTilesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                    <!-- Populated dynamically via JS -->
-                </div>
+        <!-- Empty State -->
+        <div id="emptyResultsState" class="hidden bg-white rounded-2xl p-12 text-center border border-slate-200 my-4">
+            <div class="w-16 h-16 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fa-solid fa-prescription-bottle-medical"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 mb-1">No Matching Medicines Found</h3>
+            <p class="text-sm text-slate-500 max-w-md mx-auto mb-5">
+                No medicines matched your current search or filter selection. Try adjusting the price range, city, supplier, or category filter.
+            </p>
+            <button onclick="resetAllFilters()" class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow transition">
+                Reset All Filters
+            </button>
+        </div>
+    </div>
 
-                <!-- Empty State -->
-                <div id="emptyResultsState" class="hidden bg-white rounded-2xl p-12 text-center border border-slate-200 my-4">
-                    <div class="w-16 h-16 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mx-auto mb-4 text-2xl">
-                        <i class="fa-solid fa-prescription-bottle-medical"></i>
-                    </div>
-                    <h3 class="text-lg font-bold text-slate-800 mb-1">No Matching Medicines Found</h3>
-                    <p class="text-sm text-slate-500 max-w-md mx-auto mb-5">
-                        No medicines matched your current search or filter selection. Try adjusting the price range, city, supplier, or category filter.
-                    </p>
-                    <button onclick="resetAllFilters()" class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow transition">
-                        Reset All Filters
-                    </button>
-                </div>
+    <!-- PHARMACIES VIEW CONTAINER (Hidden by default) -->
+    <div id="pharmaciesMainContainer" class="hidden bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 mb-5">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
+            <div>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-teal-600 block">Live Geolocation Directory</span>
+                <h3 class="text-lg font-extrabold text-slate-900">
+                    Registered Pharmacies Ranked by Distance from You
+                </h3>
+            </div>
+            <button onclick="fetchUserLocation()" class="text-xs font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-3.5 py-2 rounded-xl transition flex items-center gap-1.5">
+                <i class="fa-solid fa-location-arrow"></i> Recalculate GPS Distances
+            </button>
+        </div>
+        <div id="pharmaciesDirectoryGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Populated dynamically via JS -->
+        </div>
+    </div>
 
-                <!-- Nearest Pharmacies Overview Strip -->
-                <div class="mt-10 bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200">
-                    <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
-                        <div>
-                            <span class="text-[11px] font-bold uppercase tracking-wider text-teal-600 block">Live Geolocation Directory</span>
-                            <h3 class="text-lg font-extrabold text-slate-900">
-                                Registered Pharmacies Ranked by Distance from You
-                            </h3>
-                        </div>
-                        <button onclick="fetchUserLocation()" class="text-xs font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-3.5 py-2 rounded-xl transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-location-arrow"></i> Recalculate GPS Distances
-                        </button>
-                    </div>
-                    <div id="pharmaciesDirectoryGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <!-- Populated dynamically via JS -->
-                    </div>
-                </div>
-
-            </main>
+</main>
         </div>
 
         <!-- ========================================== -->
