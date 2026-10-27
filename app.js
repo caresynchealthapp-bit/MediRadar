@@ -577,7 +577,7 @@ async function handleSaveCustomerProfile(event) {
             const { data: result, error } = await supabaseClient.functions.invoke('auth-otp', {
                 body: { action: 'send_otp', email: payload.email }
             });
-            if (error || !result.success) throw new Error("Failed to send OTP.");
+            if (error || !result.success) throw new Error(result?.error || "Failed to send OTP.");
             
             document.getElementById('profileDetailsGroup').classList.add('hidden');
             document.getElementById('otpVerificationGroup').classList.remove('hidden');
@@ -600,10 +600,7 @@ async function handleSaveCustomerProfile(event) {
                 body: { action: 'verify_otp', email: payload.email, otp: enteredOtp }
             });
 
-            // Catch network errors
             if (verifyErr) throw new Error("Network error connecting to verification server.");
-            
-            // Catch our graceful JSON errors (like "Invalid OTP" or "Maximum attempts")
             if (!verifyResult.success) throw new Error(verifyResult.error);
 
             const { data, error } = await supabaseClient.from('customers').insert([payload]).select().single();
@@ -616,6 +613,7 @@ async function handleSaveCustomerProfile(event) {
         } catch (err) {
             const errorDisplay = document.getElementById('otpErrorMessage');
             
+            // Detect the 5-strike penalty and reset the page
             if (err.message.includes("Maximum attempts")) {
                 alert("Maximum attempts exceeded. Please register again from the beginning.");
                 window.location.reload();
@@ -2013,11 +2011,8 @@ function filterPharmaciesDirectory(query) {
 
 function finalizeCustomerAuth(customerData, successMessage) {
     currentCustomer = customerData;
-    localStorage.setItem('pharmaConnectUser', JSON.stringify(customerData));
-    
-    // Save the graphical message to survive the reload
+    localStorage.setItem('mediradar_customer', JSON.stringify(customerData)); // Consistent storage key
     sessionStorage.setItem('pendingToastMessage', successMessage);
-    
     closeCustomerAccountModal();
     window.location.reload();
 }
