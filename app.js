@@ -2046,7 +2046,7 @@ function showCenteredWelcomeModal(title) {
 document.addEventListener('DOMContentLoaded', () => {
     const pendingMessage = sessionStorage.getItem('pendingToastMessage');
     if (pendingMessage) {
-        showBrandToast(pendingMessage);
+        showCenteredWelcomeModal(pendingMessage);
         sessionStorage.removeItem('pendingToastMessage');
     }
 });
