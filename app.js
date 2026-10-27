@@ -1988,3 +1988,20 @@ function filterPharmaciesDirectory(query) {
         card.style.display = (!query || text.includes(query)) ? '' : 'none';
     }
 }
+
+function finalizeCustomerAuth(customerData, successMessage) {
+    // 1. Save the customer globally so the app knows they are logged in
+    currentCustomer = customerData;
+    
+    // 2. Save to localStorage so they stay logged in after refreshing
+    localStorage.setItem('pharmaConnectUser', JSON.stringify(customerData));
+    
+    // 3. Show the welcome message
+    alert(successMessage);
+    
+    // 4. Close the modal
+    closeCustomerAccountModal();
+    
+    // 5. Reload the page to automatically update the Navbar to show their profile
+    window.location.reload();
+}
