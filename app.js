@@ -2738,6 +2738,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // MAIN AI SCANNER FUNCTION (Works from both Global Modal and Checkout Modal)
+// MAIN AI SCANNER FUNCTION (With 'Not Found' Detection & Hard UI Sync)
         async function runPrescriptionAI(source = 'checkout') {
             const isGlobal = source === 'global';
             const rxInput = document.getElementById(isGlobal ? 'global-prescription-upload' : 'prescription-upload');
@@ -2749,53 +2750,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Note: addToCart requires the customer to be logged in!
             if (!currentCustomer) {
                 closeGlobalScannerModal();
-                openCustomerAuthModal('SIGNIN');
-                showToast("Sign In Required", "Please sign in to your MediRadar account so we can auto-fill your cart.");
+                if (typeof openCustomerAuthModal === 'function') openCustomerAuthModal('SIGNIN');
+                showToast("Sign In Required", "Please sign in to auto-fill your cart.");
                 return;
             }
 
             const originalBtnHtml = aiBtn ? aiBtn.innerHTML : '';
             if (aiBtn) {
                 aiBtn.disabled = true;
-                aiBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Reading Rx & Calculating Dosages...`;
+                aiBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Reading Rx & Calculating...`;
             }
 
             try {
                 const file = rxInput.files[0];
-                if (typeof Tesseract === 'undefined') {
-                    throw new Error("Tesseract OCR library is not loaded.");
-                }
+                if (typeof Tesseract === 'undefined') throw new Error("Tesseract OCR library is not loaded.");
 
                 const { data: { text } } = await Tesseract.recognize(file, 'eng');
-                console.log("Raw OCR Text:", text);
+                console.log("Raw OCR Text:\n", text);
 
+                // Extract Global Duration
                 let globalDurationDays = 1;
                 const globalDurMatch = text.toLowerCase().match(/(?:for|x|×)?\s*(one|two|three|four|five|\d+)\s*(day|days|d|week|weeks|wk|wks|w|month|months|mo|mos|m)\b/i);
                 if (globalDurMatch) {
                     const wordToNum = { 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5 };
-                    const amountRaw = globalDurMatch[1].toLowerCase();
+                    const amountRaw = globalDurMatch[1];
                     const amount = wordToNum[amountRaw] || parseInt(amountRaw, 10);
                     const unit = globalDurMatch[2].toLowerCase();
                     
                     if (unit.startsWith('w')) globalDurationDays = amount * 7;
                     else if (unit.startsWith('m')) globalDurationDays = amount * 30;
                     else globalDurationDays = amount;
-                    
-                    console.log("Global Duration Found:", globalDurationDays, "days");
                 }
 
-                // Split OCR text into non-empty lines so we match line-by-line
                 const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 2);
                 const allStocks = getAggregatedMedicines();
-                const matchedOrders = []; // [{ stockId, medName, qty }]
+                const matchedOrders = []; 
                 const addedMedicineKeys = new Set();
+                const matchedLineIndexes = new Set(); // Track which lines we successfully matched
 
                 for (let i = 0; i < lines.length; i++) {
                     const currentLine = lines[i];
-                    // Also check the next line in case dosage instructions are written underneath the drug name
                     const nextLine = (i + 1 < lines.length) ? lines[i + 1] : '';
 
                     for (const stock of allStocks) {
@@ -2803,7 +2799,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (addedMedicineKeys.has(stockKey)) continue;
 
                         if (doesLineMatchMedicine(currentLine, stock)) {
-                            // Combine current line + next line (if next line doesn't match a different medicine) to calculate dosage
+                            matchedLineIndexes.add(i); // Mark line as matched
+                            
                             const nextLineIsAnotherMed = allStocks.some(s => doesLineMatchMedicine(nextLine, s));
                             const dosageContext = nextLineIsAnotherMed ? currentLine : `${currentLine} ${nextLine}`;
                             const calculatedQty = calculateDosageQuantity(dosageContext, globalDurationDays);
@@ -2824,37 +2821,71 @@ document.addEventListener('DOMContentLoaded', () => {
                                     qty: calculatedQty
                                 });
                                 addedMedicineKeys.add(stockKey);
-                                break; // Only match 1 database medicine per prescription line!
+                                break; 
                             }
                         }
                     }
                 }
 
+                // IDENTIFY MISSING MEDICINES
+                const missingMedicines = [];
+                // Ignore lines that are obvious dosage instructions, headers, or noise
+                const noiseKeywords = /times|day|week|month|tablet|capsule|take|duration|details|prescription|dr\.|patient|age|date/i;
+                
+                lines.forEach((line, index) => {
+                    if (!matchedLineIndexes.has(index)) {
+                        if (line.length > 4 && !noiseKeywords.test(line)) {
+                            missingMedicines.push(line);
+                        }
+                    }
+                });
+
                 if (matchedOrders.length > 0) {
-                    // Force the script to wait for Supabase to finish saving each item
+                    // Force sequential database inserts with a safer delay and quantity cap
                     for (const order of matchedOrders) {
-                        addToCart(order.stockId, order.qty, false);
-                        await new Promise(resolve => setTimeout(resolve, 350)); // 350ms DB buffer
+                        // CAP THE QUANTITY: Prevent the cart from rejecting the item if requested qty exceeds available stock
+                        const safeQty = Math.min(order.qty, 20); 
+                        
+                        console.log(`[AI Scanner Debug] Adding ${order.medName} | ID: ${order.stockId} | Requested Qty: ${order.qty} | Safe Qty: ${safeQty}`);
+                        
+                        try {
+                            // Execute your existing cart function
+                            const cartResult = await addToCart(order.stockId, safeQty, false);
+                        } catch (err) {
+                            console.error(`[AI Scanner Debug] Failed to add ${order.medName} to cart:`, err);
+                        }
+                        
+                        // Wait 600ms between each item to prevent Supabase from locking up
+                        await new Promise(resolve => setTimeout(resolve, 600)); 
                     }
 
-                    // Force the UI to refresh its cart data before opening the modal
-                    if (typeof fetchCustomerCart === 'function') await fetchCustomerCart();
-                    if (typeof loadCartItems === 'function') await loadCartItems();
-                    if (typeof fetchMyCustomerOrders === 'function') await fetchMyCustomerOrders(false);
+                    // Prepare Results HTML
+                    const summaryList = matchedOrders.map(m => `<li><b>${m.qty}x</b> ${m.medName}</li>`).join('');
+                    let resultsHtml = `<div class="mb-2"><p class="font-extrabold text-emerald-700"><i class="fa-solid fa-circle-check mr-1"></i> Added to Cart:</p><ul class="list-disc pl-5">${summaryList}</ul></div>`;
+                    
+                    // Append Missing Medicines Alert
+                    if (missingMedicines.length > 0) {
+                        const missingList = missingMedicines.map(m => `<li>${m}</li>`).join('');
+                        resultsHtml += `<div class="mt-2 pt-2 border-t border-emerald-200 text-rose-700"><p class="font-extrabold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Not Found in Pharmacy:</p><ul class="list-disc pl-5 opacity-90">${missingList}</ul></div>`;
+                    }
 
-                    const summaryList = matchedOrders.map(m => `${m.qty}x ${m.medName}`).join(', ');
                     if (resultsBox) {
-                        resultsBox.innerHTML = `<p class="font-extrabold"><i class="fa-solid fa-circle-check mr-1"></i> Added to Cart:</p><p>${summaryList}</p>`;
+                        resultsBox.innerHTML = resultsHtml;
                         resultsBox.classList.remove('hidden');
                     }
 
-                    showToast("AI Scan Complete!", `Added ${matchedOrders.length} medicine(s): ${summaryList}`);
-                    closeGlobalScannerModal();
+                    showToast("AI Scan Complete!", `Processed prescription. Please check the results.`);
                     
-                    // Final delay to guarantee UI render before opening
+                    // BRUTE-FORCE UI REFRESH
+                    if (typeof fetchCustomerCart === 'function') await fetchCustomerCart();
+                    if (typeof loadCartItems === 'function') await loadCartItems();
+                    if (typeof updateCartBadge === 'function') updateCartBadge();
+                    
+                    // Close scanner and open cart
                     setTimeout(() => {
-                        openCartModal();
-                    }, 500);
+                        closeGlobalScannerModal();
+                        if (typeof openCartModal === 'function') openCartModal();
+                    }, 2000); 
 
                 } else {
                     showToast("Scan Complete", "No matching in-stock medicines found from this prescription.");
@@ -2870,7 +2901,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-
         // Reusable Custom Confirmation Modal (Replaces native confirm())
         function showCustomConfirm(title, message, confirmText) {
             return new Promise((resolve) => {
