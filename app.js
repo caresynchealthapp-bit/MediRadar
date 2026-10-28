@@ -2602,7 +2602,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const addedMedicineKeys = new Set();
                 
                 allStocks.forEach(stock => {
-                    const medName = stock.name.toLowerCase();
+                    // Safely get the medicine name (handling different possible key names in your database)
+                    const medName = (stock.name || stock.medicine_name || '').toLowerCase();
                     const genericName = (stock.generic_name || '').toLowerCase();
                     
                     let isMatch = (medName.length > 3 && cleanOcrText.includes(medName)) || 
@@ -2613,11 +2614,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     if (isMatch) {
-                        if (!addedMedicineKeys.has(stock.key) && stock.filteredPharmacyStocks.length > 0) {
-                            const bestStockId = stock.filteredPharmacyStocks[0].id; 
-                            addToCart(bestStockId, 1, false);
-                            addedMedicineKeys.add(stock.key);
-                            itemsAdded++;
+                        // Safely determine a unique key so we don't add the same medicine twice
+                        const stockKey = stock.key || stock.id || medName;
+
+                        if (!addedMedicineKeys.has(stockKey)) {
+                            // Safely check for pharmacy lists, or fallback to the direct stock ID if it's a flat array
+                            const pharmacyList = stock.filteredPharmacyStocks || stock.pharmacies || [];
+                            
+                            if (pharmacyList.length > 0) {
+                                // Add from the first available pharmacy
+                                const bestStockId = pharmacyList[0].id || pharmacyList[0].stock_id; 
+                                addToCart(bestStockId, 1, false);
+                                addedMedicineKeys.add(stockKey);
+                                itemsAdded++;
+                            } else if (stock.id || stock.stock_id) {
+                                // Fallback: Add directly if the item itself is the stock record
+                                addToCart(stock.id || stock.stock_id, 1, false);
+                                addedMedicineKeys.add(stockKey);
+                                itemsAdded++;
+                            }
                         }
                     }
                 });
