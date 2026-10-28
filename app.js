@@ -2654,26 +2654,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
         }
 
-        // HELPER 3: Strict Line-by-Line Medicine Matching
+        // HELPER 3: Strict Line-by-Line Medicine Matching (Improved for strength variations)
         function doesLineMatchMedicine(lineText, stockItem) {
             const cleanLine = lineText.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
-            const lineWords = cleanLine.split(/\s+/).filter(w => w.length >= 4 && !/\d/.test(w));
+            const lineWords = cleanLine.split(/\s+/).filter(w => w.length >= 3 && !/\d/.test(w));
             if (lineWords.length === 0) return false;
 
-            const medRootWords = extractDrugRootWords(stockItem.name || stockItem.medicine_name || '');
-            const genRootWords = extractDrugRootWords(stockItem.generic_name || '');
+            const medName = (stockItem.name || stockItem.medicine_name || '').toLowerCase();
+            const genericName = (stockItem.generic_name || '').toLowerCase();
+            
+            // Direct substring match (e.g., if "cetirizine" is inside the line)
+            if (medName.length > 3 && cleanLine.includes(medName)) return true;
+            if (genericName.length > 3 && cleanLine.includes(genericName)) return true;
+
+            const medRootWords = extractDrugRootWords(medName);
+            const genRootWords = extractDrugRootWords(genericName);
             const allTargetRoots = [...new Set([...medRootWords, ...genRootWords])];
 
             if (allTargetRoots.length === 0) return false;
 
-            // Check if the primary drug keyword is present (exact or <= 1 typo for 5-6 char words, <= 2 for 7+ char words)
             for (const rootWord of allTargetRoots) {
                 if (cleanLine.includes(rootWord)) return true;
 
                 const allowedEdits = rootWord.length >= 7 ? 2 : 1;
                 for (const lWord of lineWords) {
                     if (Math.abs(rootWord.length - lWord.length) > allowedEdits) continue;
-                    // First letter must match to avoid wild false positives
                     if (rootWord[0] !== lWord[0]) continue;
                     if (levenshteinDistance(rootWord, lWord) <= allowedEdits) {
                         return true;
