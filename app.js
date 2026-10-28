@@ -2739,7 +2739,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // MAIN AI SCANNER FUNCTION (Works from both Global Modal and Checkout Modal)
 // MAIN AI SCANNER FUNCTION (With 'Not Found' Detection & Hard UI Sync)
-// MAIN AI SCANNER FUNCTION (Matches directly to grnStockTable)
+// MAIN AI SCANNER FUNCTION (With Advanced 3-Tier Categorization)
         async function runPrescriptionAI(source = 'checkout') {
             const isGlobal = source === 'global';
             const rxInput = document.getElementById(isGlobal ? 'global-prescription-upload' : 'prescription-upload');
@@ -2786,7 +2786,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 2);
                 const allStocks = getAggregatedMedicines();
+                
+                // The 3 Tracking Categories
                 const matchedOrders = []; 
+                const outOfStockMedicines = []; 
+                const systemMissingMedicines = [];
+                
                 const addedMedicineKeys = new Set();
                 const matchedLineIndexes = new Set(); 
 
@@ -2805,74 +2810,82 @@ document.addEventListener('DOMContentLoaded', () => {
                             const dosageContext = nextLineIsAnotherMed ? currentLine : `${currentLine} ${nextLine}`;
                             const calculatedQty = calculateDosageQuantity(dosageContext, globalDurationDays);
 
-                            // THE FIX: Find the exact GRN Stock ID that `addToCart` requires
-                            const validGrnStock = typeof grnStockTable !== 'undefined' ? grnStockTable.find(grn => 
+                            // Find all matching GRN entries
+                            const grnMatches = typeof grnStockTable !== 'undefined' ? grnStockTable.filter(grn => 
                                 (grn.medicine_name && grn.medicine_name.toLowerCase() === (stock.name || stock.medicine_name || '').toLowerCase()) ||
                                 (String(grn.medicine_id) === String(stock.id || stock.medicine_id))
-                            ) : null;
+                            ) : [];
 
-                            if (validGrnStock) {
+                            // Check if ANY matching pharmacy actually has inventory > 0
+                            const inStockGrn = grnMatches.find(grn => Number(grn.current_quantity) > 0);
+
+                            if (inStockGrn) {
                                 matchedOrders.push({
-                                    stockId: validGrnStock.id, // This is the exact ID addToCart needs!
-                                    medName: validGrnStock.medicine_name,
+                                    stockId: inStockGrn.id,
+                                    medName: inStockGrn.medicine_name,
                                     qty: calculatedQty
                                 });
-                                addedMedicineKeys.add(stockKey);
-                                break; 
+                            } else {
+                                // It matched the database perfectly, but stock is 0 everywhere
+                                outOfStockMedicines.push(stock.name || stock.medicine_name || currentLine);
                             }
+                            
+                            addedMedicineKeys.add(stockKey);
+                            break; 
                         }
                     }
                 }
 
-                const missingMedicines = [];
+                // Identify items totally missing from the database
                 const noiseKeywords = /times|day|week|month|tablet|capsule|take|duration|details|prescription|dr\.|patient|age|date/i;
-                
                 lines.forEach((line, index) => {
                     if (!matchedLineIndexes.has(index)) {
                         if (line.length > 4 && !noiseKeywords.test(line)) {
-                            missingMedicines.push(line);
+                            systemMissingMedicines.push(line);
                         }
                     }
                 });
 
+                // Build the UI Output
+                let resultsHtml = '';
+                
                 if (matchedOrders.length > 0) {
-                    const summaryList = matchedOrders.map(m => {
-                        const safeQty = Math.min(m.qty, 20); 
-                        return `<li><b>${safeQty}x</b> ${m.medName}</li>`;
-                    }).join('');
-                    
-                    let resultsHtml = `<div class="mb-2"><p class="font-extrabold text-emerald-700"><i class="fa-solid fa-circle-check mr-1"></i> Added to Cart:</p><ul class="list-disc pl-5">${summaryList}</ul></div>`;
-                    
-                    if (missingMedicines.length > 0) {
-                        const missingList = missingMedicines.map(m => `<li>${m}</li>`).join('');
-                        resultsHtml += `<div class="mt-2 pt-2 border-t border-emerald-200 text-rose-700"><p class="font-extrabold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Not Found in Pharmacy:</p><ul class="list-disc pl-5 opacity-90">${missingList}</ul></div>`;
-                    }
+                    const summaryList = matchedOrders.map(m => `<li><b>${m.qty}x</b> ${m.medName}</li>`).join('');
+                    resultsHtml += `<div class="mb-2"><p class="font-extrabold text-emerald-700"><i class="fa-solid fa-circle-check mr-1"></i> Added to Cart:</p><ul class="list-disc pl-5">${summaryList}</ul></div>`;
+                }
 
-                    if (resultsBox) {
-                        resultsBox.innerHTML = resultsHtml;
-                        resultsBox.classList.remove('hidden');
-                    }
+                if (outOfStockMedicines.length > 0) {
+                    const oosList = outOfStockMedicines.map(m => `<li>${m}</li>`).join('');
+                    resultsHtml += `<div class="mt-2 pt-2 border-t border-emerald-200 text-amber-600"><p class="font-extrabold"><i class="fa-solid fa-clock-rotate-left mr-1"></i> Currently Out of Stock:</p><ul class="list-disc pl-5 opacity-90">${oosList}</ul></div>`;
+                }
 
+                if (systemMissingMedicines.length > 0) {
+                    const missingList = systemMissingMedicines.map(m => `<li>${m}</li>`).join('');
+                    resultsHtml += `<div class="mt-2 pt-2 border-t border-emerald-200 text-rose-600"><p class="font-extrabold"><i class="fa-solid fa-circle-xmark mr-1"></i> Not in Pharmacy System:</p><ul class="list-disc pl-5 opacity-90">${missingList}</ul></div>`;
+                }
+
+                if (resultsBox && resultsHtml !== '') {
+                    resultsBox.innerHTML = resultsHtml;
+                    resultsBox.classList.remove('hidden');
+                }
+
+                if (matchedOrders.length > 0) {
                     showToast("AI Scan Complete!", "Adding items to your cart...");
 
-                    // Add items sequentially
+                    // Add items sequentially using TRUE calculated qty
                     for (let j = 0; j < matchedOrders.length; j++) {
                         const order = matchedOrders[j];
-                        const safeQty = Math.min(order.qty, 20); 
                         const isLastItem = (j === matchedOrders.length - 1);
                         
                         try {
-                            // Now passing the exact GRN Stock ID so your addToCart function won't abort
-                            await addToCart(order.stockId, safeQty, isLastItem);
+                            await addToCart(order.stockId, order.qty, isLastItem);
                         } catch (err) {
                             console.error(`[AI Scanner Debug] Failed to add ${order.medName}:`, err);
                         }
-                        
                         await new Promise(resolve => setTimeout(resolve, 500)); 
                     }
-
                 } else {
-                    showToast("Scan Complete", "No matching in-stock medicines found from this prescription.");
+                    showToast("Scan Complete", "No available medicines could be added to your cart.");
                 }
 
             } catch (err) {
