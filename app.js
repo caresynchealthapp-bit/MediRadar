@@ -1662,12 +1662,16 @@ async function handleSaveCustomerProfile(event) {
                     || '';
 
                 // 3. OTC vs. PRESCRIPTION (Rx) DETECTION
-                const rxRegex = /inhaler|injection|vial|antibiotic|amoxicillin|azithromycin|ciprofloxacin|metformin|atorvastatin|losartan|omeprazole|salbutamol|insulin|steroid/i;
-                const requiresPrescription = catalogMatches.some(m => m.requires_prescription === true || m.is_rx === true)
-                    || primary.requires_prescription === true
-                    || rxRegex.test(group.name)
-                    || rxRegex.test(displayCategory)
-                    || rxRegex.test(genericName);
+                const dbSaysRx = catalogMatches.some(m => m.requires_prescription === true || m.is_rx === true) || primary.requires_prescription === true;
+                const dbSaysNotRx = catalogMatches.some(m => m.requires_prescription === false || m.is_rx === false) || primary.requires_prescription === false;
+                let requiresPrescription = false;
+                if (dbSaysRx) {
+                    requiresPrescription = true; // Database explicitly requires prescription
+                } else if (dbSaysNotRx) {
+                    requiresPrescription = false; // Database explicitly says FALSE (OTC)
+                } else {
+                    requiresPrescription = rxRegex.test(group.name) || rxRegex.test(displayCategory) || rxRegex.test(genericName);
+                }
 
                 return {
                     ...group,
