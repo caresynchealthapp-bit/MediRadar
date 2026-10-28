@@ -66,10 +66,6 @@ let currentSearchMode = 'medicines';
 
         // Automatically purge bank receipt images older than 24 hours from Supabase Storage & Orders
         async function cleanupExpiredBankReceipts() {
-            try {
-                // 1. Trigger SQL RPC cleanup if available
-                await supabaseClient.rpc('cleanup_expired_bank_receipts');
-            } catch ( _ ) {}
 
             try {
                 // 2. Client-side Storage & URL cleanup for orders > 24 hours old
