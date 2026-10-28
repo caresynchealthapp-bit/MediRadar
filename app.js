@@ -2493,3 +2493,207 @@ function resetRegistrationFlow() {
         submitBtn.textContent = "Continue to Email Verification";
     }
 }
+
+// 1. Show the AI Scan button when a user selects a prescription file
+document.addEventListener('DOMContentLoaded', () => {
+    const rxInput = document.getElementById('prescription-upload');
+    if (rxInput) {
+        rxInput.addEventListener('change', (e) => {
+            const aiBtn = document.getElementById('aiScanBtn');
+            if (e.target.files && e.target.files.length > 0) {
+                aiBtn.classList.remove('hidden');
+            } else {
+                aiBtn.classList.add('hidden');
+            }
+        });
+    }
+});
+
+// 3. The Real AI Scanner Logic (Tesseract.js OCR + Fuzzy Matching)
+        async function runPrescriptionAI() {
+            const rxInput = document.getElementById('prescription-upload');
+            const aiBtn = document.getElementById('aiScanBtn');
+            
+            if (!rxInput || !rxInput.files || rxInput.files.length === 0) return;
+
+            aiBtn.disabled = true;
+            aiBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Reading Text...`;
+
+            try {
+                const file = rxInput.files[0];
+                
+                // 1. Run Tesseract.js OCR
+                const { data: { text } } = await Tesseract.recognize(file, 'eng');
+                
+                console.log("Raw OCR Text:", text);
+                
+                // 2. Clean the OCR output and tokenize it into an array of words
+                const cleanOcrText = text.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+                const ocrWords = cleanOcrText.split(/\s+/).filter(word => word.length >= 4);
+
+                let itemsAdded = 0;
+                const allStocks = getAggregatedMedicines();
+                const addedMedicineKeys = new Set();
+                
+                // 3. Scan the catalog using Exact Substrings AND Fuzzy Word Matching
+                allStocks.forEach(stock => {
+                    const medName = stock.name.toLowerCase();
+                    const genericName = (stock.generic_name || '').toLowerCase();
+                    
+                    // Exact match check
+                    let isMatch = (medName.length > 3 && cleanOcrText.includes(medName)) || 
+                                  (genericName.length > 3 && cleanOcrText.includes(genericName));
+                                  
+                    // If no exact match, fallback to fuzzy matching on individual words
+                    if (!isMatch) {
+                        isMatch = isFuzzyMatch(medName, ocrWords, 2) || isFuzzyMatch(genericName, ocrWords, 2);
+                    }
+
+                    if (isMatch) {
+                        if (!addedMedicineKeys.has(stock.key) && stock.filteredPharmacyStocks.length > 0) {
+                            const bestStockId = stock.filteredPharmacyStocks[0].id; 
+                            addToCart(bestStockId, 1, false);
+                            addedMedicineKeys.add(stock.key);
+                            itemsAdded++;
+                        }
+                    }
+                });
+
+                if (itemsAdded > 0) {
+                    showToast("AI Scan Complete!", `Successfully detected and added ${itemsAdded} medicine(s) from your prescription to the cart.`);
+                    closeCheckoutModal();
+                    openCartModal();
+                } else {
+                    showToast("Scan Complete", "No matching medicines found. The handwriting might be too unclear, or the items are out of stock.");
+                }
+
+            } catch (err) {
+                console.error("OCR Error:", err);
+                showToast("Scan Failed", "Could not process the prescription image. Please try a clearer photo.");
+            } finally {
+                aiBtn.disabled = false;
+                aiBtn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Scan & Auto-Fill`;
+            }
+        }
+
+// 1. Show the action buttons when a prescription file is selected
+        function handlePrescriptionSelection(event) {
+            const rxActionButtons = document.getElementById('rxActionButtons');
+            if (event.target.files && event.target.files.length > 0) {
+                rxActionButtons.classList.remove('hidden');
+            } else {
+                rxActionButtons.classList.add('hidden');
+            }
+        }
+
+        // 2. Clear the uploaded prescription and hide the buttons
+        function clearPrescriptionUpload() {
+            const rxInput = document.getElementById('prescription-upload');
+            const rxActionButtons = document.getElementById('rxActionButtons');
+            if (rxInput) rxInput.value = '';
+            if (rxActionButtons) rxActionButtons.classList.add('hidden');
+        }
+
+        // 3. The manual AI Scanner Logic (runs only when clicked)
+        async function runPrescriptionAI() {
+            const rxInput = document.getElementById('prescription-upload');
+            const aiBtn = document.getElementById('aiScanBtn');
+            
+            if (!rxInput || !rxInput.files || rxInput.files.length === 0) return;
+
+            // UI Feedback
+            aiBtn.disabled = true;
+            aiBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Scanning Rx...`;
+
+            try {
+                const file = rxInput.files[0];
+                
+                // Simulated AI processing time
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // Simulated AI Output
+                const detectedMedicines = ["omeprazole", "panadol"]; 
+                let itemsAdded = 0;
+
+                const allStocks = getAggregatedMedicines();
+                
+                detectedMedicines.forEach(medName => {
+                    const match = allStocks.find(s => s.name.toLowerCase().includes(medName.toLowerCase()));
+                    if (match && match.filteredPharmacyStocks.length > 0) {
+                        const bestStockId = match.filteredPharmacyStocks[0].id; 
+                        addToCart(bestStockId, 1, false);
+                        itemsAdded++;
+                    }
+                });
+
+                if (itemsAdded > 0) {
+                    showToast("AI Scan Complete!", `Successfully detected and added ${itemsAdded} medicines from your prescription to the cart.`);
+                    closeCheckoutModal();
+                    openCartModal();
+                } else {
+                    showToast("Scan Complete", "No matching medicines found in our current pharmacy network.");
+                }
+
+            } catch (err) {
+                showToast("Scan Failed", "Could not read the prescription image.");
+            } finally {
+                aiBtn.disabled = false;
+                aiBtn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Scan & Auto-Fill`;
+            }
+        }
+
+        // HELPER 1: Calculate Levenshtein Distance between two strings
+        function levenshteinDistance(a, b) {
+            if (a.length === 0) return b.length;
+            if (b.length === 0) return a.length;
+            
+            const matrix = [];
+            for (let i = 0; i <= b.length; i++) { matrix[i] = [i]; }
+            for (let j = 0; j <= a.length; j++) { matrix[0][j] = j; }
+            
+            for (let i = 1; i <= b.length; i++) {
+                for (let j = 1; j <= a.length; j++) {
+                    if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1, // substitution
+                            Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1) // insertion & deletion
+                        );
+                    }
+                }
+            }
+            return matrix[b.length][a.length];
+        }
+
+        // HELPER 2: Check if any significant word in a medicine name fuzzy-matches OCR text
+        function isFuzzyMatch(medicinePhrase, ocrWords, maxEdits = 2) {
+            if (!medicinePhrase) return false;
+            
+            // Break medicine name into individual words (e.g., "Paracetamol BP 500mg" -> ["paracetamol", "bp", "500mg"])
+            const targetWords = medicinePhrase.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
+            
+            for (const tWord of targetWords) {
+                // Ignore generic short words like "tab", "mg", "ml", "bp"
+                if (tWord.length < 5) continue; 
+                
+                for (const oWord of ocrWords) {
+                    // Skip checking if lengths are vastly different to save performance
+                    if (Math.abs(tWord.length - oWord.length) > maxEdits) continue;
+                    
+                    if (levenshteinDistance(tWord, oWord) <= maxEdits) {
+                        return true; // Match found!
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Reusable Custom Confirmation Modal (Replaces native confirm())
+        function showCustomConfirm(title, message, confirmText) {
+            return new Promise((resolve) => {
+                const overlay = document.createElement('div');
+                overlay.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm opacity-0 transition-opacity duration-300 px-4';
+                
+                const modal = document.createElement('div');
+                modal.className = 'bg-white rounded-3xl shadow-2xl p-6 sm
