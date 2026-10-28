@@ -2537,21 +2537,91 @@ document.addEventListener('DOMContentLoaded', () => {
             if (rxActionButtons) rxActionButtons.classList.add('hidden');
         }
 
-        // HELPER 1: Calculate Levenshtein Distance
+        // ============================================================================
+        // AI PRESCRIPTION SCANNER + SMART DOSAGE CALCULATOR
+        // ============================================================================
+
+        // Store the scanned prescription file globally so checkout can also use it
+        let latestScannedPrescriptionFile = null;
+
+        function openGlobalScannerModal() {
+            const modal = document.getElementById('globalRxScannerModal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeGlobalScannerModal() {
+            const modal = document.getElementById('globalRxScannerModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function handleGlobalRxSelection(event) {
+            const file = event.target.files && event.target.files[0];
+            const actionBtns = document.getElementById('globalRxActionButtons');
+            const fileNameEl = document.getElementById('globalRxFileName');
+            const previewContainer = document.getElementById('globalRxPreviewContainer');
+            const previewImg = document.getElementById('globalRxPreviewImg');
+            const resultsBox = document.getElementById('globalRxScanResults');
+
+            if (resultsBox) resultsBox.classList.add('hidden');
+
+            if (file) {
+                latestScannedPrescriptionFile = file;
+                if (fileNameEl) fileNameEl.textContent = file.name;
+                if (actionBtns) actionBtns.classList.remove('hidden');
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    if (previewImg && previewContainer) {
+                        previewImg.src = e.target.result;
+                        previewContainer.classList.remove('hidden');
+                    }
+                };
+                reader.readAsDataURL(file);
+
+                // Also sync file to checkout prescription input if present
+                const checkoutRxInput = document.getElementById('prescription-upload');
+                if (checkoutRxInput) {
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    checkoutRxInput.files = dt.files;
+                    const rxActions = document.getElementById('rxActionButtons');
+                    if (rxActions) rxActions.classList.remove('hidden');
+                }
+            } else {
+                clearGlobalPrescriptionUpload();
+            }
+        }
+
+        function clearGlobalPrescriptionUpload() {
+            latestScannedPrescriptionFile = null;
+            const input = document.getElementById('global-prescription-upload');
+            const actionBtns = document.getElementById('globalRxActionButtons');
+            const fileNameEl = document.getElementById('globalRxFileName');
+            const previewContainer = document.getElementById('globalRxPreviewContainer');
+            const resultsBox = document.getElementById('globalRxScanResults');
+
+            if (input) input.value = '';
+            if (fileNameEl) fileNameEl.textContent = 'No file chosen (PNG, JPG supported)';
+            if (actionBtns) actionBtns.classList.add('hidden');
+            if (previewContainer) previewContainer.classList.add('hidden');
+            if (resultsBox) resultsBox.classList.add('hidden');
+        }
+
+        // HELPER 1: Levenshtein Distance
         function levenshteinDistance(a, b) {
             if (a.length === 0) return b.length;
             if (b.length === 0) return a.length;
             const matrix = [];
-            for (let i = 0; i <= b.length; i++) { matrix[i] = [i]; }
-            for (let j = 0; j <= a.length; j++) { matrix[0][j] = j; }
+            for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+            for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
             for (let i = 1; i <= b.length; i++) {
                 for (let j = 1; j <= a.length; j++) {
                     if (b.charAt(i - 1) === a.charAt(j - 1)) {
                         matrix[i][j] = matrix[i - 1][j - 1];
                     } else {
                         matrix[i][j] = Math.min(
-                            matrix[i - 1][j - 1] + 1, 
-                            Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1) 
+                            matrix[i - 1][j - 1] + 1,
+                            Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
                         );
                     }
                 }
@@ -2559,98 +2629,249 @@ document.addEventListener('DOMContentLoaded', () => {
             return matrix[b.length][a.length];
         }
 
-        // HELPER 2: Fuzzy Matcher
-        function isFuzzyMatch(medicinePhrase, ocrWords, maxEdits = 2) {
-            if (!medicinePhrase) return false;
-            const targetWords = medicinePhrase.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
-            for (const tWord of targetWords) {
-                if (tWord.length < 5) continue; 
-                for (const oWord of ocrWords) {
-                    if (Math.abs(tWord.length - oWord.length) > maxEdits) continue;
-                    if (levenshteinDistance(tWord, oWord) <= maxEdits) return true;
+        // HELPER 2: Extract ONLY the actual drug name words (Ignore dosages like 500mg, 20mg, tablet, bp, etc.)
+        const MEDICAL_STOP_WORDS = new Set([
+            'tablet', 'tablets', 'tab', 'tabs', 'capsule', 'capsules', 'cap', 'caps',
+            'syrup', 'suspension', 'injection', 'cream', 'ointment', 'drops', 'gastro',
+            'resistant', 'prolonged', 'release', 'bp', 'usp', 'ip', 'sr', 'mr', 'xr',
+            'forte', 'plus', 'extra', 'oral', 'solution', 'powder', 'sachet', 'inhaler',
+            'daily', 'times', 'week', 'weeks', 'month', 'months', 'days', 'morning', 'night'
+        ]);
+
+        function extractDrugRootWords(phrase) {
+            if (!phrase) return [];
+            return phrase
+                .toLowerCase()
+                .replace(/[^a-z0-9\s]/g, ' ')
+                .split(/\s+/)
+                .filter(w => {
+                    if (w.length < 4) return false;
+                    // Ignore any word that contains numbers (e.g., "500mg", "20mg", "100ml")
+                    if (/\d/.test(w)) return false;
+                    // Ignore generic packaging/medical stop words
+                    if (MEDICAL_STOP_WORDS.has(w)) return false;
+                    return true;
+                });
+        }
+
+        // HELPER 3: Strict Line-by-Line Medicine Matching
+        function doesLineMatchMedicine(lineText, stockItem) {
+            const cleanLine = lineText.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+            const lineWords = cleanLine.split(/\s+/).filter(w => w.length >= 4 && !/\d/.test(w));
+            if (lineWords.length === 0) return false;
+
+            const medRootWords = extractDrugRootWords(stockItem.name || stockItem.medicine_name || '');
+            const genRootWords = extractDrugRootWords(stockItem.generic_name || '');
+            const allTargetRoots = [...new Set([...medRootWords, ...genRootWords])];
+
+            if (allTargetRoots.length === 0) return false;
+
+            // Check if the primary drug keyword is present (exact or <= 1 typo for 5-6 char words, <= 2 for 7+ char words)
+            for (const rootWord of allTargetRoots) {
+                if (cleanLine.includes(rootWord)) return true;
+
+                const allowedEdits = rootWord.length >= 7 ? 2 : 1;
+                for (const lWord of lineWords) {
+                    if (Math.abs(rootWord.length - lWord.length) > allowedEdits) continue;
+                    // First letter must match to avoid wild false positives
+                    if (rootWord[0] !== lWord[0]) continue;
+                    if (levenshteinDistance(rootWord, lWord) <= allowedEdits) {
+                        return true;
+                    }
                 }
             }
             return false;
         }
 
-        // MAIN AI SCANNER FUNCTION
-        async function runPrescriptionAI() {
-            const rxInput = document.getElementById('prescription-upload');
-            const aiBtn = document.getElementById('aiScanBtn');
-            
-            if (!rxInput || !rxInput.files || rxInput.files.length === 0) return;
+        // HELPER 4: Natural Language & Medical Shorthand Dosage Calculator
+        // Example: "two times a day two pills for 3 weeks" -> 2 * 2 * 21 = 84
+        // HELPER 4: Natural Language & Medical Shorthand Dosage Calculator (Now with Global Fallback)
+        function calculateDosageQuantity(contextText, globalDurationFallback = 1) {
+            if (!contextText) return 1;
 
-            aiBtn.disabled = true;
-            aiBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Reading Text...`;
+            const wordToNum = {
+                'one': 1, 'a': 1, 'an': 1, 'single': 1, 'once': 1,
+                'two': 2, 'twice': 2, 'double': 2, 'couple': 2,
+                'three': 3, 'thrice': 3,
+                'four': 4, 'five': 5, 'six': 6, 'seven': 7,
+                'eight': 8, 'nine': 9, 'ten': 10, 'twelve': 12, 'fourteen': 14
+            };
+
+            let normalized = contextText.toLowerCase();
+            Object.keys(wordToNum).forEach(word => {
+                const regex = new RegExp(`\\b${word}\\b`, 'g');
+                normalized = normalized.replace(regex, String(wordToNum[word]));
+            });
+
+            let freqPerDay = 1;
+            let pillsPerDose = 1;
+            let durationDays = null; // Start as null to see if we find a specific one
+            let foundAnyRule = false;
+
+            // 1. Frequency
+            const freqMatch = normalized.match(/(\d+)\s*(?:times|time|x)\s*(?:a|per)?\s*(?:day|daily)/i);
+            if (freqMatch) { freqPerDay = parseInt(freqMatch[1], 10); foundAnyRule = true; }
+            else if (/\b(bd|bid|b\.d|b\.i\.d)\b/i.test(normalized) || /\btwice\s*(?:a\s*day|daily)?\b/i.test(contextText)) { freqPerDay = 2; foundAnyRule = true; }
+            else if (/\b(tds|tid|t\.d\.s|t\.i\.d)\b/i.test(normalized) || /\bthrice\s*(?:a\s*day|daily)?\b/i.test(contextText)) { freqPerDay = 3; foundAnyRule = true; }
+            else if (/\b(qid|qds|q\.i\.d)\b/i.test(normalized)) { freqPerDay = 4; foundAnyRule = true; }
+            else if (/\b(od|o\.d|daily|once\s*daily|every\s*night|nocte|mane)\b/i.test(normalized)) { freqPerDay = 1; foundAnyRule = true; }
+            else {
+                const dashPattern = normalized.match(/\b([0-3])\s*-\s*([0-3])\s*-\s*([0-3])\b/);
+                if (dashPattern) { freqPerDay = parseInt(dashPattern[1], 10) + parseInt(dashPattern[2], 10) + parseInt(dashPattern[3], 10); foundAnyRule = true; }
+            }
+
+            // 2. Pills per dose
+            const doseMatch = normalized.match(/(\d+)\s*(?:pills?|tablets?|tabs?|capsules?|caps?|doses?)\b/i);
+            if (doseMatch) { pillsPerDose = parseInt(doseMatch[1], 10); foundAnyRule = true; }
+
+            // 3. Duration (Line-specific)
+            const durMatch = normalized.match(/(?:for|x|×)?\s*(\d+)\s*(day|days|d|week|weeks|wk|wks|w|month|months|mo|mos|m)\b/i);
+            if (durMatch) {
+                const amount = parseInt(durMatch[1], 10);
+                const unit = durMatch[2].toLowerCase();
+                if (unit.startsWith('w')) durationDays = amount * 7;
+                else if (unit.startsWith('m')) durationDays = amount * 30;
+                else durationDays = amount;
+                foundAnyRule = true;
+            } else {
+                // Apply the global fallback if no line-specific duration is found
+                durationDays = globalDurationFallback; 
+            }
+
+            // 4. Explicit Qty Override
+            const explicitQty = normalized.match(/(?:qty|quantity|total|#)\s*[:=-]?\s*(\d+)/i);
+            if (explicitQty && !foundAnyRule) return Math.max(1, Math.min(500, parseInt(explicitQty[1], 10)));
+
+            const totalCalculated = freqPerDay * pillsPerDose * durationDays;
+            return Math.max(1, Math.min(500, totalCalculated));
+        }
+
+        // MAIN AI SCANNER FUNCTION (Works from both Global Modal and Checkout Modal)
+        async function runPrescriptionAI(source = 'checkout') {
+            const isGlobal = source === 'global';
+            const rxInput = document.getElementById(isGlobal ? 'global-prescription-upload' : 'prescription-upload');
+            const aiBtn = document.getElementById(isGlobal ? 'globalAiScanBtn' : 'aiScanBtn');
+            const resultsBox = document.getElementById('globalRxScanResults');
+
+            if (!rxInput || !rxInput.files || rxInput.files.length === 0) {
+                showToast("No Image Selected", "Please select a prescription image first.");
+                return;
+            }
+
+            // Note: addToCart requires the customer to be logged in!
+            if (!currentCustomer) {
+                closeGlobalScannerModal();
+                openCustomerAuthModal('SIGNIN');
+                showToast("Sign In Required", "Please sign in to your MediRadar account so we can auto-fill your cart.");
+                return;
+            }
+
+            const originalBtnHtml = aiBtn ? aiBtn.innerHTML : '';
+            if (aiBtn) {
+                aiBtn.disabled = true;
+                aiBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Reading Rx & Calculating Dosages...`;
+            }
 
             try {
                 const file = rxInput.files[0];
-                
-                // Ensure Tesseract is loaded
                 if (typeof Tesseract === 'undefined') {
-                    throw new Error("Tesseract library is not loaded.");
+                    throw new Error("Tesseract OCR library is not loaded.");
                 }
 
                 const { data: { text } } = await Tesseract.recognize(file, 'eng');
                 console.log("Raw OCR Text:", text);
-                
-                const cleanOcrText = text.toLowerCase().replace(/[^a-z0-9\s]/g, '');
-                const ocrWords = cleanOcrText.split(/\s+/).filter(word => word.length >= 4);
 
-                let itemsAdded = 0;
-                const allStocks = getAggregatedMedicines();
-                const addedMedicineKeys = new Set();
-                
-                allStocks.forEach(stock => {
-                    // Safely get the medicine name (handling different possible key names in your database)
-                    const medName = (stock.name || stock.medicine_name || '').toLowerCase();
-                    const genericName = (stock.generic_name || '').toLowerCase();
+                let globalDurationDays = 1;
+                const globalDurMatch = text.toLowerCase().match(/(?:for|x|×)?\s*(one|two|three|four|five|\d+)\s*(day|days|d|week|weeks|wk|wks|w|month|months|mo|mos|m)\b/i);
+                if (globalDurMatch) {
+                    const wordToNum = { 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5 };
+                    const amountRaw = globalDurMatch[1].toLowerCase();
+                    const amount = wordToNum[amountRaw] || parseInt(amountRaw, 10);
+                    const unit = globalDurMatch[2].toLowerCase();
                     
-                    let isMatch = (medName.length > 3 && cleanOcrText.includes(medName)) || 
-                                  (genericName.length > 3 && cleanOcrText.includes(genericName));
-                                  
-                    if (!isMatch) {
-                        isMatch = isFuzzyMatch(medName, ocrWords, 2) || isFuzzyMatch(genericName, ocrWords, 2);
-                    }
+                    if (unit.startsWith('w')) globalDurationDays = amount * 7;
+                    else if (unit.startsWith('m')) globalDurationDays = amount * 30;
+                    else globalDurationDays = amount;
+                    
+                    console.log("Global Duration Found:", globalDurationDays, "days");
+                }
 
-                    if (isMatch) {
-                        // Safely determine a unique key so we don't add the same medicine twice
-                        const stockKey = stock.key || stock.id || medName;
+                // Split OCR text into non-empty lines so we match line-by-line
+                const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 2);
+                const allStocks = getAggregatedMedicines();
+                const matchedOrders = []; // [{ stockId, medName, qty }]
+                const addedMedicineKeys = new Set();
 
-                        if (!addedMedicineKeys.has(stockKey)) {
-                            // Safely check for pharmacy lists, or fallback to the direct stock ID if it's a flat array
+                for (let i = 0; i < lines.length; i++) {
+                    const currentLine = lines[i];
+                    // Also check the next line in case dosage instructions are written underneath the drug name
+                    const nextLine = (i + 1 < lines.length) ? lines[i + 1] : '';
+
+                    for (const stock of allStocks) {
+                        const stockKey = stock.key || stock.id || (stock.name || '').toLowerCase();
+                        if (addedMedicineKeys.has(stockKey)) continue;
+
+                        if (doesLineMatchMedicine(currentLine, stock)) {
+                            // Combine current line + next line (if next line doesn't match a different medicine) to calculate dosage
+                            const nextLineIsAnotherMed = allStocks.some(s => doesLineMatchMedicine(nextLine, s));
+                            const dosageContext = nextLineIsAnotherMed ? currentLine : `${currentLine} ${nextLine}`;
+                            const calculatedQty = calculateDosageQuantity(dosageContext, globalDurationDays);
+
                             const pharmacyList = stock.filteredPharmacyStocks || stock.pharmacies || [];
-                            
+                            let bestStockId = null;
+
                             if (pharmacyList.length > 0) {
-                                // Add from the first available pharmacy
-                                const bestStockId = pharmacyList[0].id || pharmacyList[0].stock_id; 
-                                addToCart(bestStockId, 1, false);
-                                addedMedicineKeys.add(stockKey);
-                                itemsAdded++;
+                                bestStockId = pharmacyList[0].id || pharmacyList[0].stock_id;
                             } else if (stock.id || stock.stock_id) {
-                                // Fallback: Add directly if the item itself is the stock record
-                                addToCart(stock.id || stock.stock_id, 1, false);
+                                bestStockId = stock.id || stock.stock_id;
+                            }
+
+                            if (bestStockId) {
+                                matchedOrders.push({
+                                    stockId: bestStockId,
+                                    medName: stock.name || stock.medicine_name,
+                                    qty: calculatedQty
+                                });
                                 addedMedicineKeys.add(stockKey);
-                                itemsAdded++;
+                                break; // Only match 1 database medicine per prescription line!
                             }
                         }
                     }
-                });
+                }
 
-                if (itemsAdded > 0) {
-                    showToast("AI Scan Complete!", `Successfully added ${itemsAdded} medicine(s) from your prescription to the cart.`);
+                if (matchedOrders.length > 0) {
+                    // CRITICAL FIX: Await each addToCart sequentially so Supabase finishes saving!
+                    for (const order of matchedOrders) {
+                        await addToCart(order.stockId, order.qty, false);
+                    }
+
+                    // Refresh cart state from Supabase
+                    if (typeof fetchCustomerCart === 'function') {
+                        await fetchCustomerCart();
+                    }
+
+                    const summaryList = matchedOrders.map(m => `${m.qty}x ${m.medName}`).join(', ');
+                    if (resultsBox) {
+                        resultsBox.innerHTML = `<p class="font-extrabold"><i class="fa-solid fa-circle-check mr-1"></i> Added to Cart:</p><p>${summaryList}</p>`;
+                        resultsBox.classList.remove('hidden');
+                    }
+
+                    showToast("AI Scan Complete!", `Added ${matchedOrders.length} medicine(s): ${summaryList}`);
+                    closeGlobalScannerModal();
                     closeCheckoutModal();
                     openCartModal();
                 } else {
-                    showToast("Scan Complete", "No matching medicines found in our database.");
+                    showToast("Scan Complete", "No matching in-stock medicines found from this prescription.");
                 }
 
             } catch (err) {
                 console.error("OCR Error:", err);
-                showToast("Scan Failed", err.message || "Could not process the image.");
+                showToast("Scan Failed", err.message || "Could not process the prescription image.");
             } finally {
-                aiBtn.disabled = false;
-                aiBtn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Scan & Auto-Fill`;
+                if (aiBtn) {
+                    aiBtn.disabled = false;
+                    aiBtn.innerHTML = originalBtnHtml || `<i class="fa-solid fa-wand-magic-sparkles"></i> Scan & Auto-Fill`;
+                }
             }
         }
 
