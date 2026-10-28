@@ -172,8 +172,17 @@ let currentSearchMode = 'medicines';
             const prices = grnStockTable.map(s => parseFloat(s.selling_price || 0)).filter(p => !isNaN(p) && p > 0);
             const highestDbPrice = prices.length > 0 ? Math.max(...prices) : 25000;
             const sliderMax = Math.max(25000, Math.ceil(highestDbPrice / 1000) * 1000);
+            
+            const previousMax = parseFloat(priceSlider.max || 25000);
+            const currentVal = parseFloat(priceSlider.value || sliderMax);
+            
             priceSlider.max = sliderMax;
-            priceSlider.value = sliderMax;
+
+            // Only set to sliderMax if the user hasn't lowered the slider yet, or if currentVal exceeds the new max
+            if (!priceSlider.dataset.initialized || currentVal === previousMax || currentVal > sliderMax) {
+                priceSlider.value = sliderMax;
+                priceSlider.dataset.initialized = 'true';
+            }
             updatePriceLabel();
         }
 
@@ -498,26 +507,44 @@ let currentSearchMode = 'medicines';
         }
 
         function openCustomerAccountModal() {
-    const modal = document.getElementById('customerAccountModal');
-    isWaitingForRegistrationOtp = false;
-    document.getElementById('profileDetailsGroup').classList.remove('hidden');
-    document.getElementById('otpVerificationGroup').classList.add('hidden');
-    document.getElementById('profOtpInput').value = '';
-    
-    if (currentCustomer) {
-        document.getElementById('accountModalTitle').textContent = "Edit Profile";
-        document.getElementById('saveProfileSubmitBtn').textContent = "Update Profile";
-        document.getElementById('profFullName').value = currentCustomer.full_name || '';
-        document.getElementById('profEmail').value = currentCustomer.email || '';
-        document.getElementById('profPhone').value = currentCustomer.phone || '';
-        document.getElementById('profAddress').value = currentCustomer.address || '';
-    } else {
-        document.getElementById('customerProfileForm').reset();
-        document.getElementById('accountModalTitle').textContent = "Register Account";
-        document.getElementById('saveProfileSubmitBtn').textContent = "Continue to Email Verification";
-    }
-    modal.classList.remove('hidden');
-}
+            const modal = document.getElementById('customerAccountModal');
+            const authTabs = document.getElementById('authModeTabs');
+            isWaitingForRegistrationOtp = false;
+            
+            // Always ensure the Profile/Register form is shown first (not the Login form)
+            switchAuthTab('REGISTER');
+
+            document.getElementById('profileDetailsGroup').classList.remove('hidden');
+            document.getElementById('otpVerificationGroup').classList.add('hidden');
+            document.getElementById('profOtpInput').value = '';
+            
+            if (currentCustomer) {
+                // Hide the "New Customer Registration / Returning Customer Sign In" tabs when editing profile
+                if (authTabs) authTabs.classList.add('hidden');
+
+                document.getElementById('accountModalTitle').textContent = "Edit Profile";
+                document.getElementById('saveProfileSubmitBtn').textContent = "Update Profile";
+                
+                // Pre-fill all personal details
+                document.getElementById('profFullName').value = currentCustomer.full_name || '';
+                document.getElementById('profEmail').value = currentCustomer.email || '';
+                document.getElementById('profPhone').value = currentCustomer.phone || '';
+                document.getElementById('profAddress').value = currentCustomer.address || '';
+                
+                // Pre-fill decrypted password and saved bank details so they don't get wiped
+                document.getElementById('profPassword').value = decryptCustomerPassword(currentCustomer.password || '');
+                document.getElementById('profBankName').value = currentCustomer.bank_name || '';
+                document.getElementById('profBankAccountNo').value = currentCustomer.bank_account_no || '';
+            } else {
+                // Show the Register / Sign In tabs for guests
+                if (authTabs) authTabs.classList.remove('hidden');
+
+                document.getElementById('customerProfileForm').reset();
+                document.getElementById('accountModalTitle').textContent = "Register Account";
+                document.getElementById('saveProfileSubmitBtn').textContent = "Continue to Email Verification";
+            }
+            modal.classList.remove('hidden');
+        }
 
         function closeCustomerAccountModal() {
             document.getElementById('customerAccountModal').classList.add('hidden');
@@ -1938,6 +1965,13 @@ async function handleSaveCustomerProfile(event) {
             if (currentCustomer) {
                 subscribeToCustomerOrderUpdates();
             }
+
+            // Show welcome/profile update modal if redirected after auth
+            const pendingMessage = sessionStorage.getItem('pendingToastMessage');
+            if (pendingMessage) {
+                showCenteredWelcomeModal(pendingMessage);
+                sessionStorage.removeItem('pendingToastMessage');
+            }
         });
 
 // ---------------------------------------------------------
@@ -2066,14 +2100,6 @@ function showCenteredWelcomeModal(title) {
         modal.classList.add('scale-100');
     }, 10);
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    const pendingMessage = sessionStorage.getItem('pendingToastMessage');
-    if (pendingMessage) {
-        showCenteredWelcomeModal(pendingMessage);
-        sessionStorage.removeItem('pendingToastMessage');
-    }
-});
 
 // Hides the error message as soon as the user starts typing a new OTP
 document.getElementById('profOtpInput').addEventListener('input', () => {
