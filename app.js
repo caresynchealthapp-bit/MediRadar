@@ -2739,6 +2739,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // MAIN AI SCANNER FUNCTION (Works from both Global Modal and Checkout Modal)
 // MAIN AI SCANNER FUNCTION (With 'Not Found' Detection & Hard UI Sync)
+// MAIN AI SCANNER FUNCTION (Matches directly to grnStockTable)
         async function runPrescriptionAI(source = 'checkout') {
             const isGlobal = source === 'global';
             const rxInput = document.getElementById(isGlobal ? 'global-prescription-upload' : 'prescription-upload');
@@ -2770,7 +2771,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const { data: { text } } = await Tesseract.recognize(file, 'eng');
                 console.log("Raw OCR Text:\n", text);
 
-                // Extract Global Duration
                 let globalDurationDays = 1;
                 const globalDurMatch = text.toLowerCase().match(/(?:for|x|×)?\s*(one|two|three|four|five|\d+)\s*(day|days|d|week|weeks|wk|wks|w|month|months|mo|mos|m)\b/i);
                 if (globalDurMatch) {
@@ -2788,7 +2788,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const allStocks = getAggregatedMedicines();
                 const matchedOrders = []; 
                 const addedMedicineKeys = new Set();
-                const matchedLineIndexes = new Set(); // Track which lines we successfully matched
+                const matchedLineIndexes = new Set(); 
 
                 for (let i = 0; i < lines.length; i++) {
                     const currentLine = lines[i];
@@ -2799,25 +2799,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (addedMedicineKeys.has(stockKey)) continue;
 
                         if (doesLineMatchMedicine(currentLine, stock)) {
-                            matchedLineIndexes.add(i); // Mark line as matched
+                            matchedLineIndexes.add(i);
                             
                             const nextLineIsAnotherMed = allStocks.some(s => doesLineMatchMedicine(nextLine, s));
                             const dosageContext = nextLineIsAnotherMed ? currentLine : `${currentLine} ${nextLine}`;
                             const calculatedQty = calculateDosageQuantity(dosageContext, globalDurationDays);
 
-                            const pharmacyList = stock.filteredPharmacyStocks || stock.pharmacies || [];
-                            let bestStockId = null;
+                            // THE FIX: Find the exact GRN Stock ID that `addToCart` requires
+                            const validGrnStock = typeof grnStockTable !== 'undefined' ? grnStockTable.find(grn => 
+                                (grn.medicine_name && grn.medicine_name.toLowerCase() === (stock.name || stock.medicine_name || '').toLowerCase()) ||
+                                (String(grn.medicine_id) === String(stock.id || stock.medicine_id))
+                            ) : null;
 
-                            if (pharmacyList.length > 0) {
-                                bestStockId = pharmacyList[0].id || pharmacyList[0].stock_id;
-                            } else if (stock.id || stock.stock_id) {
-                                bestStockId = stock.id || stock.stock_id;
-                            }
-
-                            if (bestStockId) {
+                            if (validGrnStock) {
                                 matchedOrders.push({
-                                    stockId: bestStockId,
-                                    medName: stock.name || stock.medicine_name,
+                                    stockId: validGrnStock.id, // This is the exact ID addToCart needs!
+                                    medName: validGrnStock.medicine_name,
                                     qty: calculatedQty
                                 });
                                 addedMedicineKeys.add(stockKey);
@@ -2827,9 +2824,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                // IDENTIFY MISSING MEDICINES
                 const missingMedicines = [];
-                // Ignore lines that are obvious dosage instructions, headers, or noise
                 const noiseKeywords = /times|day|week|month|tablet|capsule|take|duration|details|prescription|dr\.|patient|age|date/i;
                 
                 lines.forEach((line, index) => {
@@ -2841,23 +2836,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (matchedOrders.length > 0) {
-                    // Force sequential database inserts with a safer delay
-                    for (const order of matchedOrders) {
-                        const safeQty = Math.min(order.qty, 20); 
-                        
-                        console.log(`[AI Scanner Debug] Adding ${order.medName} | ID: ${order.stockId} | Qty: ${safeQty}`);
-                        
-                        try {
-                            await addToCart(order.stockId, safeQty, false);
-                        } catch (err) {
-                            console.error(`[AI Scanner Debug] Failed to add ${order.medName} to cart:`, err);
-                        }
-                        
-                        await new Promise(resolve => setTimeout(resolve, 600)); 
-                    }
-
-                    // Show success messages
-                    const summaryList = matchedOrders.map(m => `<li><b>${m.qty}x</b> ${m.medName}</li>`).join('');
+                    const summaryList = matchedOrders.map(m => {
+                        const safeQty = Math.min(m.qty, 20); 
+                        return `<li><b>${safeQty}x</b> ${m.medName}</li>`;
+                    }).join('');
+                    
                     let resultsHtml = `<div class="mb-2"><p class="font-extrabold text-emerald-700"><i class="fa-solid fa-circle-check mr-1"></i> Added to Cart:</p><ul class="list-disc pl-5">${summaryList}</ul></div>`;
                     
                     if (missingMedicines.length > 0) {
@@ -2870,12 +2853,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         resultsBox.classList.remove('hidden');
                     }
 
-                    showToast("AI Scan Complete!", `Successfully saved to database. Refreshing your cart...`);
-                    
-                    // THE ULTIMATE UI FIX: Force a clean page refresh to rebuild the cart from the database
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 2000); 
+                    showToast("AI Scan Complete!", "Adding items to your cart...");
+
+                    // Add items sequentially
+                    for (let j = 0; j < matchedOrders.length; j++) {
+                        const order = matchedOrders[j];
+                        const safeQty = Math.min(order.qty, 20); 
+                        const isLastItem = (j === matchedOrders.length - 1);
+                        
+                        try {
+                            // Now passing the exact GRN Stock ID so your addToCart function won't abort
+                            await addToCart(order.stockId, safeQty, isLastItem);
+                        } catch (err) {
+                            console.error(`[AI Scanner Debug] Failed to add ${order.medName}:`, err);
+                        }
+                        
+                        await new Promise(resolve => setTimeout(resolve, 500)); 
+                    }
 
                 } else {
                     showToast("Scan Complete", "No matching in-stock medicines found from this prescription.");
