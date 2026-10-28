@@ -2841,29 +2841,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 if (matchedOrders.length > 0) {
-                    // Force sequential database inserts with a safer delay and quantity cap
+                    // Force sequential database inserts with a safer delay
                     for (const order of matchedOrders) {
-                        // CAP THE QUANTITY: Prevent the cart from rejecting the item if requested qty exceeds available stock
                         const safeQty = Math.min(order.qty, 20); 
                         
-                        console.log(`[AI Scanner Debug] Adding ${order.medName} | ID: ${order.stockId} | Requested Qty: ${order.qty} | Safe Qty: ${safeQty}`);
+                        console.log(`[AI Scanner Debug] Adding ${order.medName} | ID: ${order.stockId} | Qty: ${safeQty}`);
                         
                         try {
-                            // Execute your existing cart function
-                            const cartResult = await addToCart(order.stockId, safeQty, false);
+                            await addToCart(order.stockId, safeQty, false);
                         } catch (err) {
                             console.error(`[AI Scanner Debug] Failed to add ${order.medName} to cart:`, err);
                         }
                         
-                        // Wait 600ms between each item to prevent Supabase from locking up
                         await new Promise(resolve => setTimeout(resolve, 600)); 
                     }
 
-                    // Prepare Results HTML
+                    // Show success messages
                     const summaryList = matchedOrders.map(m => `<li><b>${m.qty}x</b> ${m.medName}</li>`).join('');
                     let resultsHtml = `<div class="mb-2"><p class="font-extrabold text-emerald-700"><i class="fa-solid fa-circle-check mr-1"></i> Added to Cart:</p><ul class="list-disc pl-5">${summaryList}</ul></div>`;
                     
-                    // Append Missing Medicines Alert
                     if (missingMedicines.length > 0) {
                         const missingList = missingMedicines.map(m => `<li>${m}</li>`).join('');
                         resultsHtml += `<div class="mt-2 pt-2 border-t border-emerald-200 text-rose-700"><p class="font-extrabold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Not Found in Pharmacy:</p><ul class="list-disc pl-5 opacity-90">${missingList}</ul></div>`;
@@ -2874,17 +2870,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         resultsBox.classList.remove('hidden');
                     }
 
-                    showToast("AI Scan Complete!", `Processed prescription. Please check the results.`);
+                    showToast("AI Scan Complete!", `Successfully saved to database. Refreshing your cart...`);
                     
-                    // BRUTE-FORCE UI REFRESH
-                    if (typeof fetchCustomerCart === 'function') await fetchCustomerCart();
-                    if (typeof loadCartItems === 'function') await loadCartItems();
-                    if (typeof updateCartBadge === 'function') updateCartBadge();
-                    
-                    // Close scanner and open cart
+                    // THE ULTIMATE UI FIX: Force a clean page refresh to rebuild the cart from the database
                     setTimeout(() => {
-                        closeGlobalScannerModal();
-                        if (typeof openCartModal === 'function') openCartModal();
+                        window.location.reload();
                     }, 2000); 
 
                 } else {
