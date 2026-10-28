@@ -98,6 +98,43 @@ let currentSearchMode = 'medicines';
             } catch (e) {
                 console.warn("24h receipt cleanup check:", e);
             }
+
+            async function cleanupExpiredPrescriptions() {
+    try {
+        // Cutoff time: 24 hours ago
+        const cutoffIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        
+        const { data: expiredRxOrders } = await supabaseClient
+            .from('customer_orders')
+            .select('id, prescription_image_url, accepted_at')
+            .eq('cashier_approval_status', 'Accepted')
+            .not('prescription_image_url', 'is', null)
+            .lt('accepted_at', cutoffIso);
+
+        if (expiredRxOrders && expiredRxOrders.length > 0) {
+            const filesToDelete = [];
+            expiredRxOrders.forEach(o => {
+                if (o.prescription_image_url && o.prescription_image_url.includes('/prescriptions/')) {
+                    const fileName = o.prescription_image_url.split('/prescriptions/').pop().split('?')[0];
+                    if (fileName) filesToDelete.push(fileName);
+                }
+            });
+
+            if (filesToDelete.length > 0) {
+                await supabaseClient.storage.from('prescriptions').remove(filesToDelete);
+            }
+
+            const expiredIds = expiredRxOrders.map(o => o.id);
+            await supabaseClient
+                .from('customer_orders')
+                .update({ prescription_image_url: null })
+                .in('id', expiredIds);
+        }
+    } catch (e) {
+        console.warn("24h prescription cleanup check:", e);
+    }
+}
+
         }
 
         // ---------------------------------------------------------
@@ -951,198 +988,221 @@ async function handleSaveCustomerProfile(event) {
         }
 
         async function submitPharmacyOrder(event) {
-            event.preventDefault();
-            if (!currentCustomer || checkoutItemsQueue.length === 0) return;
+    event.preventDefault();
+    if (!currentCustomer || checkoutItemsQueue.length === 0) return;
 
-            const custName = document.getElementById('custName').value.trim();
-            const custPhone = document.getElementById('custPhone').value.trim();
-            const custAddress = document.getElementById('custAddress').value.trim();
-            const cardNo = document.getElementById('cardNumberInput').value.replace(/\s+/g, '').trim();
-            const cardExp = document.getElementById('cardExpiryInput').value.trim();
-            const cardCvv = document.getElementById('cardCvvInput').value.trim();
-            const sendingBank = document.getElementById('bankNameSelect').value.trim();
-            const bankRef = document.getElementById('bankRefInput').value.trim();
-            const receiptFileInput = document.getElementById('receipt-upload');
+    const custName = document.getElementById('custName').value.trim();
+    const custPhone = document.getElementById('custPhone').value.trim();
+    const custAddress = document.getElementById('custAddress').value.trim();
+    const cardNo = document.getElementById('cardNumberInput').value.replace(/\s+/g, '').trim();
+    const cardExp = document.getElementById('cardExpiryInput').value.trim();
+    const cardCvv = document.getElementById('cardCvvInput').value.trim();
+    const sendingBank = document.getElementById('bankNameSelect').value.trim();
+    const bankRef = document.getElementById('bankRefInput').value.trim();
+    const receiptFileInput = document.getElementById('receipt-upload');
 
-            const submitBtn = document.getElementById('submitOrderBtn');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing Order...`;
+    const submitBtn = document.getElementById('submitOrderBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing Order...`;
 
-            try {
-                let uploadedReceiptUrl = null;
+    try {
+        let uploadedReceiptUrl = null;
+        let uploadedPrescriptionUrl = null;
 
-                const rxSection = document.getElementById('prescriptionUploadSection');
-                const rxInput = document.getElementById('prescription-upload');
-                if (rxSection && !rxSection.classList.contains('hidden')) {
-                    if (!rxInput.files || rxInput.files.length === 0) {
-                        throw new Error("Please upload a photo of your Doctor's Prescription for the Rx medicine(s) in your order.");
-                    }
-                }
+        // 1. Check and upload Doctor's Prescription if required
+        const rxSection = document.getElementById('prescriptionUploadSection');
+        const rxFileInput = document.getElementById('prescription-upload');
+        if (rxSection && !rxSection.classList.contains('hidden')) {
+            if (!rxFileInput.files || rxFileInput.files.length === 0) {
+                throw new Error("Please upload a photo of your Doctor's Prescription for the Rx medicine(s) in your order.");
+            }
+            
+            const rxFile = rxFileInput.files[0];
+            const rxExt = (rxFile.name.split('.').pop() || 'png').toLowerCase();
+            const rxFilePath = `prescription_${currentCustomer.id}_${Date.now()}.${rxExt}`;
 
-                if (selectedPaymentMethod === 'CARD') {
-                    if (cardNo.length < 12 || !cardExp || cardCvv.length < 3) {
-                        throw new Error("Please enter valid temporary Card Number, Expiry Date, and CVV to process this transaction.");
-                    }
-                } else {
-                    if (!bankRef) {
-                        throw new Error("Please enter your Bank Transfer Reference / Slip Number.");
-                    }
-                    if (!receiptFileInput.files || receiptFileInput.files.length === 0) {
-                        throw new Error("Please upload a screenshot/photo of your bank transfer receipt.");
-                    }
+            const { error: rxUpErr } = await supabaseClient
+                .storage
+                .from('prescriptions')
+                .upload(rxFilePath, rxFile, { cacheControl: '3600', upsert: true });
 
-                    const file = receiptFileInput.files[0];
-                    const ext = (file.name.split('.').pop() || 'png').toLowerCase();
-                    const filePath = `receipt_${currentCustomer.id}_${Date.now()}.${ext}`;
+            if (rxUpErr) throw new Error(`Prescription Upload Failed: ${rxUpErr.message}`);
 
-                    const { error: upErr } = await supabaseClient
-                        .storage
-                        .from('bank_receipts')
-                        .upload(filePath, file, { cacheControl: '3600', upsert: true });
+            const { data: rxPubData } = supabaseClient
+                .storage
+                .from('prescriptions')
+                .getPublicUrl(rxFilePath);
 
-                    if (upErr) throw new Error(`Receipt Upload Failed: ${upErr.message}`);
+            uploadedPrescriptionUrl = rxPubData.publicUrl;
+        }
 
-                    const { data: pubUrlData } = supabaseClient
-                        .storage
-                        .from('bank_receipts')
-                        .getPublicUrl(filePath);
+        // 2. Handle Payment Method Verification & Bank Receipt Upload
+        if (selectedPaymentMethod === 'CARD') {
+            if (cardNo.length < 12 || !cardExp || cardCvv.length < 3) {
+                throw new Error("Please enter valid temporary Card Number, Expiry Date, and CVV to process this transaction.");
+            }
+        } else {
+            if (!bankRef) {
+                throw new Error("Please enter your Bank Transfer Reference / Slip Number.");
+            }
+            if (!receiptFileInput.files || receiptFileInput.files.length === 0) {
+                throw new Error("Please upload a screenshot/photo of your bank transfer receipt.");
+            }
 
-                    uploadedReceiptUrl = pubUrlData.publicUrl;
-                }
+            const file = receiptFileInput.files[0];
+            const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+            const filePath = `receipt_${currentCustomer.id}_${Date.now()}.${ext}`;
 
-                // Only save non-sensitive delivery details (never save card numbers or GPS location!)
-                if (document.getElementById('saveChangesToProfileCheckbox').checked) {
-                    const updatedProfile = {
-                        full_name: custName,
-                        phone: custPhone,
-                        address: custAddress
-                    };
-                    const { data: profData } = await supabaseClient
-                        .from('customers')
-                        .update(updatedProfile)
-                        .eq('id', currentCustomer.id)
-                        .select()
-                        .maybeSingle();
-                    if (profData) {
-                        currentCustomer = profData;
-                        localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
-                        updateCustomerHeaderUI();
-                    }
-                }
+            const { error: upErr } = await supabaseClient
+                .storage
+                .from('bank_receipts')
+                .upload(filePath, file, { cacheControl: '3600', upsert: true });
 
-                const itemsByPharmacy = {};
-                checkoutItemsQueue.forEach(item => {
-                    if (!itemsByPharmacy[item.pharmacy_id]) itemsByPharmacy[item.pharmacy_id] = [];
-                    itemsByPharmacy[item.pharmacy_id].push(item);
-                });
+            if (upErr) throw new Error(`Receipt Upload Failed: ${upErr.message}`);
 
-                for (const pharmacyId of Object.keys(itemsByPharmacy)) {
-                    const pharmItems = itemsByPharmacy[pharmacyId];
-                    const orderTotal = pharmItems.reduce((sum, i) => sum + (i.qty * i.unit_price), 0);
-                    const invoiceNo = `MR-${Math.floor(100000 + Math.random() * 900000)}`;
-                    const isCard = selectedPaymentMethod === 'CARD';
+            const { data: pubUrlData } = supabaseClient
+                .storage
+                .from('bank_receipts')
+                .getPublicUrl(filePath);
 
-                    const { data: insertedOrder, error: orderErr } = await supabaseClient
-                        .from('customer_orders')
-                        .insert([{
-                            customer_id: currentCustomer.id,
-                            pharmacy_id: pharmacyId,
-                            invoice_no: invoiceNo,
-                            total_amount: orderTotal,
-                            payment_method: isCard ? 'Card' : 'Bank Transaction',
-                            payment_status: isCard ? 'Paid' : 'Pending',
-                            order_status: isCard ? 'Ready for Pickup' : 'Processing',
-                            cashier_approval_status: isCard ? 'Accepted' : 'Pending',
-                            delivery_address: custAddress,
-                            customer_phone: custPhone,
-                            customer_name: custName,
-                            sending_bank: isCard ? `One-Time Card Payment` : sendingBank,
-                            bank_reference: isCard ? `CARD-TXN` : bankRef,
-                            receipt_image_url: uploadedReceiptUrl
-                        }])
-                        .select()
-                        .single();
+            uploadedReceiptUrl = pubUrlData.publicUrl;
+        }
 
-                    if (orderErr) throw orderErr;
-
-                    knownOrderStatuses[insertedOrder.id] = insertedOrder.cashier_approval_status;
-
-                    const orderItemsPayload = pharmItems.map(i => ({
-                        order_id: insertedOrder.id,
-                        medicine_id: i.medicine_id || null,
-                        grn_stock_id: i.stock_id,
-                        medicine_name: i.medicine_name,
-                        quantity: i.qty,
-                        unit_price: i.unit_price
-                    }));
-
-                    const { error: itemsErr } = await supabaseClient
-                        .from('customer_order_items')
-                        .insert(orderItemsPayload);
-
-                    if (itemsErr) throw itemsErr;
-
-                    if (isCard) {
-                        for (const item of pharmItems) {
-                            const stockRow = grnStockTable.find(s => String(s.id) === String(item.stock_id));
-                            const newQty = stockRow ? Math.max(0, Number(stockRow.current_quantity) - item.qty) : 0;
-                            if (stockRow) stockRow.current_quantity = newQty;
-
-                            await supabaseClient
-                                .from('grn_stock')
-                                .update({ current_quantity: newQty })
-                                .eq('id', item.stock_id);
-
-                            await supabaseClient
-                                .from('sales_transactions')
-                                .insert([{
-                                    pharmacy_id: pharmacyId,
-                                    invoice_no: invoiceNo,
-                                    counter_name: 'MediRadar Online (Card)',
-                                    cashier_username: `${custName} (${custPhone})`,
-                                    medicine_name: item.medicine_name,
-                                    quantity_sold: item.qty,
-                                    unit_cost: item.unit_cost,
-                                    unit_price: item.unit_price,
-                                    total_amount: item.qty * item.unit_price,
-                                    profit_amount: item.qty * (item.unit_price - item.unit_cost)
-                                }]);
-                        }
-                    }
-                }
-
-                // Remove purchased items from `customer_cart_items` table & local cart
-                const boughtStockIds = checkoutItemsQueue.map(i => i.stock_id);
-                await supabaseClient
-                    .from('customer_cart_items')
-                    .delete()
-                    .eq('customer_id', currentCustomer.id)
-                    .in('grn_stock_id', boughtStockIds);
-
-                clearReceiptUpload();
-                closeCheckoutModal();
-                await fetchLiveSupabaseData();
-                await fetchMyCustomerOrders(true);
-
-                if (selectedPaymentMethod === 'BANK') {
-                    showToast(
-                        "Receipt Uploaded! Awaiting Cashier Approval",
-                        "We will notify you here as soon as the pharmacy Cashier verifies your bank transfer."
-                    );
-                } else {
-                    showToast(
-                        "Card Payment Complete!",
-                        "Your order is paid and card details were immediately discarded."
-                    );
-                }
-            } catch (err) {
-                console.error("Order Submit Error:", err);
-                showToast("Checkout Error", err.message || "Could not submit order.");
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>Submit Pharmacy Order</span>`;
+        // Only save non-sensitive delivery details (never save card numbers or GPS location!)
+        if (document.getElementById('saveChangesToProfileCheckbox').checked) {
+            const updatedProfile = {
+                full_name: custName,
+                phone: custPhone,
+                address: custAddress
+            };
+            const { data: profData } = await supabaseClient
+                .from('customers')
+                .update(updatedProfile)
+                .eq('id', currentCustomer.id)
+                .select()
+                .maybeSingle();
+            if (profData) {
+                currentCustomer = profData;
+                localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+                updateCustomerHeaderUI();
             }
         }
+
+        const itemsByPharmacy = {};
+        checkoutItemsQueue.forEach(item => {
+            if (!itemsByPharmacy[item.pharmacy_id]) itemsByPharmacy[item.pharmacy_id] = [];
+            itemsByPharmacy[item.pharmacy_id].push(item);
+        });
+
+        for (const pharmacyId of Object.keys(itemsByPharmacy)) {
+            const pharmItems = itemsByPharmacy[pharmacyId];
+            const orderTotal = pharmItems.reduce((sum, i) => sum + (i.qty * i.unit_price), 0);
+            const invoiceNo = `MR-${Math.floor(100000 + Math.random() * 900000)}`;
+            const isCard = selectedPaymentMethod === 'CARD';
+
+            const { data: insertedOrder, error: orderErr } = await supabaseClient
+                .from('customer_orders')
+                .insert([{
+                    customer_id: currentCustomer.id,
+                    pharmacy_id: pharmacyId,
+                    invoice_no: invoiceNo,
+                    total_amount: orderTotal,
+                    payment_method: isCard ? 'Card' : 'Bank Transaction',
+                    payment_status: isCard ? 'Paid' : 'Pending',
+                    order_status: isCard ? 'Ready for Pickup' : 'Processing',
+                    cashier_approval_status: isCard ? 'Accepted' : 'Pending',
+                    delivery_address: custAddress,
+                    customer_phone: custPhone,
+                    customer_name: custName,
+                    sending_bank: isCard ? `One-Time Card Payment` : sendingBank,
+                    bank_reference: isCard ? `CARD-TXN` : bankRef,
+                    receipt_image_url: uploadedReceiptUrl,
+                    fulfillment_type: currentFulfillmentMode, // 'DELIVERY' or 'PICKUP'
+                    prescription_image_url: uploadedPrescriptionUrl // Uploaded prescription link
+                }])
+                .select()
+                .single();
+
+            if (orderErr) throw orderErr;
+
+            knownOrderStatuses[insertedOrder.id] = insertedOrder.cashier_approval_status;
+
+            const orderItemsPayload = pharmItems.map(i => ({
+                order_id: insertedOrder.id,
+                medicine_id: i.medicine_id || null,
+                grn_stock_id: i.stock_id,
+                medicine_name: i.medicine_name,
+                quantity: i.qty,
+                unit_price: i.unit_price
+            }));
+
+            const { error: itemsErr } = await supabaseClient
+                .from('customer_order_items')
+                .insert(orderItemsPayload);
+
+            if (itemsErr) throw itemsErr;
+
+            if (isCard) {
+                for (const item of pharmItems) {
+                    const stockRow = grnStockTable.find(s => String(s.id) === String(item.stock_id));
+                    const newQty = stockRow ? Math.max(0, Number(stockRow.current_quantity) - item.qty) : 0;
+                    if (stockRow) stockRow.current_quantity = newQty;
+
+                    await supabaseClient
+                        .from('grn_stock')
+                        .update({ current_quantity: newQty })
+                        .eq('id', item.stock_id);
+
+                    await supabaseClient
+                        .from('sales_transactions')
+                        .insert([{
+                            pharmacy_id: pharmacyId,
+                            invoice_no: invoiceNo,
+                            counter_name: 'MediRadar Online (Card)',
+                            cashier_username: `${custName} (${custPhone})`,
+                            medicine_name: item.medicine_name,
+                            quantity_sold: item.qty,
+                            unit_cost: item.unit_cost,
+                            unit_price: item.unit_price,
+                            total_amount: item.qty * item.unit_price,
+                            profit_amount: item.qty * (item.unit_price - item.unit_cost)
+                        }]);
+                }
+            }
+        }
+
+        // Remove purchased items from `customer_cart_items` table & local cart
+        const boughtStockIds = checkoutItemsQueue.map(i => i.stock_id);
+        await supabaseClient
+            .from('customer_cart_items')
+            .delete()
+            .eq('customer_id', currentCustomer.id)
+            .in('grn_stock_id', boughtStockIds);
+
+        clearReceiptUpload();
+        closeCheckoutModal();
+        await fetchLiveSupabaseData();
+        await fetchMyCustomerOrders(true);
+
+        if (selectedPaymentMethod === 'BANK') {
+            showToast(
+                "Receipt Uploaded! Awaiting Cashier Approval",
+                "We will notify you here as soon as the pharmacy Cashier verifies your bank transfer."
+            );
+        } else {
+            showToast(
+                "Card Payment Complete!",
+                "Your order is paid and card details were immediately discarded."
+            );
+        }
+    } catch (err) {
+        console.error("Order Submit Error:", err);
+        showToast("Checkout Error", err.message || "Could not submit order.");
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>Submit Pharmacy Order</span>`;
+    }
+}
 
         // ---------------------------------------------------------
         // 7. CUSTOMER-ONLY ORDERS TABLE & LIVE CASHIER APPROVAL LISTENER
