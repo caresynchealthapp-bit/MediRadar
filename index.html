@@ -1098,22 +1098,45 @@
                     </div>
                 </div>
 
-                <!-- UPGRADE 6B: Fulfillment Mode Toggle (Home Delivery vs. Self-Pickup) -->
+                <!-- UPGRADE 6B: 3-Option Fulfillment Mode Toggle (Normal Delivery, Same-Day Delivery, Self-Pickup) -->
                 <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
                     <label class="block text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-2">
-                        <i class="fa-solid fa-person-biking text-brand-600 mr-1"></i> Select Order Fulfillment Mode *
+                        <i class="fa-solid fa-person-biking text-brand-600 mr-1"></i> Select Order Fulfillment & Delivery Speed *
                     </label>
-                    <div class="grid grid-cols-2 gap-2.5">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <!-- Option 1: Normal Home Delivery -->
                         <label class="cursor-pointer">
-                            <input type="radio" name="fulfillmentMode" value="DELIVERY" checked onchange="toggleFulfillmentMode('DELIVERY')" class="sr-only peer">
-                            <div class="p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-brand-600 peer-checked:bg-brand-50/60 text-xs font-bold text-slate-800 flex items-center justify-center gap-2 transition">
-                                <i class="fa-solid fa-truck-fast text-brand-600"></i> Home Delivery
+                            <input type="radio" name="fulfillmentMode" value="NORMAL_DELIVERY" checked onchange="toggleFulfillmentMode('NORMAL_DELIVERY')" class="sr-only peer">
+                            <div class="p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-brand-600 peer-checked:bg-brand-50/60 text-xs font-bold text-slate-800 flex flex-col items-center justify-center gap-1 text-center transition">
+                                <div class="flex items-center gap-1.5">
+                                    <i class="fa-solid fa-truck text-brand-600"></i>
+                                    <span>Normal Delivery</span>
+                                </div>
+                                <span id="normalDeliveryPriceTag" class="text-[11px] font-extrabold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">+ Rs. 0.00</span>
                             </div>
                         </label>
+
+                        <!-- Option 2: Same-Day Express Delivery -->
+                        <label class="cursor-pointer">
+                            <input type="radio" name="fulfillmentMode" value="SAMEDAY_DELIVERY" onchange="toggleFulfillmentMode('SAMEDAY_DELIVERY')" class="sr-only peer">
+                            <div class="p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-amber-500 peer-checked:bg-amber-50/60 text-xs font-bold text-slate-800 flex flex-col items-center justify-center gap-1 text-center transition">
+                                <div class="flex items-center gap-1.5">
+                                    <i class="fa-solid fa-bolt text-amber-500"></i>
+                                    <span>Same-Day Delivery</span>
+                                </div>
+                                <span id="samedayDeliveryPriceTag" class="text-[11px] font-extrabold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-300">+ Rs. 0.00</span>
+                            </div>
+                        </label>
+
+                        <!-- Option 3: Self-Pickup at Pharmacy -->
                         <label class="cursor-pointer">
                             <input type="radio" name="fulfillmentMode" value="PICKUP" onchange="toggleFulfillmentMode('PICKUP')" class="sr-only peer">
-                            <div class="p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-brand-600 peer-checked:bg-brand-50/60 text-xs font-bold text-slate-800 flex items-center justify-center gap-2 transition">
-                                <i class="fa-solid fa-store text-teal-600"></i> Self-Pickup at Pharmacy
+                            <div class="p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-brand-600 peer-checked:bg-brand-50/60 text-xs font-bold text-slate-800 flex flex-col items-center justify-center gap-1 text-center transition">
+                                <div class="flex items-center gap-1.5">
+                                    <i class="fa-solid fa-store text-teal-600"></i>
+                                    <span>Self-Pickup</span>
+                                </div>
+                                <span class="text-[11px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">Rs. 0.00 (Free)</span>
                             </div>
                         </label>
                     </div>
@@ -1289,17 +1312,29 @@
                     <span>Save updated delivery address & phone number to my customer profile</span>
                 </label>
 
-                <!-- Total & Submit -->
-                <div class="bg-slate-900 text-white p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4">
-                    <div>
-                        <span class="text-[11px] text-slate-400 uppercase font-semibold block">Total Payable Amount</span>
-                        <span id="checkoutTotalAmount" class="text-2xl font-extrabold text-brand-300">Rs. 0.00</span>
+                <!-- Bill Breakdown & Submit -->
+                <div class="bg-slate-900 text-white p-4 sm:p-5 rounded-2xl space-y-3">
+                    <div class="space-y-1.5 border-b border-slate-800 pb-3 text-xs">
+                        <div class="flex justify-between text-slate-300">
+                            <span>Medicines Subtotal:</span>
+                            <span id="checkoutMedicinesSubtotal" class="font-bold text-white">Rs. 0.00</span>
+                        </div>
+                        <div class="flex justify-between text-slate-300">
+                            <span id="checkoutDeliveryFeeLabel">Delivery Fee (Normal Delivery):</span>
+                            <span id="checkoutDeliveryFeeAmount" class="font-bold text-amber-300">+ Rs. 0.00</span>
+                        </div>
                     </div>
-                    <button type="submit" id="submitOrderBtn"
-                        class="bg-gradient-to-r from-brand-500 to-teal-500 hover:from-brand-400 hover:to-teal-400 text-slate-950 font-extrabold text-sm px-6 py-3.5 rounded-xl shadow-lg transition flex items-center gap-2">
-                        <i class="fa-solid fa-circle-check"></i>
-                        <span>Submit Pharmacy Order</span>
-                    </button>
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <span class="text-[11px] text-slate-400 uppercase font-semibold block">Total Payable Amount (Transfer / Pay This Amount)</span>
+                            <span id="checkoutTotalAmount" class="text-2xl font-extrabold text-brand-300">Rs. 0.00</span>
+                        </div>
+                        <button type="submit" id="submitOrderBtn"
+                            class="bg-gradient-to-r from-brand-500 to-teal-500 hover:from-brand-400 hover:to-teal-400 text-slate-950 font-extrabold text-sm px-6 py-3.5 rounded-xl shadow-lg transition flex items-center gap-2">
+                            <i class="fa-solid fa-circle-check"></i>
+                            <span>Submit Pharmacy Order</span>
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>

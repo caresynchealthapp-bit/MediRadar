@@ -765,7 +765,18 @@ async function handleSaveCustomerProfile(event) {
         // ---------------------------------------------------------
         // 6. CHECKOUT FLOW (BANK FIRST, TEMPORARY CARD INPUT, CART CLEANUP)
         // ---------------------------------------------------------
-        let isCheckingOutFromCart = false;
+let isCheckingOutFromCart = false;
+        let currentFulfillmentMode = 'NORMAL_DELIVERY'; // 'NORMAL_DELIVERY', 'SAMEDAY_DELIVERY', or 'PICKUP'
+
+        function getPharmacyDeliveryFeeForMode(pharmacyId, mode) {
+            if (mode === 'PICKUP') return 0;
+            const pharm = pharmaciesTable.find(p => String(p.id) === String(pharmacyId));
+            if (!pharm) return mode === 'SAMEDAY_DELIVERY' ? 500 : 250;
+            if (mode === 'SAMEDAY_DELIVERY') {
+                return parseFloat(pharm.sameday_delivery_fee ?? 500);
+            }
+            return parseFloat(pharm.normal_delivery_fee ?? 250);
+        }
 
         function initiateCheckoutFlow(itemsToBuy, fromCart = false) {
             if (!currentCustomer) {
@@ -778,11 +789,22 @@ async function handleSaveCustomerProfile(event) {
             checkoutItemsQueue = itemsToBuy;
             isCheckingOutFromCart = fromCart;
 
-            renderCheckoutSummary();
+            // Default to Normal Delivery when opening modal
+            currentFulfillmentMode = 'NORMAL_DELIVERY';
+            const defaultRadio = document.querySelector('input[name="fulfillmentMode"][value="NORMAL_DELIVERY"]');
+            if (defaultRadio) defaultRadio.checked = true;
 
             document.getElementById('custName').value = currentCustomer.full_name || '';
             document.getElementById('custPhone').value = currentCustomer.phone || '';
-            document.getElementById('custAddress').value = currentCustomer.address || '';
+            
+            const addrInput = document.getElementById('custAddress');
+            if (addrInput) {
+                addrInput.readOnly = false;
+                addrInput.classList.remove('bg-slate-100', 'text-slate-500');
+                addrInput.value = currentCustomer.address || '';
+            }
+
+            renderCheckoutSummary();
 
             // Always start card inputs blank (temporary per-transaction only, never stored)
             document.getElementById('cardNumberInput').value = '';
@@ -795,7 +817,6 @@ async function handleSaveCustomerProfile(event) {
             const uniquePharmIds = [...new Set(itemsToBuy.map(i => i.pharmacy_id))];
             renderCheckoutPharmacyBankDetails(uniquePharmIds);
 
-            // Suggest Bank Transaction first by default
             selectPaymentMethod('BANK');
             document.getElementById('checkoutModal').classList.remove('hidden');
         }
@@ -810,12 +831,21 @@ async function handleSaveCustomerProfile(event) {
             document.getElementById('checkoutPharmacyName').textContent = pharmNames.join(' + ');
             document.getElementById('checkoutItemsCountBadge').textContent = `${checkoutItemsQueue.reduce((s, i) => s + i.qty, 0)} Unit(s)`;
 
+            // Calculate combined Normal and Same-Day fees across the involved pharmacies
+            const totalNormalFee = uniquePharmIds.reduce((sum, pid) => sum + getPharmacyDeliveryFeeForMode(pid, 'NORMAL_DELIVERY'), 0);
+            const totalSamedayFee = uniquePharmIds.reduce((sum, pid) => sum + getPharmacyDeliveryFeeForMode(pid, 'SAMEDAY_DELIVERY'), 0);
+
+            const normalTag = document.getElementById('normalDeliveryPriceTag');
+            const samedayTag = document.getElementById('samedayDeliveryPriceTag');
+            if (normalTag) normalTag.textContent = `+ Rs. ${totalNormalFee.toFixed(2)}`;
+            if (samedayTag) samedayTag.textContent = `+ Rs. ${totalSamedayFee.toFixed(2)}`;
+
             const itemsListEl = document.getElementById('checkoutOrderItemsList');
-            let total = 0;
+            let medicinesSubtotal = 0;
             
             itemsListEl.innerHTML = checkoutItemsQueue.map((item, index) => {
                 const line = item.qty * item.unit_price;
-                total += line;
+                medicinesSubtotal += line;
                 return `
                     <div class="flex items-center justify-between bg-white p-2 rounded-lg border border-teal-100 mb-1.5 shadow-sm">
                         <div class="flex flex-col">
@@ -833,8 +863,31 @@ async function handleSaveCustomerProfile(event) {
                     </div>
                 `;
             }).join('');
-            
-            document.getElementById('checkoutTotalAmount').textContent = `Rs. ${total.toFixed(2)}`;
+
+            const activeDeliveryFee = uniquePharmIds.reduce(
+                (sum, pid) => sum + getPharmacyDeliveryFeeForMode(pid, currentFulfillmentMode),
+                0
+            );
+            const grandTotal = medicinesSubtotal + activeDeliveryFee;
+
+            const subEl = document.getElementById('checkoutMedicinesSubtotal');
+            const feeLabelEl = document.getElementById('checkoutDeliveryFeeLabel');
+            const feeAmtEl = document.getElementById('checkoutDeliveryFeeAmount');
+
+            if (subEl) subEl.textContent = `Rs. ${medicinesSubtotal.toFixed(2)}`;
+            if (feeLabelEl) {
+                const modeText = currentFulfillmentMode === 'SAMEDAY_DELIVERY'
+                    ? 'Delivery Fee (Same-Day Express):'
+                    : currentFulfillmentMode === 'NORMAL_DELIVERY'
+                    ? 'Delivery Fee (Normal Delivery):'
+                    : 'Fulfillment (Self-Pickup at Counter):';
+                feeLabelEl.textContent = modeText;
+            }
+            if (feeAmtEl) {
+                feeAmtEl.textContent = activeDeliveryFee > 0 ? `+ Rs. ${activeDeliveryFee.toFixed(2)}` : 'Rs. 0.00 (Free)';
+            }
+
+            document.getElementById('checkoutTotalAmount').textContent = `Rs. ${grandTotal.toFixed(2)}`;
 
             // Show/hide Multi-Pharmacy Split Warning
             const splitWarn = document.getElementById('multiPharmacySplitWarning');
@@ -859,22 +912,27 @@ async function handleSaveCustomerProfile(event) {
                 else rxSection.classList.add('hidden');
             }
 
+            // Refresh per-pharmacy bank box so customer sees exact amount to transfer per pharmacy
+            renderCheckoutPharmacyBankDetails(uniquePharmIds);
         }
 
-        let currentFulfillmentMode = 'DELIVERY';
         function toggleFulfillmentMode(mode) {
             currentFulfillmentMode = mode;
             const addrInput = document.getElementById('custAddress');
-            if (!addrInput) return;
-            if (mode === 'PICKUP') {
-                addrInput.value = 'Self-Pickup at Pharmacy Counter';
-                addrInput.readOnly = true;
-                addrInput.classList.add('bg-slate-100', 'text-slate-500');
-            } else {
-                addrInput.readOnly = false;
-                addrInput.classList.remove('bg-slate-100', 'text-slate-500');
-                addrInput.value = (currentCustomer && currentCustomer.address) ? currentCustomer.address : '';
+            if (addrInput) {
+                if (mode === 'PICKUP') {
+                    addrInput.value = 'Self-Pickup at Pharmacy Counter';
+                    addrInput.readOnly = true;
+                    addrInput.classList.add('bg-slate-100', 'text-slate-500');
+                } else {
+                    addrInput.readOnly = false;
+                    addrInput.classList.remove('bg-slate-100', 'text-slate-500');
+                    if (addrInput.value === 'Self-Pickup at Pharmacy Counter') {
+                        addrInput.value = (currentCustomer && currentCustomer.address) ? currentCustomer.address : '';
+                    }
+                }
             }
+            renderCheckoutSummary();
         }
 
         async function updateCheckoutItemQty(index, delta) {
@@ -1096,7 +1154,10 @@ async function handleSaveCustomerProfile(event) {
 
         for (const pharmacyId of Object.keys(itemsByPharmacy)) {
             const pharmItems = itemsByPharmacy[pharmacyId];
-            const orderTotal = pharmItems.reduce((sum, i) => sum + (i.qty * i.unit_price), 0);
+            const medicinesSubtotal = pharmItems.reduce((sum, i) => sum + (i.qty * i.unit_price), 0);
+            const deliveryFeeForOrder = getPharmacyDeliveryFeeForMode(pharmacyId, currentFulfillmentMode);
+            const orderTotal = medicinesSubtotal + deliveryFeeForOrder;
+
             const invoiceNo = `MR-${Math.floor(100000 + Math.random() * 900000)}`;
             const isCard = selectedPaymentMethod === 'CARD';
 
@@ -1107,6 +1168,7 @@ async function handleSaveCustomerProfile(event) {
                     pharmacy_id: pharmacyId,
                     invoice_no: invoiceNo,
                     total_amount: orderTotal,
+                    delivery_fee: deliveryFeeForOrder,
                     payment_method: isCard ? 'Card' : 'Bank Transaction',
                     payment_status: isCard ? 'Paid' : 'Pending',
                     order_status: isCard ? 'Ready for Pickup' : 'Processing',
@@ -1117,8 +1179,8 @@ async function handleSaveCustomerProfile(event) {
                     sending_bank: isCard ? `One-Time Card Payment` : sendingBank,
                     bank_reference: isCard ? `CARD-TXN` : bankRef,
                     receipt_image_url: uploadedReceiptUrl,
-                    fulfillment_type: currentFulfillmentMode, // 'DELIVERY' or 'PICKUP'
-                    prescription_image_url: uploadedPrescriptionUrl // Uploaded prescription link
+                    fulfillment_type: currentFulfillmentMode, // 'NORMAL_DELIVERY', 'SAMEDAY_DELIVERY', or 'PICKUP'
+                    prescription_image_url: uploadedPrescriptionUrl
                 }])
                 .select()
                 .single();
