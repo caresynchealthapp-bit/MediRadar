@@ -798,6 +798,46 @@ async function handleSaveCustomerProfile(event) {
             }).join('');
             
             document.getElementById('checkoutTotalAmount').textContent = `Rs. ${total.toFixed(2)}`;
+
+            // Show/hide Multi-Pharmacy Split Warning
+            const splitWarn = document.getElementById('multiPharmacySplitWarning');
+            if (splitWarn) {
+                if (uniquePharmIds.length > 1) {
+                    document.getElementById('splitPharmacyCountText').textContent = uniquePharmIds.length;
+                    splitWarn.classList.remove('hidden');
+                } else {
+                    splitWarn.classList.add('hidden');
+                }
+            }
+
+            // Show/hide Doctor's Prescription Upload if any item is Rx Required
+            const rxSection = document.getElementById('prescriptionUploadSection');
+            if (rxSection) {
+                const allAgg = getAggregatedMedicines();
+                const needsRx = checkoutItemsQueue.some(item => {
+                    const match = allAgg.find(m => m.key === (item.medicine_name || '').trim().toLowerCase());
+                    return match && match.requiresPrescription;
+                });
+                if (needsRx) rxSection.classList.remove('hidden');
+                else rxSection.classList.add('hidden');
+            }
+
+        }
+
+        let currentFulfillmentMode = 'DELIVERY';
+        function toggleFulfillmentMode(mode) {
+            currentFulfillmentMode = mode;
+            const addrInput = document.getElementById('custAddress');
+            if (!addrInput) return;
+            if (mode === 'PICKUP') {
+                addrInput.value = 'Self-Pickup at Pharmacy Counter';
+                addrInput.readOnly = true;
+                addrInput.classList.add('bg-slate-100', 'text-slate-500');
+            } else {
+                addrInput.readOnly = false;
+                addrInput.classList.remove('bg-slate-100', 'text-slate-500');
+                addrInput.value = (currentCustomer && currentCustomer.address) ? currentCustomer.address : '';
+            }
         }
 
         async function updateCheckoutItemQty(index, delta) {
@@ -930,6 +970,14 @@ async function handleSaveCustomerProfile(event) {
 
             try {
                 let uploadedReceiptUrl = null;
+
+                const rxSection = document.getElementById('prescriptionUploadSection');
+                const rxInput = document.getElementById('prescription-upload');
+                if (rxSection && !rxSection.classList.contains('hidden')) {
+                    if (!rxInput.files || rxInput.files.length === 0) {
+                        throw new Error("Please upload a photo of your Doctor's Prescription for the Rx medicine(s) in your order.");
+                    }
+                }
 
                 if (selectedPaymentMethod === 'CARD') {
                     if (cardNo.length < 12 || !cardExp || cardCvv.length < 3) {
@@ -1228,12 +1276,30 @@ async function handleSaveCustomerProfile(event) {
                 const approval = order.cashier_approval_status || 'Pending';
                 let statusBadge = '';
                 if (approval === 'Accepted') {
-                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300"><i class="fa-solid fa-circle-check mr-1"></i>Accepted (${order.payment_status})</span>`;
-                } else if (approval === 'Rejected') {
-                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-circle-xmark mr-1"></i>Rejected</span>
+                    statusBadge = `
+                        <div class="space-y-1.5">
+                            <span class="inline-block px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                <i class="fa-solid fa-circle-check mr-1"></i>Accepted (${order.payment_status})
+                            </span>
+                            <button type="button" onclick="printOfficialOrderInvoice('${order.id}')"
+                                class="block text-[11px] font-bold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2.5 py-1 rounded-lg transition">
+                                <i class="fa-solid fa-print mr-1"></i>Print Invoice
+                            </button>
+                        </div>`;
+                } else if (approval === 'Rejected' || approval === 'Cancelled') {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-circle-xmark mr-1"></i>${approval}</span>
                                    ${order.rejection_reason ? `<div class="text-[10px] text-rose-600 mt-1">Reason: ${order.rejection_reason}</div>` : ''}`;
                 } else {
-                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse"><i class="fa-solid fa-clock mr-1"></i>Pending Cashier Review</span>`;
+                    statusBadge = `
+                        <div class="space-y-1.5">
+                            <span class="inline-block px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+                                <i class="fa-solid fa-clock mr-1"></i>Pending Cashier Review
+                            </span>
+                            <button type="button" onclick="cancelPendingOrder('${order.id}')"
+                                class="block text-[11px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1 rounded-lg transition">
+                                <i class="fa-solid fa-ban mr-1"></i>Cancel Order
+                            </button>
+                        </div>`;
                 }
 
                 const slipLink = order.receipt_image_url
@@ -1261,6 +1327,99 @@ async function handleSaveCustomerProfile(event) {
                     </tr>
                 `;
             }).join('');
+        }
+
+        async function cancelPendingOrder(orderId) {
+            if (!confirm("Are you sure you want to cancel this pending order?")) return;
+            try {
+                await supabaseClient
+                    .from('customer_order_items')
+                    .delete()
+                    .eq('order_id', orderId);
+
+                const { error } = await supabaseClient
+                    .from('customer_orders')
+                    .delete()
+                    .eq('id', orderId)
+                    .eq('customer_id', currentCustomer.id);
+
+                if (error) throw error;
+                showToast("Order Cancelled", "Your pending order has been cancelled and removed.");
+                await fetchMyCustomerOrders(false);
+            } catch (err) {
+                showToast("Cancel Failed", err.message || "Could not cancel order.");
+            }
+        }
+
+        function printOfficialOrderInvoice(orderId) {
+            const order = myCustomerOrders.find(o => String(o.id) === String(orderId));
+            if (!order) return;
+
+            const pharm = pharmaciesTable.find(p => p.id === order.pharmacy_id) || {
+                pharmacy_name: 'Registered Pharmacy',
+                city: 'Sri Lanka',
+                address: '',
+                phone: 'N/A',
+                license_no: 'Verified'
+            };
+            const items = order.customer_order_items || [];
+            const rowsHtml = items.map(i => `
+                <tr>
+                    <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${i.medicine_name || 'Medicine'}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:center;">${i.quantity}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;">Rs. ${parseFloat(i.unit_price).toFixed(2)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:bold;">Rs. ${(i.quantity * parseFloat(i.unit_price)).toFixed(2)}</td>
+                </tr>
+            `).join('');
+
+            const printWin = window.open('', '_blank', 'width=720,height=800');
+            if (!printWin) return;
+            printWin.document.write(`
+                <html>
+                <head>
+                    <title>Invoice ${order.invoice_no} - MediRadar</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; color: #0f172a; padding: 32px; }
+                        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0d9488; padding-bottom: 16px; margin-bottom: 20px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+                        th { background: #0f172a; color: #fff; padding: 10px 8px; text-align: left; }
+                        .total-box { margin-top: 20px; text-align: right; font-size: 18px; font-weight: bold; color: #0d9488; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div>
+                            <h2 style="margin:0;color:#0d9488;">${pharm.pharmacy_name}</h2>
+                            <p style="margin:4px 0;font-size:12px;color:#475569;">${pharm.address || ''} ${pharm.city || ''} • Tel: ${pharm.phone || 'N/A'}</p>
+                            <p style="margin:2px 0;font-size:11px;color:#64748b;">NMRA License No: <strong>${pharm.license_no || 'Verified'}</strong></p>
+                        </div>
+                        <div style="text-align:right;">
+                            <h3 style="margin:0;">OFFICIAL RECEIPT</h3>
+                            <p style="margin:4px 0;font-size:13px;"><strong>Invoice:</strong> ${order.invoice_no}</p>
+                            <p style="margin:2px 0;font-size:11px;color:#64748b;">Date: ${new Date(order.created_at).toLocaleString()}</p>
+                        </div>
+                    </div>
+                    <p style="font-size:13px;"><strong>Customer:</strong> ${order.customer_name || currentCustomer.full_name} (${order.customer_phone || ''})<br>
+                    <strong>Fulfillment / Address:</strong> ${order.delivery_address || '-'}<br>
+                    <strong>Payment:</strong> ${order.payment_method} (${order.payment_status}) • Ref: ${order.bank_reference || 'N/A'}</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Medicine</th>
+                                <th style="text-align:center;">Qty</th>
+                                <th style="text-align:right;">Unit Price</th>
+                                <th style="text-align:right;">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+                    <div class="total-box">Total Paid: Rs. ${parseFloat(order.total_amount || 0).toFixed(2)}</div>
+                    <p style="margin-top:40px;font-size:11px;color:#94a3b8;text-align:center;">Generated via MediRadar Digital Pharmacy Portal • Group Codecrafters</p>
+                    <script>window.onload = () => { window.print(); };<\/script>
+                </body>
+                </html>
+            `);
+            printWin.document.close();
         }
 
         // ---------------------------------------------------------
@@ -1415,10 +1574,24 @@ async function handleSaveCustomerProfile(event) {
 
         function getAggregatedMedicines() {
             const groupedByName = new Map();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
             grnStockTable.forEach(stock => {
                 const rawName = (stock.medicine_name || '').trim();
                 if (!rawName) return;
+
+                // 1. EXPIRED MEDICINE PROTECTION: Skip batches that have already expired
+                let isExpiringSoon = false;
+                if (stock.expiry_date) {
+                    const expDate = new Date(stock.expiry_date);
+                    if (!isNaN(expDate.getTime())) {
+                        if (expDate < today) return; // Exclude expired stock!
+                        const daysUntilExpiry = (expDate - today) / (1000 * 60 * 60 * 24);
+                        if (daysUntilExpiry <= 60) isExpiringSoon = true;
+                    }
+                }
+
                 const key = rawName.toLowerCase();
 
                 const pharm = pharmaciesTable.find(p => p.id === stock.pharmacy_id) || {
@@ -1441,7 +1614,8 @@ async function handleSaveCustomerProfile(event) {
                     selling_price_num: parseFloat(stock.selling_price || 0),
                     current_quantity_num: parseInt(stock.current_quantity || 0, 10),
                     pharmacy: pharm,
-                    distanceKm: distKm
+                    distanceKm: distKm,
+                    isExpiringSoon: isExpiringSoon
                 };
 
                 if (!groupedByName.has(key)) {
@@ -1460,14 +1634,11 @@ async function handleSaveCustomerProfile(event) {
                 group.pharmacyStocks.sort((a, b) => a.distanceKm - b.distanceKm);
                 const primary = group.pharmacyStocks[0];
                 const totalStock = group.pharmacyStocks.reduce((sum, s) => sum + s.current_quantity_num, 0);
-                const totalReceived = group.pharmacyStocks.reduce((sum, s) => sum + parseInt(s.quantity_received || 0, 10), 0);
 
                 const txSold = salesTransactionsTable
-            .filter(tx => (tx.medicine_name || '').toLowerCase() === group.key)
-            .reduce((sum, tx) => sum + parseInt(tx.quantity_sold || 0, 10), 0);
+                    .filter(tx => (tx.medicine_name || '').toLowerCase() === group.key)
+                    .reduce((sum, tx) => sum + parseInt(tx.quantity_sold || 0, 10), 0);
 
-                // Rank #1 is now strictly the medicine with the highest total quantity sold
-                // The tiny decimal (totalStock / 10000) acts only as a tie-breaker for items with 0 sales
                 const popularityScore = txSold + (totalStock / 10000);
 
                 const allCategories = [...new Set(group.pharmacyStocks.map(s => s.category).filter(Boolean))];
@@ -1475,16 +1646,33 @@ async function handleSaveCustomerProfile(event) {
                 const validPrices = group.pharmacyStocks.map(s => s.selling_price_num).filter(p => p > 0);
                 const minPrice = validPrices.length > 0 ? Math.min(...validPrices) : 0;
 
-                // Collect all uploaded photos for this medicine across the medicines catalog
+                // Match catalog rows from `medicinesTable` for photos, generic name, and Rx status
+                const catalogMatches = medicinesTable.filter(m => (m.name || '').trim().toLowerCase() === group.key);
+
                 const medicineImages = [...new Set(
-                    medicinesTable
-                        .filter(m => (m.name || '').trim().toLowerCase() === group.key && Array.isArray(m.image_urls))
+                    catalogMatches
+                        .filter(m => Array.isArray(m.image_urls))
                         .flatMap(m => m.image_urls)
                         .filter(Boolean)
                 )];
 
+                // 2. GENERIC / ACTIVE INGREDIENT NAME LOOKUP
+                const genericName = catalogMatches.map(m => m.generic_name || m.description || m.active_ingredient || '').find(Boolean)
+                    || primary.generic_name
+                    || '';
+
+                // 3. OTC vs. PRESCRIPTION (Rx) DETECTION
+                const rxRegex = /inhaler|injection|vial|antibiotic|amoxicillin|azithromycin|ciprofloxacin|metformin|atorvastatin|losartan|omeprazole|salbutamol|insulin|steroid/i;
+                const requiresPrescription = catalogMatches.some(m => m.requires_prescription === true || m.is_rx === true)
+                    || primary.requires_prescription === true
+                    || rxRegex.test(group.name)
+                    || rxRegex.test(displayCategory)
+                    || rxRegex.test(genericName);
+
                 return {
                     ...group,
+                    generic_name: genericName,
+                    requiresPrescription,
                     category: displayCategory,
                     allCategories,
                     supplier_name: primary.supplier_name || 'Verified Supplier',
@@ -1493,6 +1681,7 @@ async function handleSaveCustomerProfile(event) {
                     nearestDistanceKm: primary.distanceKm,
                     nearestPharmacyName: primary.pharmacy.pharmacy_name,
                     expiry_date: primary.expiry_date || 'N/A',
+                    isExpiringSoon: primary.isExpiringSoon || false,
                     batch_number: primary.batch_number || 'N/A',
                     popularityScore,
                     images: medicineImages
@@ -1513,6 +1702,15 @@ async function handleSaveCustomerProfile(event) {
             if (c.includes('injection') || c.includes('vial')) return 'fa-syringe';
             if (c.includes('cream') || c.includes('ointment')) return 'fa-pump-medical';
             return 'fa-pills';
+        }
+
+        let selectedPharmacyIdFilter = 'ALL';
+
+        function shopBySpecificPharmacy(pharmacyId, pharmacyName) {
+            selectedPharmacyIdFilter = String(pharmacyId);
+            setHeroSearchMode('medicines');
+            applyFiltersAndRender();
+            showToast("Filtering by Pharmacy", `Showing available medicines in ${pharmacyName}. Click 'Reset All Filters' to see all pharmacies.`);
         }
 
         function applyFiltersAndRender() {
@@ -1536,20 +1734,22 @@ async function handleSaveCustomerProfile(event) {
                     const supMatch = supplierVal === 'ALL' || ((s.supplier_name || '').trim().toLowerCase() === supplierVal.trim().toLowerCase());
                     const priceMatch = s.selling_price_num <= maxPriceVal;
                     const stockMatch = !inStockOnly || s.current_quantity_num > 0;
-                    return catMatch && cityMatch && supMatch && priceMatch && stockMatch;
+                    const pharmIdMatch = selectedPharmacyIdFilter === 'ALL' || String(s.pharmacy.id) === String(selectedPharmacyIdFilter);
+                    return catMatch && cityMatch && supMatch && priceMatch && stockMatch && pharmIdMatch;
                 });
 
                 if (matchingStocks.length === 0) return null;
 
                 if (searchVal) {
                     const nameMatch = med.name.toLowerCase().includes(searchVal);
+                    const genericMatch = (med.generic_name || '').toLowerCase().includes(searchVal);
                     const stockSearchMatch = matchingStocks.some(s =>
                         (s.supplier_name || '').toLowerCase().includes(searchVal) ||
                         (s.category || '').toLowerCase().includes(searchVal) ||
                         (s.pharmacy.pharmacy_name || '').toLowerCase().includes(searchVal) ||
                         (s.pharmacy.city || '').toLowerCase().includes(searchVal)
                     );
-                    if (!nameMatch && !stockSearchMatch) return null;
+                    if (!nameMatch && !genericMatch && !stockSearchMatch) return null;
                 }
 
                 matchingStocks.sort((a, b) => a.distanceKm - b.distanceKm);
@@ -1567,6 +1767,7 @@ async function handleSaveCustomerProfile(event) {
                     nearestDistanceKm: closest.distanceKm,
                     nearestPharmacyName: closest.pharmacy.pharmacy_name,
                     expiry_date: closest.expiry_date || med.expiry_date,
+                    isExpiringSoon: closest.isExpiringSoon || false,
                     batch_number: closest.batch_number || med.batch_number,
                     filteredPharmacyStocks: matchingStocks
                 };
@@ -1635,19 +1836,32 @@ async function handleSaveCustomerProfile(event) {
                 return `
                     <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm card-hover flex flex-col justify-between overflow-hidden">
                         <div>
-                            <div class="p-4 pb-3 bg-gradient-to-br from-slate-50 to-teal-50/40 border-b border-slate-100 flex items-center justify-between gap-2">
+                            <div class="p-4 pb-3 bg-gradient-to-br from-slate-50 to-teal-50/40 border-b border-slate-100 flex flex-wrap items-center justify-between gap-1.5">
                                 ${rankBadgeHtml}
-                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
-                                    <i class="fa-solid ${iconClass}"></i>
-                                    ${item.category}
-                                </span>
+                                <div class="flex items-center gap-1.5">
+                                    ${item.requiresPrescription
+                                        ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-rose-100 text-rose-700 border border-rose-300" title="Doctor's Prescription Required at Checkout">
+                                               <i class="fa-solid fa-file-prescription"></i> Rx Required
+                                           </span>`
+                                        : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300" title="Over-The-Counter Medicine">
+                                               <i class="fa-solid fa-shield-heart"></i> OTC
+                                           </span>`
+                                    }
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
+                                        <i class="fa-solid ${iconClass}"></i>
+                                        ${item.category}
+                                    </span>
+                                </div>
                             </div>
 
                             ${photoBannerHtml}
 
                             <div class="p-4">
                                 <div class="flex items-start justify-between gap-3 mb-3">
-                                    <h3 class="text-base font-extrabold text-slate-900 leading-snug">${item.name}</h3>
+                                    <div>
+                                        <h3 class="text-base font-extrabold text-slate-900 leading-snug">${item.name}</h3>
+                                        ${item.generic_name ? `<p class="text-xs font-semibold text-teal-600 mt-0.5"><i class="fa-solid fa-flask-vial mr-1 text-[10px]"></i>${item.generic_name}</p>` : ''}
+                                    </div>
                                     <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 border border-brand-100 flex items-center justify-center flex-shrink-0 text-lg">
                                         <i class="fa-solid ${iconClass}"></i>
                                     </div>
@@ -1666,7 +1880,9 @@ async function handleSaveCustomerProfile(event) {
                                     </div>
                                     <div class="flex items-center justify-between">
                                         <span class="text-slate-400">Batch & Expiry:</span>
-                                        <span class="font-mono text-slate-700">${item.batch_number} • Exp: ${item.expiry_date}</span>
+                                        <span class="font-mono ${item.isExpiringSoon ? 'text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded font-bold border border-amber-300' : 'text-slate-700'}">
+                                            ${item.batch_number} • Exp: ${item.expiry_date} ${item.isExpiringSoon ? '⚠️ Soon' : ''}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -1703,6 +1919,42 @@ async function handleSaveCustomerProfile(event) {
                     </div>
                 `;
             }).join('');
+        }
+
+        function getPharmacyOpenStatusBadge(hoursStr) {
+            if (!hoursStr) hoursStr = "8:00 AM - 10:00 PM";
+            if (/24\s*hours|24\/7/i.test(hoursStr)) {
+                return `<span class="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Open 24/7</span>`;
+            }
+
+            const parseTimeToMinutes = (tStr) => {
+                const m = tStr.trim().match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/i);
+                if (!m) return null;
+                let hr = parseInt(m[1], 10);
+                const min = parseInt(m[2] || '0', 10);
+                const ampm = m[3].toUpperCase();
+                if (ampm === 'PM' && hr < 12) hr += 12;
+                if (ampm === 'AM' && hr === 12) hr = 0;
+                return hr * 60 + min;
+            };
+
+            const parts = hoursStr.split('-');
+            if (parts.length === 2) {
+                const openMin = parseTimeToMinutes(parts[0]);
+                const closeMin = parseTimeToMinutes(parts[1]);
+                if (openMin !== null && closeMin !== null) {
+                    const now = new Date();
+                    const nowMin = now.getHours() * 60 + now.getMinutes();
+                    const isOpen = closeMin >= openMin
+                        ? (nowMin >= openMin && nowMin <= closeMin)
+                        : (nowMin >= openMin || nowMin <= closeMin);
+
+                    return isOpen
+                        ? `<span class="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Open Now</span>`
+                        : `<span class="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Closed</span>`;
+                }
+            }
+            return `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${hoursStr}</span>`;
         }
 
         function openNearestPharmaciesModal(encodedMedKey) {
@@ -1753,6 +2005,7 @@ async function handleSaveCustomerProfile(event) {
                                     <div class="flex flex-wrap items-center gap-2">
                                         <h4 class="text-base sm:text-lg font-extrabold text-slate-900">${p.pharmacy_name}</h4>
                                         ${isClosest ? `<span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-brand-100 text-brand-800 border border-brand-300">Closest to You</span>` : ''}
+                                        ${getPharmacyOpenStatusBadge(p.operating_hours)}
                                         <span class="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
                                             <i class="fa-solid fa-route mr-1"></i>${entry.distanceKm.toFixed(2)} km away
                                         </span>
@@ -1833,6 +2086,9 @@ async function handleSaveCustomerProfile(event) {
 
             container.innerHTML = ranked.map((p, idx) => {
                 const mapsUrl = buildGoogleMapsDirectionsUrl(p);
+                const openStatusHtml = getPharmacyOpenStatusBadge(p.operating_hours);
+                const safePharmName = (p.pharmacy_name || 'Pharmacy').replace(/'/g, "\\'");
+
                 return `
                     <div class="p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/40 border border-slate-200 transition flex flex-col justify-between gap-3">
                         <div class="flex items-center gap-3.5">
@@ -1847,17 +2103,24 @@ async function handleSaveCustomerProfile(event) {
                                     </span>
                                 </div>
                                 <p class="text-xs text-slate-600 truncate">${p.address || ''}${p.address && p.city ? ', ' : ''}${p.city || ''}</p>
-                                <div class="flex items-center justify-between text-[11px] text-slate-500 mt-1">
+                                <div class="flex flex-wrap items-center justify-between gap-1 text-[11px] text-slate-500 mt-1.5">
                                     <span><i class="fa-solid fa-phone text-teal-600 mr-1"></i>${p.phone || 'N/A'}</span>
-                                    <span>Lic: ${p.license_no || 'N/A'}</span>
+                                    ${openStatusHtml}
                                 </div>
                             </div>
                         </div>
-                        <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
-                           class="w-full py-2 px-3 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center justify-center gap-1.5 transition">
-                            <i class="fa-solid fa-map-location-dot"></i>
-                            <span>Find on Google Maps</span>
-                        </a>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" onclick="shopBySpecificPharmacy('${p.id}', '${safePharmName}')"
+                                class="py-2 px-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-sm">
+                                <i class="fa-solid fa-pills"></i>
+                                <span>View Stock</span>
+                            </button>
+                            <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
+                               class="py-2 px-3 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+                                <i class="fa-solid fa-map-location-dot"></i>
+                                <span>Google Maps</span>
+                            </a>
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -1874,6 +2137,7 @@ async function handleSaveCustomerProfile(event) {
         }
 
         function resetAllFilters() {
+            selectedPharmacyIdFilter = 'ALL';
             document.getElementById('searchInput').value = '';
             document.getElementById('sortFilter').value = 'popular_asc';
             document.getElementById('cityFilter').value = 'ALL';
