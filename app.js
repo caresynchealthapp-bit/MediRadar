@@ -1390,7 +1390,15 @@ async function handleSaveCustomerProfile(event) {
         }
 
         async function cancelPendingOrder(orderId) {
-            if (!confirm("Are you sure you want to cancel this pending order?")) return;
+            // Trigger the custom animated modal instead of the browser default
+            const isConfirmed = await showCustomConfirm(
+                "Cancel Pending Order?",
+                "Are you sure you want to cancel this order? This action will permanently remove it from your history.",
+                "Yes, Cancel"
+            );
+            
+            if (!isConfirmed) return; // Stop if the user clicked "No, Keep It"
+
             try {
                 await supabaseClient
                     .from('customer_order_items')
@@ -2696,4 +2704,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 overlay.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm opacity-0 transition-opacity duration-300 px-4';
                 
                 const modal = document.createElement('div');
-                modal.className = 'bg-white rounded-3xl shadow-2xl p-6 sm
+                modal.className = 'bg-white rounded-3xl shadow-2xl p-6 sm:p-8 max-w-sm w-full relative transform scale-90 transition-transform duration-300 text-center border-t-8 border-rose-500';
+                
+                modal.innerHTML = `
+                    <div class="mx-auto w-16 h-16 bg-rose-50 border border-rose-100 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                        <i class="fa-solid fa-triangle-exclamation text-rose-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-extrabold text-slate-900 mb-2">${title}</h3>
+                    <p class="text-sm text-slate-500 mb-6 leading-relaxed">${message}</p>
+                    <div class="flex items-center gap-3 w-full">
+                        <button id="cancelConfirmBtn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl transition-all">
+                            No, Keep It
+                        </button>
+                        <button id="acceptConfirmBtn" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md active:scale-95">
+                            ${confirmText}
+                        </button>
+                    </div>
+                `;
+                
+                overlay.appendChild(modal);
+                document.body.appendChild(overlay);
+                
+                // Animate In
+                setTimeout(() => {
+                    overlay.classList.remove('opacity-0');
+                    modal.classList.remove('scale-90');
+                    modal.classList.add('scale-100');
+                }, 10);
+
+                // Handle Close & Animate Out
+                const closeAndResolve = (result) => {
+                    overlay.classList.add('opacity-0');
+                    modal.classList.remove('scale-100');
+                    modal.classList.add('scale-90');
+                    setTimeout(() => {
+                        overlay.remove();
+                        resolve(result);
+                    }, 300);
+                };
+
+                document.getElementById('cancelConfirmBtn').onclick = () => closeAndResolve(false);
+                document.getElementById('acceptConfirmBtn').onclick = () => closeAndResolve(true);
+            });
+        }
