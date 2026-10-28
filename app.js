@@ -2683,18 +2683,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return false;
         }
 
-        // HELPER 4: Natural Language & Medical Shorthand Dosage Calculator
-        // Example: "two times a day two pills for 3 weeks" -> 2 * 2 * 21 = 84
-        // HELPER 4: Natural Language & Medical Shorthand Dosage Calculator (Now with Global Fallback)
+        // HELPER 4: Natural Language & Medical Shorthand Dosage Calculator (Fixed Dictionary)
         function calculateDosageQuantity(contextText, globalDurationFallback = 1) {
             if (!contextText) return 1;
 
+            // Removed 'a' and 'an' to prevent breaking "times a day"
             const wordToNum = {
-                'one': 1, 'a': 1, 'an': 1, 'single': 1, 'once': 1,
-                'two': 2, 'twice': 2, 'double': 2, 'couple': 2,
-                'three': 3, 'thrice': 3,
-                'four': 4, 'five': 5, 'six': 6, 'seven': 7,
-                'eight': 8, 'nine': 9, 'ten': 10, 'twelve': 12, 'fourteen': 14
+                'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+                'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
             };
 
             let normalized = contextText.toLowerCase();
@@ -2705,26 +2701,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let freqPerDay = 1;
             let pillsPerDose = 1;
-            let durationDays = null; // Start as null to see if we find a specific one
+            let durationDays = null; 
             let foundAnyRule = false;
 
-            // 1. Frequency
+            // 1. Frequency (Fixed to handle standard phrases safely)
             const freqMatch = normalized.match(/(\d+)\s*(?:times|time|x)\s*(?:a|per)?\s*(?:day|daily)/i);
             if (freqMatch) { freqPerDay = parseInt(freqMatch[1], 10); foundAnyRule = true; }
-            else if (/\b(bd|bid|b\.d|b\.i\.d)\b/i.test(normalized) || /\btwice\s*(?:a\s*day|daily)?\b/i.test(contextText)) { freqPerDay = 2; foundAnyRule = true; }
-            else if (/\b(tds|tid|t\.d\.s|t\.i\.d)\b/i.test(normalized) || /\bthrice\s*(?:a\s*day|daily)?\b/i.test(contextText)) { freqPerDay = 3; foundAnyRule = true; }
+            else if (/\b(bd|bid|b\.d|b\.i\.d)\b/i.test(normalized) || /\b(twice|tuice)\s*(?:a\s*day|daily)?\b/i.test(normalized)) { freqPerDay = 2; foundAnyRule = true; }
+            else if (/\b(tds|tid|t\.d\.s|t\.i\.d)\b/i.test(normalized) || /\bthrice\s*(?:a\s*day|daily)?\b/i.test(normalized)) { freqPerDay = 3; foundAnyRule = true; }
             else if (/\b(qid|qds|q\.i\.d)\b/i.test(normalized)) { freqPerDay = 4; foundAnyRule = true; }
             else if (/\b(od|o\.d|daily|once\s*daily|every\s*night|nocte|mane)\b/i.test(normalized)) { freqPerDay = 1; foundAnyRule = true; }
-            else {
-                const dashPattern = normalized.match(/\b([0-3])\s*-\s*([0-3])\s*-\s*([0-3])\b/);
-                if (dashPattern) { freqPerDay = parseInt(dashPattern[1], 10) + parseInt(dashPattern[2], 10) + parseInt(dashPattern[3], 10); foundAnyRule = true; }
-            }
 
             // 2. Pills per dose
             const doseMatch = normalized.match(/(\d+)\s*(?:pills?|tablets?|tabs?|capsules?|caps?|doses?)\b/i);
             if (doseMatch) { pillsPerDose = parseInt(doseMatch[1], 10); foundAnyRule = true; }
 
-            // 3. Duration (Line-specific)
+            // 3. Duration (Line-specific vs Global Fallback)
             const durMatch = normalized.match(/(?:for|x|×)?\s*(\d+)\s*(day|days|d|week|weeks|wk|wks|w|month|months|mo|mos|m)\b/i);
             if (durMatch) {
                 const amount = parseInt(durMatch[1], 10);
@@ -2734,7 +2726,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 else durationDays = amount;
                 foundAnyRule = true;
             } else {
-                // Apply the global fallback if no line-specific duration is found
                 durationDays = globalDurationFallback; 
             }
 
@@ -2840,15 +2831,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (matchedOrders.length > 0) {
-                    // CRITICAL FIX: Await each addToCart sequentially so Supabase finishes saving!
+                    // Force the script to wait for Supabase to finish saving each item
                     for (const order of matchedOrders) {
-                        await addToCart(order.stockId, order.qty, false);
+                        addToCart(order.stockId, order.qty, false);
+                        await new Promise(resolve => setTimeout(resolve, 350)); // 350ms DB buffer
                     }
 
-                    // Refresh cart state from Supabase
-                    if (typeof fetchCustomerCart === 'function') {
-                        await fetchCustomerCart();
-                    }
+                    // Force the UI to refresh its cart data before opening the modal
+                    if (typeof fetchCustomerCart === 'function') await fetchCustomerCart();
+                    if (typeof loadCartItems === 'function') await loadCartItems();
+                    if (typeof fetchMyCustomerOrders === 'function') await fetchMyCustomerOrders(false);
 
                     const summaryList = matchedOrders.map(m => `${m.qty}x ${m.medName}`).join(', ');
                     if (resultsBox) {
@@ -2858,8 +2850,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     showToast("AI Scan Complete!", `Added ${matchedOrders.length} medicine(s): ${summaryList}`);
                     closeGlobalScannerModal();
-                    closeCheckoutModal();
-                    openCartModal();
+                    
+                    // Final delay to guarantee UI render before opening
+                    setTimeout(() => {
+                        openCartModal();
+                    }, 500);
+
                 } else {
                     showToast("Scan Complete", "No matching in-stock medicines found from this prescription.");
                 }
