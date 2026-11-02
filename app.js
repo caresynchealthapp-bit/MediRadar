@@ -524,24 +524,6 @@ let currentSearchMode = 'medicines';
             initiateCheckoutFlow(singleItem, false);
         }
 
-        // ---------------------------------------------------------
-        // 5. CUSTOMER REGISTRATION & LOGIN (ENCRYPTED PASSWORD, NO CARD/GPS SAVED)
-        // ---------------------------------------------------------
-        function updateCustomerHeaderUI() {
-            const label = document.getElementById('headerAccountLabel');
-            const logoutBtn = document.getElementById('logoutCustomerBtn');
-            const headerSignOutBtn = document.getElementById('headerSignOutBtn');
-
-            if (currentCustomer) {
-                label.textContent = currentCustomer.full_name || currentCustomer.email;
-                if (logoutBtn) logoutBtn.classList.remove('hidden');
-                if (headerSignOutBtn) headerSignOutBtn.classList.remove('hidden');
-            } else {
-                label.textContent = "Sign In / Register";
-                if (logoutBtn) logoutBtn.classList.add('hidden');
-                if (headerSignOutBtn) headerSignOutBtn.classList.add('hidden');
-            }
-        }
 
         function openCustomerAccountModal() {
             const modal = document.getElementById('customerAccountModal');
@@ -704,51 +686,6 @@ async function handleSaveCustomerProfile(event) {
     }
 }
 
-        async function handleCustomerLogin(event) {
-            event.preventDefault();
-            const email = document.getElementById('loginEmailInput').value.trim().toLowerCase();
-            const rawPass = document.getElementById('loginPasswordInput').value.trim();
-            const encPass = encryptCustomerPassword(rawPass);
-
-            try {
-                const { data, error } = await supabaseClient
-                    .from('customers')
-                    .select('*')
-                    .eq('email', email)
-                    .maybeSingle();
-
-                if (error) throw error;
-
-                // Match encrypted password (or legacy plain password if created before encryption)
-                if (!data || (data.password !== encPass && data.password !== rawPass)) {
-                    showToast("Sign In Failed", "Invalid email or password.");
-                    return;
-                }
-
-                // Upgrade legacy plaintext password to encrypted automatically on login
-                if (data.password === rawPass && data.password !== encPass) {
-                    await supabaseClient.from('customers').update({ password: encPass }).eq('id', data.id);
-                    data.password = encPass;
-                }
-
-                currentCustomer = data;
-                localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
-                updateCustomerHeaderUI();
-                subscribeToCustomerOrderUpdates();
-                await loadCustomerCartFromSupabase();
-                await fetchMyCustomerOrders(true);
-                closeCustomerAccountModal();
-                showToast("Signed In!", `Welcome back, ${currentCustomer.full_name}. Your saved cart items have been restored.`);
-
-                if (typeof postAuthCallback === 'function') {
-                    const cb = postAuthCallback;
-                    postAuthCallback = null;
-                    cb();
-                }
-            } catch (err) {
-                showToast("Login Error", err.message);
-            }
-        }
 
         function logoutCustomer() {
             currentCustomer = null;
@@ -1045,226 +982,6 @@ let isCheckingOutFromCart = false;
             }
         }
 
-        async function submitPharmacyOrder(event) {
-    event.preventDefault();
-    if (!currentCustomer || checkoutItemsQueue.length === 0) return;
-
-    const custName = document.getElementById('custName').value.trim();
-    const custPhone = document.getElementById('custPhone').value.trim();
-    const custAddress = document.getElementById('custAddress').value.trim();
-    const cardNo = document.getElementById('cardNumberInput').value.replace(/\s+/g, '').trim();
-    const cardExp = document.getElementById('cardExpiryInput').value.trim();
-    const cardCvv = document.getElementById('cardCvvInput').value.trim();
-    const sendingBank = document.getElementById('bankNameSelect').value.trim();
-    const bankRef = document.getElementById('bankRefInput').value.trim();
-    const receiptFileInput = document.getElementById('receipt-upload');
-
-    const submitBtn = document.getElementById('submitOrderBtn');
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing Order...`;
-
-    try {
-        let uploadedReceiptUrl = null;
-        let uploadedPrescriptionUrl = null;
-
-        // 1. Check and upload Doctor's Prescription if required
-        const rxSection = document.getElementById('prescriptionUploadSection');
-        const rxFileInput = document.getElementById('prescription-upload');
-        if (rxSection && !rxSection.classList.contains('hidden')) {
-            if (!rxFileInput.files || rxFileInput.files.length === 0) {
-                throw new Error("Please upload a photo of your Doctor's Prescription for the Rx medicine(s) in your order.");
-            }
-            
-            const rxFile = rxFileInput.files[0];
-            const rxExt = (rxFile.name.split('.').pop() || 'png').toLowerCase();
-            const rxFilePath = `prescription_${currentCustomer.id}_${Date.now()}.${rxExt}`;
-
-            const { error: rxUpErr } = await supabaseClient
-                .storage
-                .from('prescriptions')
-                .upload(rxFilePath, rxFile, { cacheControl: '3600', upsert: true });
-
-            if (rxUpErr) throw new Error(`Prescription Upload Failed: ${rxUpErr.message}`);
-
-            const { data: rxPubData } = supabaseClient
-                .storage
-                .from('prescriptions')
-                .getPublicUrl(rxFilePath);
-
-            uploadedPrescriptionUrl = rxPubData.publicUrl;
-        }
-
-        // 2. Handle Payment Method Verification & Bank Receipt Upload
-        if (selectedPaymentMethod === 'CARD') {
-            if (cardNo.length < 12 || !cardExp || cardCvv.length < 3) {
-                throw new Error("Please enter valid temporary Card Number, Expiry Date, and CVV to process this transaction.");
-            }
-        } else {
-            if (!bankRef) {
-                throw new Error("Please enter your Bank Transfer Reference / Slip Number.");
-            }
-            if (!receiptFileInput.files || receiptFileInput.files.length === 0) {
-                throw new Error("Please upload a screenshot/photo of your bank transfer receipt.");
-            }
-
-            const file = receiptFileInput.files[0];
-            const ext = (file.name.split('.').pop() || 'png').toLowerCase();
-            const filePath = `receipt_${currentCustomer.id}_${Date.now()}.${ext}`;
-
-            const { error: upErr } = await supabaseClient
-                .storage
-                .from('bank_receipts')
-                .upload(filePath, file, { cacheControl: '3600', upsert: true });
-
-            if (upErr) throw new Error(`Receipt Upload Failed: ${upErr.message}`);
-
-            const { data: pubUrlData } = supabaseClient
-                .storage
-                .from('bank_receipts')
-                .getPublicUrl(filePath);
-
-            uploadedReceiptUrl = pubUrlData.publicUrl;
-        }
-
-        // Only save non-sensitive delivery details (never save card numbers or GPS location!)
-        if (document.getElementById('saveChangesToProfileCheckbox').checked) {
-            const updatedProfile = {
-                full_name: custName,
-                phone: custPhone,
-                address: custAddress
-            };
-            const { data: profData } = await supabaseClient
-                .from('customers')
-                .update(updatedProfile)
-                .eq('id', currentCustomer.id)
-                .select()
-                .maybeSingle();
-            if (profData) {
-                currentCustomer = profData;
-                localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
-                updateCustomerHeaderUI();
-            }
-        }
-
-        const itemsByPharmacy = {};
-        checkoutItemsQueue.forEach(item => {
-            if (!itemsByPharmacy[item.pharmacy_id]) itemsByPharmacy[item.pharmacy_id] = [];
-            itemsByPharmacy[item.pharmacy_id].push(item);
-        });
-
-        for (const pharmacyId of Object.keys(itemsByPharmacy)) {
-            const pharmItems = itemsByPharmacy[pharmacyId];
-            const medicinesSubtotal = pharmItems.reduce((sum, i) => sum + (i.qty * i.unit_price), 0);
-            const deliveryFeeForOrder = getPharmacyDeliveryFeeForMode(pharmacyId, currentFulfillmentMode);
-            const orderTotal = medicinesSubtotal + deliveryFeeForOrder;
-
-            const invoiceNo = `MR-${Math.floor(100000 + Math.random() * 900000)}`;
-            const isCard = selectedPaymentMethod === 'CARD';
-
-            const { data: insertedOrder, error: orderErr } = await supabaseClient
-                .from('customer_orders')
-                .insert([{
-                    customer_id: currentCustomer.id,
-                    pharmacy_id: pharmacyId,
-                    invoice_no: invoiceNo,
-                    total_amount: orderTotal,
-                    delivery_fee: deliveryFeeForOrder,
-                    payment_method: isCard ? 'Card' : 'Bank Transaction',
-                    payment_status: isCard ? 'Paid' : 'Pending',
-                    order_status: isCard ? 'Ready for Pickup' : 'Processing',
-                    cashier_approval_status: isCard ? 'Accepted' : 'Pending',
-                    delivery_address: custAddress,
-                    customer_phone: custPhone,
-                    customer_name: custName,
-                    sending_bank: isCard ? `One-Time Card Payment` : sendingBank,
-                    bank_reference: isCard ? `CARD-TXN` : bankRef,
-                    receipt_image_url: uploadedReceiptUrl,
-                    fulfillment_type: currentFulfillmentMode, // 'NORMAL_DELIVERY', 'SAMEDAY_DELIVERY', or 'PICKUP'
-                    prescription_image_url: uploadedPrescriptionUrl
-                }])
-                .select()
-                .single();
-
-            if (orderErr) throw orderErr;
-
-            knownOrderStatuses[insertedOrder.id] = insertedOrder.cashier_approval_status;
-
-            const orderItemsPayload = pharmItems.map(i => ({
-                order_id: insertedOrder.id,
-                medicine_id: i.medicine_id || null,
-                grn_stock_id: i.stock_id,
-                medicine_name: i.medicine_name,
-                quantity: i.qty,
-                unit_price: i.unit_price
-            }));
-
-            const { error: itemsErr } = await supabaseClient
-                .from('customer_order_items')
-                .insert(orderItemsPayload);
-
-            if (itemsErr) throw itemsErr;
-
-            if (isCard) {
-                for (const item of pharmItems) {
-                    const stockRow = grnStockTable.find(s => String(s.id) === String(item.stock_id));
-                    const newQty = stockRow ? Math.max(0, Number(stockRow.current_quantity) - item.qty) : 0;
-                    if (stockRow) stockRow.current_quantity = newQty;
-
-                    await supabaseClient
-                        .from('grn_stock')
-                        .update({ current_quantity: newQty })
-                        .eq('id', item.stock_id);
-
-                    await supabaseClient
-                        .from('sales_transactions')
-                        .insert([{
-                            pharmacy_id: pharmacyId,
-                            invoice_no: invoiceNo,
-                            counter_name: 'MediRadar Online (Card)',
-                            cashier_username: `${custName} (${custPhone})`,
-                            medicine_name: item.medicine_name,
-                            quantity_sold: item.qty,
-                            unit_cost: item.unit_cost,
-                            unit_price: item.unit_price,
-                            total_amount: item.qty * item.unit_price,
-                            profit_amount: item.qty * (item.unit_price - item.unit_cost)
-                        }]);
-                }
-            }
-        }
-
-        // Remove purchased items from `customer_cart_items` table & local cart
-        const boughtStockIds = checkoutItemsQueue.map(i => i.stock_id);
-        await supabaseClient
-            .from('customer_cart_items')
-            .delete()
-            .eq('customer_id', currentCustomer.id)
-            .in('grn_stock_id', boughtStockIds);
-
-        clearReceiptUpload();
-        closeCheckoutModal();
-        await fetchLiveSupabaseData();
-        await fetchMyCustomerOrders(true);
-
-        if (selectedPaymentMethod === 'BANK') {
-            showToast(
-                "Receipt Uploaded! Awaiting Cashier Approval",
-                "We will notify you here as soon as the pharmacy Cashier verifies your bank transfer."
-            );
-        } else {
-            showToast(
-                "Card Payment Complete!",
-                "Your order is paid and card details were immediately discarded."
-            );
-        }
-    } catch (err) {
-        console.error("Order Submit Error:", err);
-        showToast("Checkout Error", err.message || "Could not submit order.");
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>Submit Pharmacy Order</span>`;
-    }
-}
 
         // ---------------------------------------------------------
         // 7. CUSTOMER-ONLY ORDERS TABLE & LIVE CASHIER APPROVAL LISTENER
@@ -2448,13 +2165,6 @@ function filterPharmaciesDirectory(query) {
     }
 }
 
-function finalizeCustomerAuth(customerData, successMessage) {
-    currentCustomer = customerData;
-    localStorage.setItem('mediradar_customer', JSON.stringify(customerData)); // Consistent storage key
-    sessionStorage.setItem('pendingToastMessage', successMessage);
-    closeCustomerAccountModal();
-    window.location.reload();
-}
 
 window.closeWelcomeModal = function() {
     const overlay = document.getElementById('mr-welcome-overlay');
@@ -3015,3 +2725,1149 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('acceptConfirmBtn').onclick = () => closeAndResolve(true);
             });
         }
+
+
+// ============================================================================
+// MEDIRADAR V2 UPGRADE SUITE:
+// 1. External Image Hosting (ImgBB CDN + Compressed DataURL Fallback - Zero Supabase Storage)
+// 2. Red Popup Alert if Account Deleted From Database on Reload
+// 3. Google/Chrome-Style Profile Switcher Popover + Default/Custom Avatar
+// 4. Google-Style "Manage Account" Modal: Profile, OTP Password Change, 8 Themes, 30-Day Deletion
+// 5. 30-Day Deletion Schedule + Every-Login Keep/Cancel Prompt
+// ============================================================================
+
+// Paste your free API key from https://api.imgbb.com/ here:
+const EXTERNAL_IMGBB_API_KEY = ''; 
+
+const MEDIRADAR_THEMES = [
+    { id: 'teal', name: 'MediRadar Teal', primary: '#0d9488', secondary: '#2dd4bf' },
+    { id: 'ocean', name: 'Royal Ocean', primary: '#2563eb', secondary: '#60a5fa' },
+    { id: 'violet', name: 'Amethyst Purple', primary: '#7c3aed', secondary: '#a78bfa' },
+    { id: 'rose', name: 'Crimson Rose', primary: '#e11d48', secondary: '#fb7185' },
+    { id: 'emerald', name: 'Emerald Forest', primary: '#059669', secondary: '#34d399' },
+    { id: 'amber', name: 'Sunset Amber', primary: '#d97706', secondary: '#fbbf24' },
+    { id: 'indigo', name: 'Midnight Indigo', primary: '#4f46e5', secondary: '#818cf8' },
+    { id: 'cyber', name: 'Cyber Cyan', primary: '#0891b2', secondary: '#22d3ee' }
+];
+
+// Generate a crisp SVG default avatar with the customer's initials
+function getDefaultAvatarUrl(nameOrEmail) {
+    const clean = (nameOrEmail || 'User').trim();
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(clean)}&background=0d9488&color=fff&bold=true&size=160`;
+}
+
+// Compress image client-side so uploads are fast and lightweight
+function compressImageFileToBase64(file, maxWidth = 900, quality = 0.82) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// Upload ANY image (Profile Pic, Bank Receipt, Prescription) externally without using Supabase Storage
+async function uploadImageExternally(file) {
+    const dataUrl = await compressImageFileToBase64(file, 1000, 0.82);
+    const base64Payload = dataUrl.split(',')[1];
+
+    // If ImgBB API key is configured, upload to external CDN and return public link
+    if (EXTERNAL_IMGBB_API_KEY && EXTERNAL_IMGBB_API_KEY.trim() !== '') {
+        try {
+            const formData = new FormData();
+            formData.append('key', EXTERNAL_IMGBB_API_KEY.trim());
+            formData.append('image', base64Payload);
+
+            const res = await fetch('https://api.imgbb.com/1/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const json = await res.json();
+            if (json && json.success && json.data && json.data.url) {
+                return json.data.url;
+            }
+        } catch (err) {
+            console.warn("External ImgBB upload failed, using compressed direct URL fallback:", err);
+        }
+    }
+    // Automatic zero-bucket fallback: stores compressed image string directly in the URL column
+    return dataUrl;
+}
+
+// ---------------------------------------------------------
+// THEME ENGINE
+// ---------------------------------------------------------
+function applyMediRadarTheme(themeId, persistToDb = false) {
+    const validTheme = MEDIRADAR_THEMES.find(t => t.id === themeId) ? themeId : 'teal';
+    document.documentElement.setAttribute('data-theme', validTheme);
+    localStorage.setItem('mediradar_theme', validTheme);
+
+    if (currentCustomer) {
+        currentCustomer.theme_preference = validTheme;
+        localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+        saveProfileToMultiAccountList(currentCustomer);
+        if (persistToDb && currentCustomer.id) {
+            supabaseClient
+                .from('customers')
+                .update({ theme_preference: validTheme })
+                .eq('id', currentCustomer.id)
+                .then(() => {});
+        }
+    }
+    renderThemeGridInsideModal();
+}
+
+// Load saved theme immediately
+applyMediRadarTheme(
+    (currentCustomer && currentCustomer.theme_preference) ||
+    localStorage.getItem('mediradar_theme') ||
+    'teal',
+    false
+);
+
+// ---------------------------------------------------------
+// MULTI-ACCOUNT SWITCHER STORAGE (LIKE CHROME PROFILES)
+// ---------------------------------------------------------
+function getSavedAccountsList() {
+    try {
+        return JSON.parse(localStorage.getItem('mediradar_saved_accounts') || '[]');
+    } catch (_) {
+        return [];
+    }
+}
+
+function saveProfileToMultiAccountList(customerObj) {
+    if (!customerObj || !customerObj.id) return;
+    let list = getSavedAccountsList();
+    const idx = list.findIndex(a => String(a.id) === String(customerObj.id));
+    if (idx > -1) {
+        list[idx] = customerObj;
+    } else {
+        list.push(customerObj);
+    }
+    localStorage.setItem('mediradar_saved_accounts', JSON.stringify(list));
+}
+
+function removeProfileFromMultiAccountList(customerId) {
+    let list = getSavedAccountsList().filter(a => String(a.id) !== String(customerId));
+    localStorage.setItem('mediradar_saved_accounts', JSON.stringify(list));
+}
+
+async function switchActiveCustomerProfile(customerId) {
+    const list = getSavedAccountsList();
+    const target = list.find(a => String(a.id) === String(customerId));
+    if (!target) return;
+
+    closeGoogleProfilePopover();
+
+    // Verify account still exists in DB
+    const { data, error } = await supabaseClient
+        .from('customers')
+        .select('*')
+        .eq('id', target.id)
+        .maybeSingle();
+
+    if (error || !data) {
+        removeProfileFromMultiAccountList(target.id);
+        showAccountDeletedRedModal();
+        return;
+    }
+
+    currentCustomer = data;
+    localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+    saveProfileToMultiAccountList(currentCustomer);
+    applyMediRadarTheme(currentCustomer.theme_preference || 'teal', false);
+    updateCustomerHeaderUI();
+    await loadCustomerCartFromSupabase();
+    await fetchMyCustomerOrders(true);
+    showToast("Switched Profile", `Now signed in as ${currentCustomer.full_name}.`);
+
+    // Check if this account has a pending 30-day deletion schedule
+    await checkAndPromptPendingDeletion(currentCustomer);
+}
+
+function startAddAnotherAccountFlow() {
+    closeGoogleProfilePopover();
+    const prevCustomer = currentCustomer;
+    currentCustomer = null; // Temporarily allow guest modal
+    openCustomerAccountModal();
+    currentCustomer = prevCustomer;
+}
+
+// ---------------------------------------------------------
+// HEADER AVATAR & GOOGLE POPOVER LOGIC
+// ---------------------------------------------------------
+function updateCustomerHeaderUI() {
+    const label = document.getElementById('headerAccountLabel');
+    const avatarImg = document.getElementById('headerProfileAvatar');
+    const defaultIcon = document.getElementById('headerDefaultAvatarIcon');
+
+    if (currentCustomer) {
+        label.textContent = currentCustomer.full_name || currentCustomer.email;
+        const avatarUrl = currentCustomer.profile_pic_url || getDefaultAvatarUrl(currentCustomer.full_name || currentCustomer.email);
+        if (avatarImg) {
+            avatarImg.src = avatarUrl;
+            avatarImg.classList.remove('hidden');
+        }
+        if (defaultIcon) defaultIcon.classList.add('hidden');
+        saveProfileToMultiAccountList(currentCustomer);
+    } else {
+        label.textContent = "Sign In / Register";
+        if (avatarImg) avatarImg.classList.add('hidden');
+        if (defaultIcon) defaultIcon.classList.remove('hidden');
+    }
+}
+
+function handleHeaderProfileClick(event) {
+    if (event) event.stopPropagation();
+    if (!currentCustomer) {
+        openCustomerAccountModal();
+        return;
+    }
+    const popover = document.getElementById('googleProfilePopover');
+    if (!popover) return;
+    if (popover.classList.contains('hidden')) {
+        renderGoogleProfilePopover();
+        popover.classList.remove('hidden');
+    } else {
+        popover.classList.add('hidden');
+    }
+}
+
+function closeGoogleProfilePopover() {
+    const popover = document.getElementById('googleProfilePopover');
+    if (popover) popover.classList.add('hidden');
+}
+
+document.addEventListener('click', (e) => {
+    const popover = document.getElementById('googleProfilePopover');
+    const btn = document.getElementById('headerAccountBtn');
+    if (popover && !popover.classList.contains('hidden')) {
+        if (!popover.contains(e.target) && (!btn || !btn.contains(e.target))) {
+            popover.classList.add('hidden');
+        }
+    }
+});
+
+function renderGoogleProfilePopover() {
+    if (!currentCustomer) return;
+    const avatarUrl = currentCustomer.profile_pic_url || getDefaultAvatarUrl(currentCustomer.full_name || currentCustomer.email);
+    document.getElementById('popoverAvatarImg').src = avatarUrl;
+    document.getElementById('popoverUserName').textContent = currentCustomer.full_name || 'Customer';
+    document.getElementById('popoverUserEmail').textContent = currentCustomer.email || '';
+
+    const delBadge = document.getElementById('popoverDeletionWarning');
+    if (delBadge) {
+        if (currentCustomer.deletion_scheduled_at) {
+            const daysLeft = Math.max(1, Math.ceil((new Date(currentCustomer.deletion_scheduled_at) - new Date()) / (1000 * 60 * 60 * 24)));
+            delBadge.innerHTML = `<i class="fa-solid fa-clock mr-1"></i> Deleting in ${daysLeft} day(s)`;
+            delBadge.classList.remove('hidden');
+        } else {
+            delBadge.classList.add('hidden');
+        }
+    }
+
+    const otherListEl = document.getElementById('savedProfilesListContainer');
+    const others = getSavedAccountsList().filter(a => String(a.id) !== String(currentCustomer.id));
+    if (others.length === 0) {
+        otherListEl.innerHTML = `<p class="px-3 py-1.5 text-[11px] text-slate-500">No other profiles saved on this browser.</p>`;
+    } else {
+        otherListEl.innerHTML = others.map(acc => {
+            const pic = acc.profile_pic_url || getDefaultAvatarUrl(acc.full_name || acc.email);
+            return `
+                <button onclick="switchActiveCustomerProfile('${acc.id}')"
+                    class="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-gemdark-800 transition text-left">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <img src="${pic}" class="w-7 h-7 rounded-full object-cover border border-slate-600 flex-shrink-0">
+                        <div class="min-w-0">
+                            <div class="text-xs font-bold text-white truncate">${acc.full_name || 'User'}</div>
+                            <div class="text-[10px] text-slate-400 truncate">${acc.email}</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-arrow-right-arrow-left text-[10px] text-slate-500"></i>
+                </button>
+            `;
+        }).join('');
+    }
+}
+
+function triggerQuickAvatarUpload() {
+    const input = document.getElementById('quickAvatarFileInput');
+    if (input) input.click();
+}
+
+async function handleQuickAvatarFileSelected(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file || !currentCustomer) return;
+
+    showToast("Uploading Photo...", "Optimizing and saving your new profile picture externally...");
+    try {
+        const externalUrl = await uploadImageExternally(file);
+        const { data, error } = await supabaseClient
+            .from('customers')
+            .update({ profile_pic_url: externalUrl })
+            .eq('id', currentCustomer.id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        currentCustomer = data;
+        localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+        updateCustomerHeaderUI();
+        renderGoogleProfilePopover();
+        const centerImg = document.getElementById('settingsCenterAvatarPreview');
+        if (centerImg) centerImg.src = externalUrl;
+        showToast("Profile Photo Updated!", "Your new profile picture is live.");
+    } catch (err) {
+        showToast("Upload Failed", err.message || "Could not update profile photo.");
+    }
+}
+
+// ---------------------------------------------------------
+// RED POPUP NOTIFICATION WHEN ACCOUNT WAS DELETED IN DB
+// ---------------------------------------------------------
+function showAccountDeletedRedModal(customMessage) {
+    const existing = document.getElementById('mr-deleted-account-modal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'mr-deleted-account-modal';
+    overlay.className = 'fixed inset-0 z-[10005] flex items-center justify-center bg-rose-950/80 backdrop-blur-md px-4';
+
+    overlay.innerHTML = `
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border-4 border-rose-600 animate-bounce" style="animation-iteration-count: 1;">
+            <div class="bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 p-6 text-white text-center">
+                <div class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3 text-3xl shadow-inner">
+                    <i class="fa-solid fa-user-xmark"></i>
+                </div>
+                <h3 class="text-2xl font-extrabold tracking-tight">Account Deleted</h3>
+                <p class="text-xs text-rose-100 mt-1">Database Security Alert</p>
+            </div>
+            <div class="p-6 text-center space-y-4">
+                <p class="text-sm text-slate-700 font-medium leading-relaxed">
+                    ${customMessage || 'Your account has been permanently removed from the MediRadar database. You have been signed out of this session.'}
+                </p>
+                <button onclick="document.getElementById('mr-deleted-account-modal').remove()"
+                    class="w-full py-3.5 px-6 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-sm shadow-lg transition">
+                    Understood, Continue as Guest
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+}
+
+// ---------------------------------------------------------
+// 30-DAY DELETION LOGIN PROMPT (ASK EVERY TIME USER LOGS IN)
+// "If he says Keep Account -> cancel deletion schedule. If he says No -> keep schedule active."
+// ---------------------------------------------------------
+function checkAndPromptPendingDeletion(customerObj) {
+    return new Promise((resolve) => {
+        if (!customerObj || !customerObj.deletion_scheduled_at) {
+            resolve();
+            return;
+        }
+
+        const scheduledDate = new Date(customerObj.deletion_scheduled_at);
+        const now = new Date();
+
+        // If 30 days have already passed, delete immediately
+        if (scheduledDate <= now) {
+            supabaseClient.from('customers').delete().eq('id', customerObj.id).then(() => {
+                removeProfileFromMultiAccountList(customerObj.id);
+                logoutCustomer();
+                showAccountDeletedRedModal("Your 30-day account deletion period has completed and your account has been permanently deleted.");
+                resolve();
+            });
+            return;
+        }
+
+        const daysRemaining = Math.max(1, Math.ceil((scheduledDate - now) / (1000 * 60 * 60 * 24)));
+
+        const overlay = document.createElement('div');
+        overlay.id = 'mr-deletion-reminder-modal';
+        overlay.className = 'fixed inset-0 z-[10002] flex items-center justify-center bg-slate-950/75 backdrop-blur-sm px-4';
+
+        overlay.innerHTML = `
+            <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-7 text-center border-t-8 border-amber-500">
+                <div class="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                </div>
+                <h3 class="text-xl font-extrabold text-slate-900 mb-2">Account Scheduled for Deletion</h3>
+                <p class="text-xs sm:text-sm text-slate-600 leading-relaxed mb-6">
+                    Your account is scheduled to be permanently deleted on <strong>${scheduledDate.toLocaleDateString()}</strong> (in <strong>${daysRemaining} days</strong>).<br><br>
+                    Would you like to <strong>keep your account</strong> and cancel the deletion schedule?
+                </p>
+                <div class="flex flex-col sm:flex-row gap-2.5">
+                    <button id="keepDeletionScheduleBtn"
+                        class="flex-1 py-3 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-extrabold transition">
+                        No, Continue Deleting (${daysRemaining}d left)
+                    </button>
+                    <button id="cancelDeletionScheduleBtn"
+                        class="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-md transition">
+                        Yes, Keep My Account!
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        // User chooses YES -> Cancel the deletion schedule in DB
+        document.getElementById('cancelDeletionScheduleBtn').onclick = async () => {
+            overlay.remove();
+            const { data, error } = await supabaseClient
+                .from('customers')
+                .update({ deletion_scheduled_at: null })
+                .eq('id', customerObj.id)
+                .select()
+                .single();
+
+            if (!error && data) {
+                currentCustomer = data;
+                localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+                saveProfileToMultiAccountList(currentCustomer);
+                showToast("Account Restored!", "Your 30-day deletion schedule has been cancelled.");
+            }
+            resolve();
+        };
+
+        // User chooses NO -> Keep deletion scheduled, let them browse, and ask again next login
+        document.getElementById('keepDeletionScheduleBtn').onclick = () => {
+            overlay.remove();
+            showToast("Deletion Remains Scheduled", `Your account remains scheduled for deletion in ${daysRemaining} day(s).`);
+            resolve();
+        };
+    });
+}
+
+// ---------------------------------------------------------
+// GOOGLE-STYLE ACCOUNT SETTINGS CENTER MODAL
+// (Tabs: Profile Details, OTP Password Change, 8 Themes, 30-Day Delete)
+// ---------------------------------------------------------
+function ensureAccountSettingsModalExists() {
+    if (document.getElementById('googleAccountSettingsModal')) return;
+
+    const modal = document.createElement('div');
+    modal.id = 'googleAccountSettingsModal';
+    modal.className = 'fixed inset-0 z-[9998] hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto';
+
+    modal.innerHTML = `
+        <div class="bg-white rounded-3xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8 flex flex-col md:flex-row min-h-[500px]">
+            <!-- Left Navigation Sidebar -->
+            <div class="w-full md:w-64 bg-slate-900 text-white p-5 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-3 pb-5 border-b border-slate-800">
+                        <div class="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center text-white font-bold">
+                            <i class="fa-solid fa-user-shield"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-extrabold">MediRadar Account</h3>
+                            <p class="text-[10px] text-slate-400">Google-Style Control Center</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 space-y-1.5 text-xs">
+                        <button type="button" id="accTabBtn-profile" onclick="switchAccountCenterTab('profile')"
+                            class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold bg-brand-600 text-white transition">
+                            <i class="fa-solid fa-id-card w-4 text-center"></i>
+                            <span>Personal Info & Photo</span>
+                        </button>
+                        <button type="button" id="accTabBtn-security" onclick="switchAccountCenterTab('security')"
+                            class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-slate-300 hover:bg-slate-800 transition">
+                            <i class="fa-solid fa-key w-4 text-center"></i>
+                            <span>Change Password (OTP)</span>
+                        </button>
+                        <button type="button" id="accTabBtn-themes" onclick="switchAccountCenterTab('themes')"
+                            class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-slate-300 hover:bg-slate-800 transition">
+                            <i class="fa-solid fa-palette w-4 text-center"></i>
+                            <span>Color Themes (8)</span>
+                        </button>
+                        <button type="button" id="accTabBtn-danger" onclick="switchAccountCenterTab('danger')"
+                            class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-rose-400 hover:bg-rose-950/50 transition">
+                            <i class="fa-solid fa-trash-can w-4 text-center"></i>
+                            <span>Delete Account (30d)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="button" onclick="closeAccountSettingsCenter()"
+                    class="mt-6 w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 transition">
+                    Close Window
+                </button>
+            </div>
+
+            <!-- Right Content Area -->
+            <div class="flex-1 p-6 sm:p-8 overflow-y-auto max-h-[82vh]">
+                
+                <!-- TAB 1: PERSONAL INFO & PHOTO -->
+                <div id="accTabPane-profile" class="space-y-5">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div>
+                            <h4 class="text-lg font-extrabold text-slate-900">Personal Info & Avatar</h4>
+                            <p class="text-xs text-slate-500">Photos are hosted externally so database storage never fills up</p>
+                        </div>
+                        <button onclick="closeAccountSettingsCenter()" class="text-slate-400 hover:text-slate-700">
+                            <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <img id="settingsCenterAvatarPreview" src="" alt="Avatar" class="w-20 h-20 rounded-full object-cover border-2 border-brand-500 shadow">
+                        <div class="space-y-2 text-center sm:text-left">
+                            <div class="text-xs font-bold text-slate-800">Profile Picture</div>
+                            <div class="flex flex-wrap gap-2 justify-center sm:justify-start">
+                                <button type="button" onclick="triggerQuickAvatarUpload()" class="px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow transition">
+                                    <i class="fa-solid fa-upload mr-1"></i> Upload Photo
+                                </button>
+                                <button type="button" onclick="removeProfilePictureToDefault()" class="px-3.5 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold transition">
+                                    Reset to Default
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form onsubmit="savePersonalInfoFromCenter(event)" class="space-y-3.5">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Full Name *</label>
+                                <input id="centerFullName" type="text" required class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Email (Verified)</label>
+                                <input id="centerEmail" type="email" readonly class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-200 bg-slate-100 text-slate-500">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Phone Number *</label>
+                                <input id="centerPhone" type="tel" required class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Bank Name *</label>
+                                <input id="centerBankName" type="text" required class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Bank Account Number *</label>
+                                <input id="centerBankAcc" type="text" required class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Delivery Address *</label>
+                                <input id="centerAddress" type="text" required class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300">
+                            </div>
+                        </div>
+                        <div class="pt-2 flex justify-end">
+                            <button type="submit" id="centerSaveInfoBtn" class="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-extrabold shadow">
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- TAB 2: OTP-PROTECTED PASSWORD CHANGE -->
+                <div id="accTabPane-security" class="hidden space-y-5">
+                    <div class="border-b border-slate-100 pb-4">
+                        <h4 class="text-lg font-extrabold text-slate-900">Change Account Password</h4>
+                        <p class="text-xs text-slate-500">Requires a 6-digit email OTP verification code before updating your password</p>
+                    </div>
+
+                    <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">New Password *</label>
+                            <input id="secNewPassword" type="password" minlength="4" placeholder="Enter new password"
+                                class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Confirm New Password *</label>
+                            <input id="secConfirmPassword" type="password" minlength="4" placeholder="Re-enter new password"
+                                class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-300 bg-white">
+                        </div>
+
+                        <div id="secOtpStepContainer" class="hidden pt-3 border-t border-slate-200 space-y-3">
+                            <label class="block text-xs font-extrabold text-brand-700">Enter 6-Digit OTP Sent to Your Email *</label>
+                            <input id="secOtpCodeInput" type="text" maxlength="6" placeholder="000000"
+                                class="w-48 text-center tracking-[0.4em] text-xl font-extrabold px-3 py-2 rounded-xl border-2 border-brand-500 bg-white">
+                        </div>
+
+                        <p id="secStatusMsg" class="text-xs font-bold text-rose-600 hidden"></p>
+
+                        <div class="flex flex-wrap gap-2 pt-1">
+                            <button type="button" id="secRequestOtpBtn" onclick="requestPasswordChangeOtp()"
+                                class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-extrabold shadow transition">
+                                <i class="fa-solid fa-paper-plane mr-1"></i> Send Verification OTP to Email
+                            </button>
+                            <button type="button" id="secVerifyAndSavePassBtn" onclick="confirmOtpAndChangePassword()"
+                                class="hidden px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow transition">
+                                <i class="fa-solid fa-check-double mr-1"></i> Verify OTP & Update Password
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: COLOR THEMES -->
+                <div id="accTabPane-themes" class="hidden space-y-5">
+                    <div class="border-b border-slate-100 pb-4">
+                        <h4 class="text-lg font-extrabold text-slate-900">Customize MediRadar Color Theme</h4>
+                        <p class="text-xs text-slate-500">Pick from 8 live themes — automatically syncs to your profile</p>
+                    </div>
+                    <div id="themeSelectorGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+                </div>
+
+                <!-- TAB 4: 30-DAY SCHEDULED ACCOUNT DELETION -->
+                <div id="accTabPane-danger" class="hidden space-y-5">
+                    <div class="border-b border-slate-100 pb-4">
+                        <h4 class="text-lg font-extrabold text-rose-600">Schedule Account Deletion (30-Day Grace Period)</h4>
+                        <p class="text-xs text-slate-500">Just like Google & major platforms, your account is scheduled for deletion 30 days after requesting.</p>
+                    </div>
+
+                    <div id="dangerDeletionBox" class="p-5 rounded-2xl bg-rose-50 border border-rose-200 space-y-4">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function openAccountSettingsCenter(initialTab = 'profile') {
+    closeGoogleProfilePopover();
+    ensureAccountSettingsModalExists();
+
+    if (!currentCustomer && initialTab !== 'themes') {
+        openCustomerAccountModal();
+        return;
+    }
+
+    if (currentCustomer) {
+        const avatarUrl = currentCustomer.profile_pic_url || getDefaultAvatarUrl(currentCustomer.full_name || currentCustomer.email);
+        document.getElementById('settingsCenterAvatarPreview').src = avatarUrl;
+        document.getElementById('centerFullName').value = currentCustomer.full_name || '';
+        document.getElementById('centerEmail').value = currentCustomer.email || '';
+        document.getElementById('centerPhone').value = currentCustomer.phone || '';
+        document.getElementById('centerBankName').value = currentCustomer.bank_name || '';
+        document.getElementById('centerBankAcc').value = currentCustomer.bank_account_no || '';
+        document.getElementById('centerAddress').value = currentCustomer.address || '';
+    }
+
+    renderThemeGridInsideModal();
+    renderDangerDeletionState();
+    switchAccountCenterTab(initialTab);
+    document.getElementById('googleAccountSettingsModal').classList.remove('hidden');
+}
+
+function closeAccountSettingsCenter() {
+    const modal = document.getElementById('googleAccountSettingsModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function switchAccountCenterTab(tabId) {
+    ['profile', 'security', 'themes', 'danger'].forEach(t => {
+        const pane = document.getElementById(`accTabPane-${t}`);
+        const btn = document.getElementById(`accTabBtn-${t}`);
+        if (pane) pane.classList.toggle('hidden', t !== tabId);
+        if (btn) {
+            if (t === tabId) {
+                btn.className = "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold bg-brand-600 text-white transition";
+            } else {
+                btn.className = `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold ${t === 'danger' ? 'text-rose-400 hover:bg-rose-950/50' : 'text-slate-300 hover:bg-slate-800'} transition`;
+            }
+        }
+    });
+}
+
+function renderThemeGridInsideModal() {
+    const grid = document.getElementById('themeSelectorGrid');
+    if (!grid) return;
+    const activeTheme = document.documentElement.getAttribute('data-theme') || 'teal';
+
+    grid.innerHTML = MEDIRADAR_THEMES.map(t => {
+        const isSelected = t.id === activeTheme;
+        return `
+            <button type="button" onclick="applyMediRadarTheme('${t.id}', true)"
+                class="p-3.5 rounded-2xl border-2 ${isSelected ? 'border-slate-900 bg-slate-900 text-white shadow-lg' : 'border-slate-200 bg-white hover:border-slate-300 text-slate-800'} transition flex flex-col items-center gap-2">
+                <div class="w-12 h-12 rounded-2xl shadow-inner flex items-center justify-center text-white font-bold"
+                     style="background: linear-gradient(135deg, ${t.primary}, ${t.secondary});">
+                    ${isSelected ? '<i class="fa-solid fa-check"></i>' : ''}
+                </div>
+                <span class="text-xs font-extrabold">${t.name}</span>
+            </button>
+        `;
+    }).join('');
+}
+
+async function removeProfilePictureToDefault() {
+    if (!currentCustomer) return;
+    const { data, error } = await supabaseClient
+        .from('customers')
+        .update({ profile_pic_url: null })
+        .eq('id', currentCustomer.id)
+        .select()
+        .single();
+
+    if (!error && data) {
+        currentCustomer = data;
+        localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+        updateCustomerHeaderUI();
+        document.getElementById('settingsCenterAvatarPreview').src = getDefaultAvatarUrl(currentCustomer.full_name);
+        showToast("Avatar Reset", "Restored default initials avatar.");
+    }
+}
+
+async function savePersonalInfoFromCenter(event) {
+    event.preventDefault();
+    if (!currentCustomer) return;
+    const btn = document.getElementById('centerSaveInfoBtn');
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+
+    const updates = {
+        full_name: document.getElementById('centerFullName').value.trim(),
+        phone: document.getElementById('centerPhone').value.trim(),
+        bank_name: document.getElementById('centerBankName').value.trim(),
+        bank_account_no: document.getElementById('centerBankAcc').value.trim(),
+        address: document.getElementById('centerAddress').value.trim()
+    };
+
+    const { data, error } = await supabaseClient
+        .from('customers')
+        .update(updates)
+        .eq('id', currentCustomer.id)
+        .select()
+        .single();
+
+    btn.disabled = false;
+    btn.textContent = "Save Changes";
+
+    if (!error && data) {
+        currentCustomer = data;
+        localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+        updateCustomerHeaderUI();
+        showToast("Profile Saved", "Your personal and bank details have been updated.");
+    } else {
+        showToast("Update Error", error ? error.message : "Could not save changes.");
+    }
+}
+
+// ---------------------------------------------------------
+// OTP-VERIFIED PASSWORD CHANGE FUNCTIONS
+// ---------------------------------------------------------
+async function requestPasswordChangeOtp() {
+    if (!currentCustomer) return;
+    const newPass = document.getElementById('secNewPassword').value.trim();
+    const confPass = document.getElementById('secConfirmPassword').value.trim();
+    const msgEl = document.getElementById('secStatusMsg');
+    const reqBtn = document.getElementById('secRequestOtpBtn');
+
+    msgEl.classList.add('hidden');
+    if (newPass.length < 4) {
+        msgEl.textContent = "Password must be at least 4 characters.";
+        msgEl.classList.remove('hidden');
+        return;
+    }
+    if (newPass !== confPass) {
+        msgEl.textContent = "New password and confirmation do not match.";
+        msgEl.classList.remove('hidden');
+        return;
+    }
+
+    reqBtn.disabled = true;
+    reqBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Sending OTP...`;
+
+    try {
+        const { data: res, error } = await supabaseClient.functions.invoke('auth-otp', {
+            body: { action: 'send_otp', email: currentCustomer.email, purpose: 'password_change' }
+        });
+        if (error || !res?.success) throw new Error(res?.error || "Failed to send OTP email.");
+
+        document.getElementById('secOtpStepContainer').classList.remove('hidden');
+        document.getElementById('secVerifyAndSavePassBtn').classList.remove('hidden');
+        reqBtn.innerHTML = `<i class="fa-solid fa-rotate mr-1"></i> Resend OTP`;
+        showToast("OTP Sent!", `Check ${currentCustomer.email} for your 6-digit password reset code.`);
+    } catch (err) {
+        msgEl.textContent = err.message;
+        msgEl.classList.remove('hidden');
+        reqBtn.innerHTML = `<i class="fa-solid fa-paper-plane mr-1"></i> Send Verification OTP to Email`;
+    } finally {
+        reqBtn.disabled = false;
+    }
+}
+
+async function confirmOtpAndChangePassword() {
+    if (!currentCustomer) return;
+    const newPass = document.getElementById('secNewPassword').value.trim();
+    const enteredOtp = document.getElementById('secOtpCodeInput').value.trim();
+    const msgEl = document.getElementById('secStatusMsg');
+    const verifyBtn = document.getElementById('secVerifyAndSavePassBtn');
+
+    if (enteredOtp.length !== 6) {
+        msgEl.textContent = "Please enter the 6-digit OTP code.";
+        msgEl.classList.remove('hidden');
+        return;
+    }
+
+    verifyBtn.disabled = true;
+    verifyBtn.textContent = "Verifying OTP...";
+
+    try {
+        const { data: verifyRes, error: verifyErr } = await supabaseClient.functions.invoke('auth-otp', {
+            body: { action: 'verify_otp', email: currentCustomer.email, otp: enteredOtp }
+        });
+        if (verifyErr || !verifyRes?.success) throw new Error(verifyRes?.error || "Invalid OTP.");
+
+        const encPassword = encryptCustomerPassword(newPass);
+        const { data, error } = await supabaseClient
+            .from('customers')
+            .update({ password: encPassword })
+            .eq('id', currentCustomer.id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        currentCustomer = data;
+        localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+        saveProfileToMultiAccountList(currentCustomer);
+
+        document.getElementById('secNewPassword').value = '';
+        document.getElementById('secConfirmPassword').value = '';
+        document.getElementById('secOtpCodeInput').value = '';
+        document.getElementById('secOtpStepContainer').classList.add('hidden');
+        verifyBtn.classList.add('hidden');
+        msgEl.classList.add('hidden');
+
+        showToast("Password Changed!", "Your password has been securely updated.");
+    } catch (err) {
+        msgEl.textContent = err.message;
+        msgEl.classList.remove('hidden');
+    } finally {
+        verifyBtn.disabled = false;
+        verifyBtn.innerHTML = `<i class="fa-solid fa-check-double mr-1"></i> Verify OTP & Update Password`;
+    }
+}
+
+// ---------------------------------------------------------
+// 30-DAY ACCOUNT DELETION SCHEDULER
+// ---------------------------------------------------------
+function renderDangerDeletionState() {
+    const box = document.getElementById('dangerDeletionBox');
+    if (!box || !currentCustomer) return;
+
+    if (currentCustomer.deletion_scheduled_at) {
+        const delDate = new Date(currentCustomer.deletion_scheduled_at);
+        const daysLeft = Math.max(1, Math.ceil((delDate - new Date()) / (1000 * 60 * 60 * 24)));
+        box.innerHTML = `
+            <div class="flex items-start gap-3">
+                <i class="fa-solid fa-clock text-rose-600 text-xl mt-0.5"></i>
+                <div>
+                    <h5 class="text-sm font-extrabold text-rose-900">Deletion Scheduled in ${daysLeft} Day(s)</h5>
+                    <p class="text-xs text-rose-700 mt-1">
+                        Your account is set to be permanently purged on <strong>${delDate.toLocaleString()}</strong>.
+                    </p>
+                </div>
+            </div>
+            <button type="button" onclick="cancelScheduledAccountDeletion()"
+                class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow transition">
+                <i class="fa-solid fa-rotate-left mr-1"></i> Cancel Deletion & Keep My Account
+            </button>
+        `;
+    } else {
+        box.innerHTML = `
+            <p class="text-xs text-rose-800 leading-relaxed">
+                When you request account deletion, your account enters a <strong>30-day deactivation schedule</strong>. If you log back in during these 30 days, we will ask if you want to keep your account or continue with the deletion schedule.
+            </p>
+            <button type="button" onclick="scheduleThirtyDayAccountDeletion()"
+                class="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold shadow transition">
+                <i class="fa-solid fa-user-clock mr-1"></i> Schedule Account Deletion (30 Days)
+            </button>
+        `;
+    }
+}
+
+async function scheduleThirtyDayAccountDeletion() {
+    if (!currentCustomer) return;
+    const confirmed = await showCustomConfirm(
+        "Schedule 30-Day Deletion?",
+        "Your account will be permanently deleted in 30 days. You can cancel this anytime by logging back in within 30 days.",
+        "Schedule Deletion"
+    );
+    if (!confirmed) return;
+
+    const scheduledIso = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabaseClient
+        .from('customers')
+        .update({ deletion_scheduled_at: scheduledIso })
+        .eq('id', currentCustomer.id)
+        .select()
+        .single();
+
+    if (!error && data) {
+        currentCustomer = data;
+        localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+        saveProfileToMultiAccountList(currentCustomer);
+        renderDangerDeletionState();
+        closeAccountSettingsCenter();
+        logoutCustomer();
+        showToast("Deletion Scheduled (30 Days)", "You have been signed out. Log back in within 30 days if you wish to restore your account.");
+    }
+}
+
+async function cancelScheduledAccountDeletion() {
+    if (!currentCustomer) return;
+    const { data, error } = await supabaseClient
+        .from('customers')
+        .update({ deletion_scheduled_at: null })
+        .eq('id', currentCustomer.id)
+        .select()
+        .single();
+
+    if (!error && data) {
+        currentCustomer = data;
+        localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+        saveProfileToMultiAccountList(currentCustomer);
+        renderDangerDeletionState();
+        showToast("Deletion Cancelled!", "Your account is active and will not be deleted.");
+    }
+}
+
+// ---------------------------------------------------------
+// OVERRIDDEN LOGIN, CHECKOUT (EXTERNAL IMAGE UPLOAD) & STARTUP VERIFICATION
+// ---------------------------------------------------------
+handleCustomerLogin = async function(event) {
+    event.preventDefault();
+    const email = document.getElementById('loginEmailInput').value.trim().toLowerCase();
+    const rawPass = document.getElementById('loginPasswordInput').value.trim();
+    const encPass = encryptCustomerPassword(rawPass);
+
+    try {
+        // Purge any accounts past their 30-day window first
+        await supabaseClient.rpc('purge_expired_customer_deletions').catch(() => {});
+
+        const { data, error } = await supabaseClient
+            .from('customers')
+            .select('*')
+            .eq('email', email)
+            .maybeSingle();
+
+        if (error) throw error;
+
+        if (!data || (data.password !== encPass && data.password !== rawPass)) {
+            showToast("Sign In Failed", "Invalid email or password.");
+            return;
+        }
+
+        if (data.password === rawPass && data.password !== encPass) {
+            await supabaseClient.from('customers').update({ password: encPass }).eq('id', data.id);
+            data.password = encPass;
+        }
+
+        currentCustomer = data;
+        localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+        saveProfileToMultiAccountList(currentCustomer);
+        applyMediRadarTheme(currentCustomer.theme_preference || 'teal', false);
+        updateCustomerHeaderUI();
+        subscribeToCustomerOrderUpdates();
+        await loadCustomerCartFromSupabase();
+        await fetchMyCustomerOrders(true);
+        closeCustomerAccountModal();
+
+        // Prompt user if account is scheduled for 30-day deletion
+        await checkAndPromptPendingDeletion(currentCustomer);
+
+        if (currentCustomer) {
+            showToast("Signed In!", `Welcome back, ${currentCustomer.full_name}.`);
+            if (typeof postAuthCallback === 'function') {
+                const cb = postAuthCallback;
+                postAuthCallback = null;
+                cb();
+            }
+        }
+    } catch (err) {
+        showToast("Login Error", err.message);
+    }
+};
+
+// Override submitPharmacyOrder so Prescriptions & Bank Receipts use External Upload (Zero Supabase Storage!)
+submitPharmacyOrder = async function(event) {
+    event.preventDefault();
+    if (!currentCustomer || checkoutItemsQueue.length === 0) return;
+
+    const custName = document.getElementById('custName').value.trim();
+    const custPhone = document.getElementById('custPhone').value.trim();
+    const custAddress = document.getElementById('custAddress').value.trim();
+    const cardNo = document.getElementById('cardNumberInput').value.replace(/\s+/g, '').trim();
+    const cardExp = document.getElementById('cardExpiryInput').value.trim();
+    const cardCvv = document.getElementById('cardCvvInput').value.trim();
+    const sendingBank = document.getElementById('bankNameSelect').value.trim();
+    const bankRef = document.getElementById('bankRefInput').value.trim();
+    const receiptFileInput = document.getElementById('receipt-upload');
+
+    const submitBtn = document.getElementById('submitOrderBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading Externally & Processing...`;
+
+    try {
+        let uploadedReceiptUrl = null;
+        let uploadedPrescriptionUrl = null;
+
+        const rxSection = document.getElementById('prescriptionUploadSection');
+        const rxFileInput = document.getElementById('prescription-upload');
+        if (rxSection && !rxSection.classList.contains('hidden')) {
+            if (!rxFileInput.files || rxFileInput.files.length === 0) {
+                throw new Error("Please upload a photo of your Doctor's Prescription for the Rx medicine(s).");
+            }
+            uploadedPrescriptionUrl = await uploadImageExternally(rxFileInput.files[0]);
+        }
+
+        if (selectedPaymentMethod === 'CARD') {
+            if (cardNo.length < 12 || !cardExp || cardCvv.length < 3) {
+                throw new Error("Please enter valid temporary Card Number, Expiry Date, and CVV.");
+            }
+        } else {
+            if (!bankRef) throw new Error("Please enter your Bank Transfer Reference / Slip Number.");
+            if (!receiptFileInput.files || receiptFileInput.files.length === 0) {
+                throw new Error("Please upload a screenshot/photo of your bank transfer receipt.");
+            }
+            uploadedReceiptUrl = await uploadImageExternally(receiptFileInput.files[0]);
+        }
+
+        if (document.getElementById('saveChangesToProfileCheckbox').checked) {
+            const { data: profData } = await supabaseClient
+                .from('customers')
+                .update({ full_name: custName, phone: custPhone, address: custAddress })
+                .eq('id', currentCustomer.id)
+                .select()
+                .maybeSingle();
+            if (profData) {
+                currentCustomer = profData;
+                localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+                updateCustomerHeaderUI();
+            }
+        }
+
+        const itemsByPharmacy = {};
+        checkoutItemsQueue.forEach(item => {
+            if (!itemsByPharmacy[item.pharmacy_id]) itemsByPharmacy[item.pharmacy_id] = [];
+            itemsByPharmacy[item.pharmacy_id].push(item);
+        });
+
+        for (const pharmacyId of Object.keys(itemsByPharmacy)) {
+            const pharmItems = itemsByPharmacy[pharmacyId];
+            const medicinesSubtotal = pharmItems.reduce((sum, i) => sum + (i.qty * i.unit_price), 0);
+            const deliveryFeeForOrder = getPharmacyDeliveryFeeForMode(pharmacyId, currentFulfillmentMode);
+            const orderTotal = medicinesSubtotal + deliveryFeeForOrder;
+            const invoiceNo = `MR-${Math.floor(100000 + Math.random() * 900000)}`;
+            const isCard = selectedPaymentMethod === 'CARD';
+
+            const { data: insertedOrder, error: orderErr } = await supabaseClient
+                .from('customer_orders')
+                .insert([{
+                    customer_id: currentCustomer.id,
+                    pharmacy_id: pharmacyId,
+                    invoice_no: invoiceNo,
+                    total_amount: orderTotal,
+                    delivery_fee: deliveryFeeForOrder,
+                    payment_method: isCard ? 'Card' : 'Bank Transaction',
+                    payment_status: isCard ? 'Paid' : 'Pending',
+                    order_status: isCard ? 'Ready for Pickup' : 'Processing',
+                    cashier_approval_status: isCard ? 'Accepted' : 'Pending',
+                    delivery_address: custAddress,
+                    customer_phone: custPhone,
+                    customer_name: custName,
+                    sending_bank: isCard ? 'One-Time Card Payment' : sendingBank,
+                    bank_reference: isCard ? 'CARD-TXN' : bankRef,
+                    receipt_image_url: uploadedReceiptUrl,
+                    fulfillment_type: currentFulfillmentMode,
+                    prescription_image_url: uploadedPrescriptionUrl
+                }])
+                .select()
+                .single();
+
+            if (orderErr) throw orderErr;
+
+            knownOrderStatuses[insertedOrder.id] = insertedOrder.cashier_approval_status;
+
+            const orderItemsPayload = pharmItems.map(i => ({
+                order_id: insertedOrder.id,
+                medicine_id: i.medicine_id || null,
+                grn_stock_id: i.stock_id,
+                medicine_name: i.medicine_name,
+                quantity: i.qty,
+                unit_price: i.unit_price
+            }));
+
+            await supabaseClient.from('customer_order_items').insert(orderItemsPayload);
+        }
+
+        const boughtStockIds = checkoutItemsQueue.map(i => i.stock_id);
+        await supabaseClient
+            .from('customer_cart_items')
+            .delete()
+            .eq('customer_id', currentCustomer.id)
+            .in('grn_stock_id', boughtStockIds);
+
+        clearReceiptUpload();
+        closeCheckoutModal();
+        await fetchLiveSupabaseData();
+        await fetchMyCustomerOrders(true);
+        showToast("Order Submitted!", "Your order and external receipt link have been saved.");
+    } catch (err) {
+        showToast("Checkout Error", err.message || "Could not submit order.");
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>Submit Pharmacy Order</span>`;
+    }
+};
+
+// Verify on every page load if the customer row was deleted from Supabase DB
+window.addEventListener('DOMContentLoaded', async () => {
+    await supabaseClient.rpc('purge_expired_customer_deletions').catch(() => {});
+
+    if (currentCustomer && currentCustomer.id) {
+        const { data, error } = await supabaseClient
+            .from('customers')
+            .select('*')
+            .eq('id', currentCustomer.id)
+            .maybeSingle();
+
+        if (!error && !data) {
+            // Account was deleted from database! Wipe session & trigger Red Alert Modal
+            removeProfileFromMultiAccountList(currentCustomer.id);
+            currentCustomer = null;
+            mediRadarCart = [];
+            myCustomerOrders = [];
+            localStorage.removeItem('mediradar_customer');
+            updateCustomerHeaderUI();
+            updateCartBadges();
+            updateOrdersBadge();
+            showAccountDeletedRedModal();
+            return;
+        } else if (data) {
+            currentCustomer = data;
+            localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+            applyMediRadarTheme(currentCustomer.theme_preference || 'teal', false);
+            updateCustomerHeaderUI();
+            await checkAndPromptPendingDeletion(currentCustomer);
+        }
+    }
+});

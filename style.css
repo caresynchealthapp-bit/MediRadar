@@ -106,3 +106,191 @@ body {
     color: #ffffff;
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
 }
+
+:root,
+[data-theme="teal"] {
+    --brand-50: #f0fdfa;
+    --brand-100: #ccfbf1;
+    --brand-200: #99f6e4;
+    --brand-300: #5eead4;
+    --brand-400: #2dd4bf;
+    --brand-500: #14b8a6;
+    --brand-600: #0d9488;
+    --brand-700: #0f766e;
+    --brand-800: #115e59;
+    --brand-900: #134e4a;
+    --hero-grad-start: #134e4a;
+    --hero-grad-mid: #0f172a;
+}
+
+[data-theme="ocean"] {
+    --brand-50: #eff6ff;
+    --brand-100: #dbeafe;
+    --brand-200: #bfdbfe;
+    --brand-300: #93c5fd;
+    --brand-400: #60a5fa;
+    --brand-500: #3b82f6;
+    --brand-600: #2563eb;
+    --brand-700: #1d4ed8;
+    --brand-800: #1e40af;
+    --brand-900: #1e3a8a;
+    --hero-grad-start: #1e3a8a;
+    --hero-grad-mid: #0f172a;
+}
+
+[data-theme="violet"] {
+    --brand-50: #f5f3ff;
+    --brand-100: #ede9fe;
+    --brand-200: #ddd6fe;
+    --brand-300: #c4b5fd;
+    --brand-400: #a78bfa;
+    --brand-500: #8b5cf6;
+    --brand-600: #7c3aed;
+    --brand-700: #6d28d9;
+    --brand-800: #5b21b6;
+    --brand-900: #4c1d95;
+    --hero-grad-start: #4c1d95;
+    --hero-grad-mid: #0f172a;
+}
+
+[data-theme="rose"] {
+    --brand-50: #fff1f2;
+    --brand-100: #ffe4e6;
+    --brand-200: #fecdd3;
+    --brand-300: #fda4af;
+    --brand-400: #fb7185;
+    --brand-500: #f43f5e;
+    --brand-600: #e11d48;
+    --brand-700: #be123c;
+    --brand-800: #9f1239;
+    --brand-900: #881337;
+    --hero-grad-start: #881337;
+    --hero-grad-mid: #0f172a;
+}
+
+[data-theme="emerald"] {
+    --brand-50: #ecfdf5;
+    --brand-100: #d1fae5;
+    --brand-200: #a7f3d0;
+    --brand-300: #6ee7b7;
+    --brand-400: #34d399;
+    --brand-500: #10b981;
+    --brand-600: #059669;
+    --brand-700: #047857;
+    --brand-800: #065f46;
+    --brand-900: #064e3b;
+    --hero-grad-start: #064e3b;
+    --hero-grad-mid: #0f172a;
+}
+
+[data-theme="amber"] {
+    --brand-50: #fffbeb;
+    --brand-100: #fef3c7;
+    --brand-200: #fde68a;
+    --brand-300: #fcd34d;
+    --brand-400: #fbbf24;
+    --brand-500: #f59e0b;
+    --brand-600: #d97706;
+    --brand-700: #b45309;
+    --brand-800: #92400e;
+    --brand-900: #78350f;
+    --hero-grad-start: #78350f;
+    --hero-grad-mid: #0f172a;
+}
+
+[data-theme="indigo"] {
+    --brand-50: #eef2ff;
+    --brand-100: #e0e7ff;
+    --brand-200: #c7d2fe;
+    --brand-300: #a5b4fc;
+    --brand-400: #818cf8;
+    --brand-500: #6366f1;
+    --brand-600: #4f46e5;
+    --brand-700: #4338ca;
+    --brand-800: #3730a3;
+    --brand-900: #312e81;
+    --hero-grad-start: #312e81;
+    --hero-grad-mid: #0f172a;
+}
+
+[data-theme="cyber"] {
+    --brand-50: #ecfeff;
+    --brand-100: #cffafe;
+    --brand-200: #a5f3fc;
+    --brand-300: #67e8f9;
+    --brand-400: #22d3ee;
+    --brand-500: #06b6d4;
+    --brand-600: #0891b2;
+    --brand-700: #0e7490;
+    --brand-800: #155e75;
+    --brand-900: #164e63;
+    --hero-grad-start: #164e63;
+    --hero-grad-mid: #090d16;
+}
+
+/* Dynamic Hero & Header Theme Surfaces */
+.theme-hero-surface {
+    background: radial-gradient(circle at 80% 20%, color-mix(in srgb, var(--brand-500) 22%, transparent), transparent 45%),
+                linear-gradient(135deg, var(--hero-grad-start) 0%, var(--hero-grad-mid) 100%) !important;
+}
+
+.theme-header-surface {
+    background: linear-gradient(90deg, #0f172a 0%, var(--hero-grad-start) 50%, #0f172a 100%) !important;
+}
+
+/* Sidebar Collapse Transitions */
+#geminiSidebar {
+    transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar-expanded {
+    width: 280px;
+}
+.sidebar-collapsed {
+    width: 0px;
+    overflow: hidden;
+    border-right: none;
+}
+
+/* Enhanced Card Hover & Glassmorphism */
+.card-hover {
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 30px -10px rgba(15, 23, 42, 0.12), 0 0 0 1px var(--brand-400);
+}
+
+/* Search Mode Toggle Pills */
+.mr-search-mode-toggle {
+    display: inline-flex;
+    background: rgba(15, 23, 42, 0.65);
+    padding: 4px;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(8px);
+}
+.mr-mode-btn {
+    padding: 7px 18px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #cbd5e1;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.mr-mode-btn.active {
+    background: var(--brand-600);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+@keyframes pulseRing {
+    0% { transform: scale(0.95); opacity: 0.9; }
+    70% { transform: scale(1.6); opacity: 0; }
+    100% { transform: scale(0.95); opacity: 0; }
+}
+.gps-pulse {
+    animation: pulseRing 2s infinite;
+}
