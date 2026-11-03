@@ -2105,32 +2105,66 @@ function toggleSidebar() {
             });
         }, 2800);
 
-        window.addEventListener('DOMContentLoaded', () => {
-            // Start with sidebar collapsed on phones/tablets (<1024px) so the main screen is 100% visible
-            if (window.innerWidth < 1024) {
-                sidebarOpen = false;
-                const sidebar = document.getElementById('geminiSidebar');
-                sidebar.classList.remove('sidebar-expanded');
-                sidebar.classList.add('sidebar-collapsed');
-            }
+window.addEventListener('DOMContentLoaded', async () => {
+    // Start with sidebar collapsed on phones/tablets (<1024px) so the main screen is 100% visible
+    if (window.innerWidth < 1024) {
+        sidebarOpen = false;
+        const sidebar = document.getElementById('geminiSidebar');
+        sidebar.classList.remove('sidebar-expanded');
+        sidebar.classList.add('sidebar-collapsed');
+    }
 
-            syncSidebarToggleButtonVisibility();
+    // Sync header toggle button initial state
+    syncSidebarToggleButtonVisibility();
 
+    // 1. Purge any accounts past their 30-day window first
+    const { error: purgeErr } = await supabaseClient.rpc('purge_expired_customer_deletions');
+    if (purgeErr) console.warn("Purge check failed:", purgeErr.message);
+
+    // 2. Verify current user still exists in the database
+    if (currentCustomer && currentCustomer.id) {
+        const { data, error } = await supabaseClient
+            .from('customers')
+            .select('*')
+            .eq('id', currentCustomer.id)
+            .maybeSingle();
+
+        if (!error && !data) {
+            // Account was deleted from database! Wipe session & trigger Red Alert Modal
+            removeProfileFromMultiAccountList(currentCustomer.id);
+            currentCustomer = null;
+            mediRadarCart = [];
+            myCustomerOrders = [];
+            localStorage.removeItem('mediradar_customer');
             updateCustomerHeaderUI();
             updateCartBadges();
-            renderCategorySidebar();
-            fetchLiveSupabaseData();
-            if (currentCustomer) {
-                subscribeToCustomerOrderUpdates();
-            }
+            if (typeof updateOrdersBadge === 'function') updateOrdersBadge();
+            showAccountDeletedRedModal();
+            return; // Stop execution here so it doesn't load phantom data
+        } else if (data) {
+            currentCustomer = data;
+            localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+            applyMediRadarTheme(currentCustomer.theme_preference || 'teal', false);
+            await checkAndPromptPendingDeletion(currentCustomer);
+        }
+    }
 
-            // Show welcome/profile update modal if redirected after auth
-            const pendingMessage = sessionStorage.getItem('pendingToastMessage');
-            if (pendingMessage) {
-                showCenteredWelcomeModal(pendingMessage);
-                sessionStorage.removeItem('pendingToastMessage');
-            }
-        });
+    // 3. Proceed with normal UI load if account is valid
+    updateCustomerHeaderUI();
+    updateCartBadges();
+    renderCategorySidebar();
+    fetchLiveSupabaseData();
+    if (currentCustomer) {
+        subscribeToCustomerOrderUpdates();
+    }
+
+    // 4. Show welcome/profile update modal if redirected after auth
+    const pendingMessage = sessionStorage.getItem('pendingToastMessage');
+    if (pendingMessage) {
+        showCenteredWelcomeModal(pendingMessage);
+        sessionStorage.removeItem('pendingToastMessage');
+    }
+});
 
 // ---------------------------------------------------------
 // 10. HERO SEARCH ENGINE TOGGLE (MEDICINES VS PHARMACIES)
