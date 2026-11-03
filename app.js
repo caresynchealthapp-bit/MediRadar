@@ -1361,23 +1361,40 @@ let isCheckingOutFromCart = false;
         // ---------------------------------------------------------
         // 9. SIDEBAR, AGGREGATION & TILE RENDERING
         // ---------------------------------------------------------
-        function toggleSidebar() {
-            const sidebar = document.getElementById('geminiSidebar');
-            const backdrop = document.getElementById('mobileSidebarBackdrop');
-            sidebarOpen = !sidebarOpen;
-            if (sidebarOpen) {
-                sidebar.classList.remove('sidebar-collapsed');
-                sidebar.classList.add('sidebar-expanded');
-                if (backdrop) backdrop.classList.remove('hidden');
-            } else {
-                sidebar.classList.remove('sidebar-expanded');
-                sidebar.classList.add('sidebar-collapsed');
-                if (backdrop) backdrop.classList.add('hidden');
-            }
-            
-            // --> ADD THIS LINE <--
-            syncSidebarToggleButtonVisibility();
+function toggleSidebar() {
+    const sidebar = document.getElementById('geminiSidebar');
+    const backdrop = document.getElementById('mobileSidebarBackdrop');
+    const headerBtn = document.getElementById('headerSidebarToggleBtn');
+    const divider = document.getElementById('headerSidebarDivider'); 
+
+    sidebarOpen = !sidebarOpen;
+    
+    if (sidebarOpen) {
+        // 1. Show Sidebar
+        sidebar.classList.remove('sidebar-collapsed');
+        sidebar.classList.add('sidebar-expanded');
+        if (backdrop) backdrop.classList.remove('hidden');
+        
+        // 2. Hide Header Button & Divider
+        if (headerBtn) headerBtn.classList.add('hidden');
+        if (divider) { 
+            divider.classList.remove('sm:block'); 
+            divider.classList.add('hidden'); 
         }
+    } else {
+        // 1. Hide Sidebar
+        sidebar.classList.remove('sidebar-expanded');
+        sidebar.classList.add('sidebar-collapsed');
+        if (backdrop) backdrop.classList.add('hidden');
+        
+        // 2. Show Header Button & Divider
+        if (headerBtn) headerBtn.classList.remove('hidden');
+        if (divider) { 
+            divider.classList.remove('hidden'); 
+            divider.classList.add('sm:block'); 
+        }
+    }
+}
 
         function syncSidebarToggleButtonVisibility() {
             const headerBtn = document.getElementById('headerSidebarToggleBtn');
@@ -2098,7 +2115,7 @@ let isCheckingOutFromCart = false;
             }
 
             syncSidebarToggleButtonVisibility();
-            
+
             updateCustomerHeaderUI();
             updateCartBadges();
             renderCategorySidebar();
