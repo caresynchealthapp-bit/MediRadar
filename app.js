@@ -1182,49 +1182,57 @@ let isCheckingOutFromCart = false;
                         ${order.rejection_reason ? `<div class="text-[10px] text-rose-600 mt-1">Reason: ${order.rejection_reason}</div>` : ''}
                     `;
                 } else {
-                    // Calculate Progress Step (1: Sent, 2: Verified, 3: Ready/Delivery)
-                    let step = 1;
-                    if (approval === 'Accepted') step = 2;
-                    if (order.order_status === 'Ready for Pickup' || order.order_status === 'Out for Delivery' || order.order_status === 'Completed') step = 3;
+                // Calculate Progress Step
+                let step = 1;
+                if (approval === 'Accepted') step = 2;
+                if (order.order_status === 'Ready for Pickup' || order.order_status === 'Out for Delivery' || order.order_status === 'Completed') step = 3;
 
-                    const stepWidth = step === 1 ? '33%' : step === 2 ? '66%' : '100%';
-                    const stepColor = step === 3 ? 'bg-emerald-500' : 'bg-brand-500';
+                const stepWidth = step === 1 ? '33%' : step === 2 ? '66%' : '100%';
+                const stepColor = step === 3 ? 'bg-emerald-500' : 'bg-brand-500';
 
-                    statusBadge = `
-                        <div class="space-y-2.5 min-w-[140px]">
-                            <!-- Progress Stepper -->
-                            <div>
-                                <div class="flex justify-between items-center text-[9px] font-extrabold uppercase tracking-wider mb-1">
-                                    <span class="${step >= 1 ? 'text-slate-800' : 'text-slate-400'}">Sent</span>
-                                    <span class="${step >= 2 ? 'text-slate-800' : 'text-slate-400'}">Verified</span>
-                                    <span class="${step >= 3 ? 'text-emerald-700' : 'text-slate-400'}">Ready</span>
-                                </div>
-                                <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                                    <div class="h-full ${stepColor} transition-all duration-500" style="width: ${stepWidth}"></div>
-                                </div>
+                // Dynamically determine the text for Step 3 based on fulfillment type
+                let finalStepText = 'Ready'; // Default fallback
+                if (order.fulfillment_type === 'PICKUP') {
+                    finalStepText = 'Ready for Pickup';
+                } else if (order.fulfillment_type === 'NORMAL_DELIVERY' || order.fulfillment_type === 'SAMEDAY_DELIVERY') {
+                    finalStepText = 'Handed to Delivery';
+                }
+
+                statusBadge = `
+                    <div class="space-y-2.5 min-w-[140px]">
+                        <!-- Progress Stepper -->
+                        <div>
+                            <div class="flex justify-between items-center text-[9px] font-extrabold uppercase tracking-wider mb-1">
+                                <span class="${step >= 1 ? 'text-slate-800' : 'text-slate-400'}">Sent</span>
+                                <span class="${step >= 2 ? 'text-slate-800' : 'text-slate-400'}">Verified</span>
+                                <span class="${step >= 3 ? 'text-emerald-700' : 'text-slate-400'}">${finalStepText}</span>
                             </div>
-
-                            <!-- Action Buttons Grid -->
-                            <div class="grid grid-cols-2 gap-1.5">
-                                ${step === 1 ? `
-                                    <button type="button" onclick="cancelPendingOrder('${order.id}')"
-                                        class="text-[10px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-1.5 rounded-lg transition text-center">
-                                        Cancel
-                                    </button>
-                                ` : `
-                                    <button type="button" onclick="printOfficialOrderInvoice('${order.id}')"
-                                        class="text-[10px] font-bold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2 py-1.5 rounded-lg transition text-center">
-                                        Invoice
-                                    </button>
-                                `}
-                                <button type="button" onclick="reorderPastOrder('${order.id}')"
-                                    class="text-[10px] font-bold text-white bg-slate-800 hover:bg-slate-900 px-2 py-1.5 rounded-lg transition text-center shadow-sm">
-                                    <i class="fa-solid fa-rotate mr-1"></i>Re-Order
-                                </button>
+                            <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                <div class="h-full ${stepColor} transition-all duration-500" style="width: ${stepWidth}"></div>
                             </div>
                         </div>
-                    `;
-                }
+
+                        <!-- Action Buttons Grid -->
+                        <div class="grid grid-cols-2 gap-1.5">
+                            ${step === 1 ? `
+                                <button type="button" onclick="cancelPendingOrder('${order.id}')"
+                                    class="text-[10px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-1.5 rounded-lg transition text-center">
+                                    Cancel
+                                </button>
+                            ` : `
+                                <button type="button" onclick="printOfficialOrderInvoice('${order.id}')"
+                                    class="text-[10px] font-bold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2 py-1.5 rounded-lg transition text-center">
+                                    Invoice
+                                </button>
+                            `}
+                            <button type="button" onclick="reorderPastOrder('${order.id}')"
+                                class="text-[10px] font-bold text-white bg-slate-800 hover:bg-slate-900 px-2 py-1.5 rounded-lg transition text-center shadow-sm">
+                                <i class="fa-solid fa-rotate mr-1"></i>Re-Order
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
                 const slipLink = order.receipt_image_url
                     ? `<a href="${order.receipt_image_url}" target="_blank" class="text-brand-600 font-bold hover:underline block mt-0.5"><i class="fa-solid fa-image mr-1"></i>View Uploaded Slip</a>`
                     : '';
