@@ -1374,6 +1374,18 @@ let isCheckingOutFromCart = false;
                 sidebar.classList.add('sidebar-collapsed');
                 if (backdrop) backdrop.classList.add('hidden');
             }
+            
+            // --> ADD THIS LINE <--
+            syncSidebarToggleButtonVisibility();
+        }
+
+        function syncSidebarToggleButtonVisibility() {
+            const headerBtn = document.getElementById('headerSidebarToggleBtn');
+            const divider = document.getElementById('headerSidebarDivider');
+            
+            // Hide the top header button & divider if the sidebar is currently open
+            if (headerBtn) headerBtn.classList.toggle('hidden', sidebarOpen);
+            if (divider) divider.classList.toggle('sm:block', !sidebarOpen);
         }
 
         function focusSearchBar() {
@@ -2084,6 +2096,9 @@ let isCheckingOutFromCart = false;
                 sidebar.classList.remove('sidebar-expanded');
                 sidebar.classList.add('sidebar-collapsed');
             }
+
+            syncSidebarToggleButtonVisibility();
+            
             updateCustomerHeaderUI();
             updateCartBadges();
             renderCategorySidebar();
