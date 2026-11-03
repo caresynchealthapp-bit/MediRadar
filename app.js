@@ -1361,40 +1361,48 @@ let isCheckingOutFromCart = false;
         // ---------------------------------------------------------
         // 9. SIDEBAR, AGGREGATION & TILE RENDERING
         // ---------------------------------------------------------
-function toggleSidebar() {
+window.toggleSidebar = function() {
     const sidebar = document.getElementById('geminiSidebar');
     const backdrop = document.getElementById('mobileSidebarBackdrop');
     const headerBtn = document.getElementById('headerSidebarToggleBtn');
-    const divider = document.getElementById('headerSidebarDivider'); 
-
-    sidebarOpen = !sidebarOpen;
+    const divider = document.getElementById('headerSidebarDivider');
     
-    if (sidebarOpen) {
-        // 1. Show Sidebar
+    // Check if the sidebar is currently closed
+    const isClosed = sidebar.classList.contains('sidebar-collapsed') || sidebar.style.width === '0px';
+
+    if (isClosed) {
+        // 1. FORCE THE SIDEBAR OPEN (Bypasses broken CSS)
         sidebar.classList.remove('sidebar-collapsed');
         sidebar.classList.add('sidebar-expanded');
+        sidebar.style.width = '280px';
+        sidebar.style.borderRightWidth = '1px';
+        
         if (backdrop) backdrop.classList.remove('hidden');
         
-        // 2. Hide Header Button & Divider
-        if (headerBtn) headerBtn.classList.add('hidden');
-        if (divider) { 
-            divider.classList.remove('sm:block'); 
-            divider.classList.add('hidden'); 
+        // 2. HIDE THE HEADER BUTTON
+        if (headerBtn) {
+            headerBtn.classList.add('hidden');
+            headerBtn.style.display = 'none';
         }
+        if (divider) divider.style.display = 'none';
+        
     } else {
-        // 1. Hide Sidebar
+        // 1. FORCE THE SIDEBAR CLOSED
         sidebar.classList.remove('sidebar-expanded');
         sidebar.classList.add('sidebar-collapsed');
+        sidebar.style.width = '0px';
+        sidebar.style.borderRightWidth = '0px';
+        
         if (backdrop) backdrop.classList.add('hidden');
         
-        // 2. Show Header Button & Divider
-        if (headerBtn) headerBtn.classList.remove('hidden');
-        if (divider) { 
-            divider.classList.remove('hidden'); 
-            divider.classList.add('sm:block'); 
+        // 2. SHOW THE HEADER BUTTON
+        if (headerBtn) {
+            headerBtn.classList.remove('hidden');
+            headerBtn.style.display = 'flex';
         }
+        if (divider) divider.style.display = 'block';
     }
-}
+};
 
         function syncSidebarToggleButtonVisibility() {
             const headerBtn = document.getElementById('headerSidebarToggleBtn');
