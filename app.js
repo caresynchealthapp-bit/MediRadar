@@ -404,6 +404,35 @@ let currentSearchMode = 'medicines';
             }
         }
 
+        async function setCartItemQty(index, value) {
+            const item = mediRadarCart[index];
+            if (!item) return;
+
+            let nextQty = parseInt(value, 10);
+            if (isNaN(nextQty) || nextQty < 1) nextQty = 1;
+            
+            if (nextQty > item.max_stock) {
+                showToast("Max Stock", `Only ${item.max_stock} units available.`);
+                nextQty = item.max_stock;
+            }
+
+            item.qty = nextQty;
+            updateCartBadges();
+            renderCartModalItems();
+
+            if (currentCustomer) {
+                try {
+                    await supabaseClient
+                        .from('customer_cart_items')
+                        .update({ quantity: nextQty })
+                        .eq('customer_id', currentCustomer.id)
+                        .eq('grn_stock_id', item.stock_id);
+                } catch (e) {
+                    console.warn("Cart qty DB update error:", e);
+                }
+            }
+        }
+
         async function clearEntireCart() {
             mediRadarCart = [];
             updateCartBadges();
@@ -469,7 +498,7 @@ let currentSearchMode = 'medicines';
                         <div class="flex items-center justify-between sm:justify-end gap-3">
                             <div class="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-xl">
                                 <button type="button" onclick="updateCartQty(${index}, -1)" class="w-6 h-6 rounded-lg bg-white font-bold text-slate-700 shadow-sm">-</button>
-                                <span class="w-8 text-center text-xs font-extrabold">${item.qty}</span>
+                                <input type="number" min="1" max="${item.max_stock}" value="${item.qty}" onchange="setCartItemQty(${index}, this.value)" class="w-10 text-center text-xs font-extrabold bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded p-0 m-0 [-moz-appearance:_textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none">
                                 <button type="button" onclick="updateCartQty(${index}, 1)" class="w-6 h-6 rounded-lg bg-white font-bold text-slate-700 shadow-sm">+</button>
                             </div>
 
@@ -794,7 +823,7 @@ let isCheckingOutFromCart = false;
                         <div class="flex items-center gap-3">
                             <div class="flex items-center gap-1 bg-slate-100 px-1.5 py-1 rounded-lg">
                                 <button type="button" onclick="updateCheckoutItemQty(${index}, -1)" class="w-6 h-6 rounded-md bg-white font-bold text-slate-700 shadow-sm leading-none flex items-center justify-center">-</button>
-                                <span class="w-6 text-center text-xs font-extrabold">${item.qty}</span>
+                                <input type="number" min="1" max="${item.max_stock}" value="${item.qty}" onchange="setCheckoutItemQty(${index}, this.value)" class="w-10 text-center text-xs font-extrabold bg-transparent border-none focus:outline-none focus:ring-1 focus:ring-brand-500 rounded p-0 m-0 [-moz-appearance:_textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none">
                                 <button type="button" onclick="updateCheckoutItemQty(${index}, 1)" class="w-6 h-6 rounded-md bg-white font-bold text-slate-700 shadow-sm leading-none flex items-center justify-center">+</button>
                             </div>
                             <span class="font-bold text-slate-900 w-16 text-right">Rs. ${line.toFixed(2)}</span>
@@ -884,6 +913,36 @@ let isCheckingOutFromCart = false;
             if (nextQty > item.max_stock) {
                 showToast("Max Stock", `Only ${item.max_stock} units available.`);
                 return;
+            }
+
+            item.qty = nextQty;
+            
+            if (isCheckingOutFromCart && currentCustomer) {
+                updateCartBadges();
+                renderCartModalItems();
+                await supabaseClient
+                    .from('customer_cart_items')
+                    .update({ quantity: nextQty })
+                    .eq('customer_id', currentCustomer.id)
+                    .eq('grn_stock_id', item.stock_id);
+            }
+            
+            renderCheckoutSummary();
+        }
+
+        async function setCheckoutItemQty(index, value) {
+            const item = checkoutItemsQueue[index];
+            if (!item) return;
+
+            let nextQty = parseInt(value, 10);
+            
+            // Prevent negative numbers, zero, or empty inputs
+            if (isNaN(nextQty) || nextQty < 1) nextQty = 1;
+            
+            // Prevent exceeding available stock
+            if (nextQty > item.max_stock) {
+                showToast("Max Stock", `Only ${item.max_stock} units available.`);
+                nextQty = item.max_stock;
             }
 
             item.qty = nextQty;
@@ -1116,33 +1175,56 @@ let isCheckingOutFromCart = false;
 
                 const approval = order.cashier_approval_status || 'Pending';
                 let statusBadge = '';
-                if (approval === 'Accepted') {
-                    statusBadge = `
-                        <div class="space-y-1.5">
-                            <span class="inline-block px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                <i class="fa-solid fa-circle-check mr-1"></i>Accepted (${order.payment_status})
-                            </span>
-                            <button type="button" onclick="printOfficialOrderInvoice('${order.id}')"
-                                class="block text-[11px] font-bold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2.5 py-1 rounded-lg transition">
-                                <i class="fa-solid fa-print mr-1"></i>Print Invoice
-                            </button>
-                        </div>`;
-                } else if (approval === 'Rejected' || approval === 'Cancelled') {
-                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-circle-xmark mr-1"></i>${approval}</span>
-                                   ${order.rejection_reason ? `<div class="text-[10px] text-rose-600 mt-1">Reason: ${order.rejection_reason}</div>` : ''}`;
-                } else {
-                    statusBadge = `
-                        <div class="space-y-1.5">
-                            <span class="inline-block px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
-                                <i class="fa-solid fa-clock mr-1"></i>Pending Cashier Review
-                            </span>
-                            <button type="button" onclick="cancelPendingOrder('${order.id}')"
-                                class="block text-[11px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1 rounded-lg transition">
-                                <i class="fa-solid fa-ban mr-1"></i>Cancel Order
-                            </button>
-                        </div>`;
-                }
 
+                if (approval === 'Rejected' || approval === 'Cancelled') {
+                    statusBadge = `
+                        <span class="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300"><i class="fa-solid fa-circle-xmark mr-1"></i>${approval}</span>
+                        ${order.rejection_reason ? `<div class="text-[10px] text-rose-600 mt-1">Reason: ${order.rejection_reason}</div>` : ''}
+                    `;
+                } else {
+                    // Calculate Progress Step (1: Sent, 2: Verified, 3: Ready/Delivery)
+                    let step = 1;
+                    if (approval === 'Accepted') step = 2;
+                    if (order.order_status === 'Ready for Pickup' || order.order_status === 'Out for Delivery' || order.order_status === 'Completed') step = 3;
+
+                    const stepWidth = step === 1 ? '33%' : step === 2 ? '66%' : '100%';
+                    const stepColor = step === 3 ? 'bg-emerald-500' : 'bg-brand-500';
+
+                    statusBadge = `
+                        <div class="space-y-2.5 min-w-[140px]">
+                            <!-- Progress Stepper -->
+                            <div>
+                                <div class="flex justify-between items-center text-[9px] font-extrabold uppercase tracking-wider mb-1">
+                                    <span class="${step >= 1 ? 'text-slate-800' : 'text-slate-400'}">Sent</span>
+                                    <span class="${step >= 2 ? 'text-slate-800' : 'text-slate-400'}">Verified</span>
+                                    <span class="${step >= 3 ? 'text-emerald-700' : 'text-slate-400'}">Ready</span>
+                                </div>
+                                <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                    <div class="h-full ${stepColor} transition-all duration-500" style="width: ${stepWidth}"></div>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons Grid -->
+                            <div class="grid grid-cols-2 gap-1.5">
+                                ${step === 1 ? `
+                                    <button type="button" onclick="cancelPendingOrder('${order.id}')"
+                                        class="text-[10px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-1.5 rounded-lg transition text-center">
+                                        Cancel
+                                    </button>
+                                ` : `
+                                    <button type="button" onclick="printOfficialOrderInvoice('${order.id}')"
+                                        class="text-[10px] font-bold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2 py-1.5 rounded-lg transition text-center">
+                                        Invoice
+                                    </button>
+                                `}
+                                <button type="button" onclick="reorderPastOrder('${order.id}')"
+                                    class="text-[10px] font-bold text-white bg-slate-800 hover:bg-slate-900 px-2 py-1.5 rounded-lg transition text-center shadow-sm">
+                                    <i class="fa-solid fa-rotate mr-1"></i>Re-Order
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
                 const slipLink = order.receipt_image_url
                     ? `<a href="${order.receipt_image_url}" target="_blank" class="text-brand-600 font-bold hover:underline block mt-0.5"><i class="fa-solid fa-image mr-1"></i>View Uploaded Slip</a>`
                     : '';
@@ -4152,4 +4234,38 @@ function openImageLightbox(imgSrc, medName) {
         if (e.target === lightbox) lightbox.remove();
     };
     document.body.appendChild(lightbox);
+}
+
+async function reorderPastOrder(orderId) {
+    if (!currentCustomer) return;
+    
+    const order = myCustomerOrders.find(o => String(o.id) === String(orderId));
+    if (!order || !order.customer_order_items || order.customer_order_items.length === 0) {
+        showToast("Re-Order Failed", "Could not load items from this past order.");
+        return;
+    }
+
+    let addedCount = 0;
+    
+    for (const item of order.customer_order_items) {
+        // Re-fetch current live stock for this item to ensure it still exists and is in stock
+        const stockRow = grnStockTable.find(s => String(s.id) === String(item.grn_stock_id));
+        
+        if (stockRow && Number(stockRow.current_quantity) > 0) {
+            // Limit the reorder quantity to whatever is currently available in the pharmacy
+            const qtyToAdd = Math.min(item.quantity, Number(stockRow.current_quantity));
+            
+            // Bypass the UI popup by calling addToCart directly in silent mode
+            await addToCart(item.grn_stock_id, qtyToAdd, false);
+            addedCount++;
+        }
+    }
+
+    if (addedCount > 0) {
+        closeOrdersModal();
+        openCartModal();
+        showToast("Re-Order Successful", `Added ${addedCount} available item(s) from your past order to your cart.`);
+    } else {
+        showToast("Items Out of Stock", "The medicines from this past order are currently out of stock at that pharmacy.");
+    }
 }
