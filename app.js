@@ -1404,14 +1404,6 @@ window.toggleSidebar = function() {
     }
 };
 
-        function syncSidebarToggleButtonVisibility() {
-            const headerBtn = document.getElementById('headerSidebarToggleBtn');
-            const divider = document.getElementById('headerSidebarDivider');
-            
-            // Hide the top header button & divider if the sidebar is currently open
-            if (headerBtn) headerBtn.classList.toggle('hidden', sidebarOpen);
-            if (divider) divider.classList.toggle('sm:block', !sidebarOpen);
-        }
 
         function focusSearchBar() {
             switchView('home');
@@ -4047,9 +4039,36 @@ document.addEventListener('click', (e) => {
 function syncSidebarToggleButtonVisibility() {
     const headerBtn = document.getElementById('headerSidebarToggleBtn');
     const divider = document.getElementById('headerSidebarDivider');
-    if (headerBtn) headerBtn.classList.toggle('hidden', sidebarOpen);
-    if (divider) divider.classList.toggle('sm:block', !sidebarOpen);
+    if (headerBtn) {
+        headerBtn.classList.toggle('hidden', sidebarOpen);
+        headerBtn.style.display = sidebarOpen ? 'none' : 'flex';
+    }
+    if (divider) {
+        divider.classList.toggle('hidden', sidebarOpen);
+        divider.style.display = sidebarOpen ? 'none' : '';
+    }
 }
+
+window.toggleSidebar = function() {
+    const sidebar = document.getElementById('geminiSidebar');
+    const backdrop = document.getElementById('mobileSidebarBackdrop');
+    if (!sidebar) return;
+
+    sidebarOpen = !sidebarOpen;
+
+    if (sidebarOpen) {
+        sidebar.classList.remove('sidebar-collapsed');
+        sidebar.classList.add('sidebar-expanded');
+        sidebar.style.width = '280px';
+        if (backdrop) backdrop.classList.remove('hidden');
+    } else {
+        sidebar.classList.remove('sidebar-expanded');
+        sidebar.classList.add('sidebar-collapsed');
+        sidebar.style.width = '0px';
+        if (backdrop) backdrop.classList.add('hidden');
+    }
+    syncSidebarToggleButtonVisibility();
+};
 
 function syncCompactSearch(val) {
     const mainInput = document.getElementById('searchInput');
