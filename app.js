@@ -1601,6 +1601,11 @@ window.toggleSidebar = function() {
         function applyFiltersAndRender() {
             const searchVal = (document.getElementById('searchInput').value || '').trim().toLowerCase();
             const sortVal = document.getElementById('sortFilter').value;
+            const sortSelect = document.getElementById('sortFilter');
+            const activeSortLabel = document.getElementById('activeSortLabel');
+            if (sortSelect && activeSortLabel && sortSelect.selectedIndex >= 0) {
+                activeSortLabel.textContent = sortSelect.options[sortSelect.selectedIndex].text;
+            }
             const cityVal = document.getElementById('cityFilter').value;
             const supplierVal = document.getElementById('supplierFilter').value;
             const maxPriceVal = parseFloat(document.getElementById('priceFilter').value || 25000);
@@ -1675,6 +1680,8 @@ window.toggleSidebar = function() {
             if (filteredMedicines.length === 0) {
                 grid.innerHTML = '';
                 emptyState.classList.remove('hidden');
+                const pageBar = document.getElementById('medicinePaginationControls');
+                if (pageBar) pageBar.innerHTML = '';
                 return;
             }
 
@@ -1704,15 +1711,16 @@ window.toggleSidebar = function() {
                        </span>`;
 
                 // Build single photo or auto-looping multi-photo banner
-                const photoBannerHtml = photos.length > 0 ? `
-                    <div class="relative w-full h-44 bg-slate-100 border-b border-slate-100 overflow-hidden group"
-                         data-med-carousel="${photos.length > 1 ? 'true' : 'false'}"
-                         data-active-index="0"
-                         data-total-slides="${photos.length}">
+            const photoBannerHtml = photos.length > 0 ? `
+                <div class="relative w-full h-44 bg-slate-100 border-b border-slate-100 overflow-hidden group"
+                    data-med-carousel="${photos.length > 1 ? 'true' : 'false'}"
+                    data-active-index="0"
+                    data-total-slides="${photos.length}">
                         ${photos.map((imgUrl, imgIdx) => `
                             <img src="${imgUrl}" alt="${item.name}"
-                                 data-carousel-slide="${imgIdx}"
-                                 class="w-full h-full object-contain p-2 bg-white transition-opacity duration-700 absolute inset-0 ${imgIdx === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0'}">
+                                data-carousel-slide="${imgIdx}"
+                                onclick="openImageLightbox(this.src, '${item.name.replace(/'/g, "\\'")}')"
+                                class="cursor-zoom-in w-full h-full object-contain p-2 bg-white transition-opacity duration-700 absolute inset-0 ${imgIdx === 0 ? 'opacity-100 z-10' : 'opacity-0 z-0'}">
                         `).join('')}
                         ${photos.length > 1 ? `
                             <div class="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-slate-900/60 backdrop-blur-sm px-2.5 py-1 rounded-full">
@@ -1794,16 +1802,20 @@ window.toggleSidebar = function() {
                                 </div>
                             </div>
 
-                            <div class="flex gap-2">
-                                <button onclick="addToCart('${closestStockId}', 1, false)" title="Quick Add Closest Pharmacy Stock to Cart"
+                            <div class="flex gap-2 items-center">
+                                <input id="cardQty_${closestStockId}" type="number" min="1" max="${item.totalStock}" value="1" title="Quantity"
+                                    class="w-14 py-2.5 text-center text-xs font-extrabold rounded-xl border border-slate-300 bg-slate-50 focus:border-brand-500 focus:outline-none">
+                                
+                                <button onclick="addToCart('${closestStockId}', parseInt(document.getElementById('cardQty_${closestStockId}').value || 1, 10), false)" title="Quick Add Closest Pharmacy Stock to Cart"
                                     class="px-3.5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs transition flex items-center justify-center gap-1.5">
                                     <i class="fa-solid fa-cart-plus"></i>
                                     <span>Add</span>
                                 </button>
+                                
                                 <button onclick="openNearestPharmaciesModal('${encodeURIComponent(item.key)}')"
-                                    class="flex-1 bg-gradient-to-r from-brand-600 to-teal-700 hover:from-brand-500 hover:to-teal-600 text-white font-bold text-xs py-2.5 px-3 rounded-xl shadow-md transition flex items-center justify-center gap-1.5">
+                                    class="flex-1 bg-gradient-to-r from-brand-600 to-teal-700 hover:from-brand-500 hover:to-teal-600 text-white font-bold text-xs py-2.5 px-2.5 rounded-xl shadow-md transition flex items-center justify-center gap-1.5">
                                     <i class="fa-solid fa-map-location-dot"></i>
-                                    <span>Nearest 5 Pharmacies & Buy</span>
+                                    <span>Nearest 5 & Buy</span>
                                 </button>
                             </div>
                         </div>
@@ -2615,7 +2627,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!currentCustomer) {
                 closeGlobalScannerModal();
-                if (typeof openCustomerAuthModal === 'function') openCustomerAuthModal('SIGNIN');
+                openCustomerAccountModal(); switchAuthTab('LOGIN');
                 showToast("Sign In Required", "Please sign in to auto-fill your cart.");
                 return;
             }
@@ -3848,6 +3860,26 @@ submitPharmacyOrder = async function(event) {
             }));
 
             await supabaseClient.from('customer_order_items').insert(orderItemsPayload);
+            if (isCard) {
+                for (const item of pharmItems) {
+                    const stockRow = grnStockTable.find(s => String(s.id) === String(item.stock_id));
+                    const newQty = stockRow ? Math.max(0, Number(stockRow.current_quantity) - item.qty) : 0;
+                    if (stockRow) stockRow.current_quantity = newQty;
+                    await supabaseClient.from('grn_stock').update({ current_quantity: newQty }).eq('id', item.stock_id);
+                    await supabaseClient.from('sales_transactions').insert([{
+                        pharmacy_id: pharmacyId,
+                        invoice_no: invoiceNo,
+                        counter_name: 'MediRadar Online (Card)',
+                        cashier_username: `${custName} (${custPhone})`,
+                        medicine_name: item.medicine_name,
+                        quantity_sold: item.qty,
+                        unit_cost: item.unit_cost,
+                        unit_price: item.unit_price,
+                        total_amount: item.qty * item.unit_price,
+                        profit_amount: item.qty * (item.unit_price - item.unit_cost)
+                    }]);
+                }
+            }
         }
 
         const boughtStockIds = checkoutItemsQueue.map(i => i.stock_id);
@@ -3869,40 +3901,6 @@ submitPharmacyOrder = async function(event) {
         submitBtn.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>Submit Pharmacy Order</span>`;
     }
 };
-
-// Verify on every page load if the customer row was deleted from Supabase DB
-window.addEventListener('DOMContentLoaded', async () => {
-    const { error: purgeErr } = await supabaseClient.rpc('purge_expired_customer_deletions');
-    if (purgeErr) console.warn("Purge check failed:", purgeErr.message);
-
-    if (currentCustomer && currentCustomer.id) {
-        const { data, error } = await supabaseClient
-            .from('customers')
-            .select('*')
-            .eq('id', currentCustomer.id)
-            .maybeSingle();
-
-        if (!error && !data) {
-            // Account was deleted from database! Wipe session & trigger Red Alert Modal
-            removeProfileFromMultiAccountList(currentCustomer.id);
-            currentCustomer = null;
-            mediRadarCart = [];
-            myCustomerOrders = [];
-            localStorage.removeItem('mediradar_customer');
-            updateCustomerHeaderUI();
-            updateCartBadges();
-            updateOrdersBadge();
-            showAccountDeletedRedModal();
-            return;
-        } else if (data) {
-            currentCustomer = data;
-            localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
-            applyMediRadarTheme(currentCustomer.theme_preference || 'teal', false);
-            updateCustomerHeaderUI();
-            await checkAndPromptPendingDeletion(currentCustomer);
-        }
-    }
-});
 
 const MAX_IMGBB_BYTES = 32 * 1024 * 1024; // 32 MB limit
 
@@ -4130,3 +4128,28 @@ function renderPaginationBar(totalPages, totalItems) {
     bar.innerHTML = html;
 }
 
+function openImageLightbox(imgSrc, medName) {
+    const existing = document.getElementById('mr-image-lightbox');
+    if (existing) existing.remove();
+
+    const lightbox = document.createElement('div');
+    lightbox.id = 'mr-image-lightbox';
+    lightbox.className = 'fixed inset-0 z-[10010] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-fadeIn';
+    lightbox.innerHTML = `
+        <div class="relative max-w-3xl w-full bg-gemdark-900 rounded-3xl p-6 border border-slate-700 shadow-2xl text-center space-y-4">
+            <button type="button" onclick="document.getElementById('mr-image-lightbox').remove()"
+                class="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-800 text-slate-300 hover:text-white flex items-center justify-center transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-base font-extrabold text-white truncate px-8">${medName}</h3>
+            <div class="bg-white rounded-2xl p-4 max-h-[65vh] flex items-center justify-center overflow-hidden">
+                <img src="${imgSrc}" alt="${medName}" class="max-h-[60vh] object-contain">
+            </div>
+            <p class="text-xs text-slate-400">Click anywhere outside or the close icon to exit.</p>
+        </div>
+    `;
+    lightbox.onclick = (e) => {
+        if (e.target === lightbox) lightbox.remove();
+    };
+    document.body.appendChild(lightbox);
+}

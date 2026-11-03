@@ -517,6 +517,16 @@
             </div>
         </div>
 
+        <div id="activePharmacyFilterBanner" class="hidden mb-4 p-3.5 rounded-2xl bg-teal-900 text-white flex items-center justify-between shadow-md">
+            <div class="text-xs sm:text-sm font-bold flex items-center gap-2">
+                <i class="fa-solid fa-store text-brand-300"></i>
+                <span>Showing stock exclusively from: <strong id="activePharmacyFilterName" class="text-brand-300"></strong></span>
+            </div>
+            <button onclick="selectedPharmacyIdFilter='ALL'; applyFiltersAndRender();" class="px-3 py-1 rounded-xl bg-white/15 hover:bg-white/25 text-xs font-extrabold transition">
+                <i class="fa-solid fa-xmark mr-1"></i> Show All Pharmacies
+            </button>
+        </div>
+
         <!-- Medicine Tiles Grid -->
         <div id="medicineTilesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             <!-- Populated dynamically via JS -->
