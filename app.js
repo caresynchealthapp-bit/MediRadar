@@ -3661,7 +3661,8 @@ handleCustomerLogin = async function(event) {
 
     try {
         // Purge any accounts past their 30-day window first
-        await supabaseClient.rpc('purge_expired_customer_deletions').catch(() => {});
+        const { error: purgeErr } = await supabaseClient.rpc('purge_expired_customer_deletions');
+        if (purgeErr) console.warn("Purge check failed:", purgeErr.message);
 
         const { data, error } = await supabaseClient
             .from('customers')
@@ -3841,7 +3842,8 @@ submitPharmacyOrder = async function(event) {
 
 // Verify on every page load if the customer row was deleted from Supabase DB
 window.addEventListener('DOMContentLoaded', async () => {
-    await supabaseClient.rpc('purge_expired_customer_deletions').catch(() => {});
+    const { error: purgeErr } = await supabaseClient.rpc('purge_expired_customer_deletions');
+    if (purgeErr) console.warn("Purge check failed:", purgeErr.message);
 
     if (currentCustomer && currentCustomer.id) {
         const { data, error } = await supabaseClient

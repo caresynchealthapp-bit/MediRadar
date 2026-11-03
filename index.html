@@ -229,13 +229,6 @@
 
 <!-- Right Corner of Line 2: Customer Profile Avatar, Theme Button & Google-Style Popover -->
             <div class="flex items-center gap-2 ml-auto relative">
-                <!-- Quick Theme Switcher Button -->
-                <button onclick="openAccountSettingsCenter('themes')" title="Change Color Theme"
-                    class="h-9 px-3 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-brand-300 border border-slate-700 text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
-                    <i class="fa-solid fa-palette"></i>
-                    <span class="hidden sm:inline">Theme</span>
-                </button>
-
                 <!-- Main Profile Pill (Opens Chrome-Style Dropdown if Signed In, or Auth Modal if Guest) -->
                 <button onclick="handleHeaderProfileClick(event)" id="headerAccountBtn" title="Account & Profile Menu"
                     class="h-9 flex items-center space-x-2.5 pl-1.5 pr-3.5 rounded-full bg-slate-800/90 hover:bg-slate-700 text-white border border-slate-600/80 text-xs font-bold transition shadow-md">
