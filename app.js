@@ -2757,7 +2757,7 @@ function getDefaultAvatarUrl(nameOrEmail) {
 }
 
 // Compress image client-side so uploads are fast and lightweight
-function compressImageFileToBase64(file, maxWidth = 900, quality = 0.82) {
+function compressImageFileToBase64(file, maxWidth = 2000, quality = 0.92) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
