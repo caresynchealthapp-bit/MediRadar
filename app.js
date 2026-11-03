@@ -18,6 +18,8 @@ let currentSearchMode = 'medicines';
             { id: 'Inhaler / Drops', label: 'Inhaler / Drops', icon: 'fa-lungs' }
         ];
 
+        const rxRegex = /antibiotic|amoxicillin|azithromycin|ciprofloxacin|metformin|losartan|atorvastatin|omeprazole|salbutamol|inhaler|injection|vial|insulin|steroid|prednisolone|schedule/i;
+
         // ---------------------------------------------------------
         // 2. GLOBAL STATE, PASSWORD ENCRYPTION & IN-MEMORY LOCATION
         // ---------------------------------------------------------
@@ -1564,6 +1566,9 @@ let isCheckingOutFromCart = false;
             showToast("Filtering by Pharmacy", `Showing available medicines in ${pharmacyName}. Click 'Reset All Filters' to see all pharmacies.`);
         }
 
+        let currentMedicinePage = 1;
+        const MEDICINES_PER_PAGE = 24;
+
         function applyFiltersAndRender() {
             const searchVal = (document.getElementById('searchInput').value || '').trim().toLowerCase();
             const sortVal = document.getElementById('sortFilter').value;
@@ -1646,10 +1651,16 @@ let isCheckingOutFromCart = false;
 
             emptyState.classList.add('hidden');
 
-            grid.innerHTML = filteredMedicines.map((item, displayIdx) => {
+        const totalPages = Math.max(1, Math.ceil(filteredMedicines.length / MEDICINES_PER_PAGE));
+        if (currentMedicinePage > totalPages) currentMedicinePage = 1;
+        const startIdx = (currentMedicinePage - 1) * MEDICINES_PER_PAGE;
+        const paginatedMedicines = filteredMedicines.slice(startIdx, startIdx + MEDICINES_PER_PAGE);
+        renderPaginationBar(totalPages, filteredMedicines.length);
+
+            grid.innerHTML = paginatedMedicines.map((item, displayIdx) => {
                 const nearest5Count = Math.min(5, item.filteredPharmacyStocks.length);
                 const iconClass = getCategoryIcon(item.category);
-                const rankNumber = sortVal === 'popular_asc' ? item.popularityRank : (displayIdx + 1);
+                const rankNumber = sortVal === 'popular_asc' ? item.popularityRank : (startIdx + displayIdx + 1);
                 const isTopThreePopular = item.popularityRank <= 3;
                 const closestStockId = item.filteredPharmacyStocks[0].id;
                 const photos = Array.isArray(item.images) ? item.images : [];
@@ -2165,6 +2176,14 @@ function filterPharmaciesDirectory(query) {
     }
 }
 
+function finalizeCustomerAuth(customerData, successMessage) {
+    currentCustomer = customerData;
+    localStorage.setItem('mediradar_customer', JSON.stringify(customerData));
+    saveProfileToMultiAccountList(customerData);
+    sessionStorage.setItem('pendingToastMessage', successMessage);
+    closeCustomerAccountModal();
+    window.location.reload();
+}
 
 window.closeWelcomeModal = function() {
     const overlay = document.getElementById('mr-welcome-overlay');
@@ -2784,34 +2803,6 @@ function compressImageFileToBase64(file, maxWidth = 900, quality = 0.82) {
     });
 }
 
-// Upload ANY image (Profile Pic, Bank Receipt, Prescription) externally without using Supabase Storage
-async function uploadImageExternally(file) {
-    const dataUrl = await compressImageFileToBase64(file, 1500, 0.95);
-    const base64Payload = dataUrl.split(',')[1];
-
-    // If ImgBB API key is configured, upload to external CDN and return public link
-    if (EXTERNAL_IMGBB_API_KEY && EXTERNAL_IMGBB_API_KEY.trim() !== '') {
-        try {
-            const formData = new FormData();
-            formData.append('key', EXTERNAL_IMGBB_API_KEY.trim());
-            formData.append('image', base64Payload);
-
-            const res = await fetch('https://api.imgbb.com/1/upload', {
-                method: 'POST',
-                body: formData
-            });
-            const json = await res.json();
-            if (json && json.success && json.data && json.data.url) {
-                return json.data.url;
-            }
-        } catch (err) {
-            console.warn("External ImgBB upload failed, using compressed direct URL fallback:", err);
-        }
-    }
-    // Automatic zero-bucket fallback: stores compressed image string directly in the URL column
-    return dataUrl;
-}
-
 // ---------------------------------------------------------
 // THEME ENGINE
 // ---------------------------------------------------------
@@ -3012,33 +3003,6 @@ function renderGoogleProfilePopover() {
 function triggerQuickAvatarUpload() {
     const input = document.getElementById('quickAvatarFileInput');
     if (input) input.click();
-}
-
-async function handleQuickAvatarFileSelected(event) {
-    const file = event.target.files && event.target.files[0];
-    if (!file || !currentCustomer) return;
-
-    showToast("Uploading Photo...", "Optimizing and saving your new profile picture externally...");
-    try {
-        const externalUrl = await uploadImageExternally(file);
-        const { data, error } = await supabaseClient
-            .from('customers')
-            .update({ profile_pic_url: externalUrl })
-            .eq('id', currentCustomer.id)
-            .select()
-            .single();
-
-        if (error) throw error;
-        currentCustomer = data;
-        localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
-        updateCustomerHeaderUI();
-        renderGoogleProfilePopover();
-        const centerImg = document.getElementById('settingsCenterAvatarPreview');
-        if (centerImg) centerImg.src = externalUrl;
-        showToast("Profile Photo Updated!", "Your new profile picture is live.");
-    } catch (err) {
-        showToast("Upload Failed", err.message || "Could not update profile photo.");
-    }
 }
 
 // ---------------------------------------------------------
@@ -3737,7 +3701,7 @@ submitPharmacyOrder = async function(event) {
             if (!rxFileInput.files || rxFileInput.files.length === 0) {
                 throw new Error("Please upload a photo of your Doctor's Prescription for the Rx medicine(s).");
             }
-            uploadedPrescriptionUrl = await uploadImageExternally(rxFileInput.files[0]);
+            uploadedPrescriptionUrl = await uploadImageExternally(rxFileInput.files[0], true);
         }
 
         if (selectedPaymentMethod === 'CARD') {
@@ -3749,7 +3713,7 @@ submitPharmacyOrder = async function(event) {
             if (!receiptFileInput.files || receiptFileInput.files.length === 0) {
                 throw new Error("Please upload a screenshot/photo of your bank transfer receipt.");
             }
-            uploadedReceiptUrl = await uploadImageExternally(receiptFileInput.files[0]);
+            uploadedReceiptUrl = await uploadImageExternally(receiptFileInput.files[0], true);
         }
 
         if (document.getElementById('saveChangesToProfileCheckbox').checked) {
@@ -3873,3 +3837,203 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
+
+const MAX_IMGBB_BYTES = 32 * 1024 * 1024; // 32 MB limit
+
+function validateFileSize32MB(file) {
+    if (file.size > MAX_IMGBB_BYTES) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+        showToast("File Too Large (Max 32MB)", `Your file is ${sizeMB} MB. Please choose an image under 32 MB.`);
+        return false;
+    }
+    return true;
+}
+
+async function uploadImageExternally(fileOrBlob, isTemporary24h = false) {
+    if (fileOrBlob.size && !validateFileSize32MB(fileOrBlob)) {
+        throw new Error("Image exceeds the 32 MB maximum upload limit.");
+    }
+
+    // Convert Blob/File directly to base64 without lossy downscaling if it's already cropped or under 4MB
+    const toBase64 = (blob) => new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = rej;
+        r.readAsDataURL(blob);
+    });
+
+    const dataUrl = (fileOrBlob.size && fileOrBlob.size < 4 * 1024 * 1024)
+        ? await toBase64(fileOrBlob)
+        : await compressImageFileToBase64(fileOrBlob, 2048, 0.98);
+
+    const base64Payload = dataUrl.split(',')[1];
+
+    if (EXTERNAL_IMGBB_API_KEY && EXTERNAL_IMGBB_API_KEY.trim() !== '') {
+        const formData = new FormData();
+        formData.append('key', EXTERNAL_IMGBB_API_KEY.trim());
+        formData.append('image', base64Payload);
+        if (isTemporary24h) formData.append('expiration', '86400');
+
+        const res = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
+        const json = await res.json();
+        if (json?.success && json?.data?.url) return json.data.url;
+    }
+    return dataUrl;
+}
+
+let activeCropper = null;
+function handleQuickAvatarFileSelected(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file || !currentCustomer) return;
+    if (!validateFileSize32MB(file)) { event.target.value = ''; return; }
+
+    const reader = new FileReader();
+    reader.onload = (e) => openAvatarCropModal(e.target.result);
+    reader.readAsDataURL(file);
+    event.target.value = '';
+}
+
+function openAvatarCropModal(imageSrc) {
+    const existing = document.getElementById('mr-cropper-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'mr-cropper-modal';
+    modal.className = 'fixed inset-0 z-[10005] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-3xl max-w-md w-full p-5 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between">
+                <h4 class="text-base font-extrabold text-slate-900">Crop HD Profile Picture</h4>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">Max 32 MB</span>
+            </div>
+            <div class="w-full h-72 bg-slate-900 rounded-2xl overflow-hidden">
+                <img id="cropperTargetImg" src="${imageSrc}" class="max-w-full block">
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="document.getElementById('mr-cropper-modal').remove()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Cancel</button>
+                <button type="button" id="confirmCropUploadBtn" class="px-5 py-2 rounded-xl bg-brand-600 text-white text-xs font-extrabold shadow">Save HD Photo</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    const imgEl = document.getElementById('cropperTargetImg');
+    activeCropper = new Cropper(imgEl, { aspectRatio: 1, viewMode: 1, autoCropArea: 1 });
+
+    document.getElementById('confirmCropUploadBtn').onclick = async function() {
+        this.disabled = true;
+        this.textContent = "Uploading HD...";
+        const canvas = activeCropper.getCroppedCanvas({ width: 800, height: 800, imageSmoothingQuality: 'high' });
+        canvas.toBlob(async (blob) => {
+            try {
+                const externalUrl = await uploadImageExternally(blob, false);
+                const { data, error } = await supabaseClient.from('customers').update({ profile_pic_url: externalUrl }).eq('id', currentCustomer.id).select().single();
+                if (error) throw error;
+                currentCustomer = data;
+                localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+                updateCustomerHeaderUI();
+                renderGoogleProfilePopover();
+                const centerImg = document.getElementById('settingsCenterAvatarPreview');
+                if (centerImg) centerImg.src = externalUrl;
+                showToast("HD Profile Photo Saved!", "Crystal-clear avatar uploaded.");
+            } catch (err) {
+                showToast("Upload Error", err.message);
+            } finally {
+                modal.remove();
+            }
+        }, 'image/png', 1.0);
+    };
+}
+
+function toggleStandaloneThemePopover(event) {
+    if (event) event.stopPropagation();
+    closeGoogleProfilePopover();
+    const pop = document.getElementById('standaloneThemePopover');
+    if (!pop) return;
+    const activeTheme = document.documentElement.getAttribute('data-theme') || 'teal';
+    const grid = document.getElementById('standaloneThemeGrid');
+    grid.innerHTML = MEDIRADAR_THEMES.map(t => `
+        <button type="button" onclick="applyMediRadarTheme('${t.id}', true); document.getElementById('standaloneThemePopover').classList.add('hidden');"
+            class="p-2 rounded-xl border ${t.id === activeTheme ? 'border-brand-400 bg-gemdark-700' : 'border-slate-700/80 bg-gemdark-800 hover:bg-gemdark-700'} flex items-center gap-2 text-left transition">
+            <span class="w-5 h-5 rounded-full flex-shrink-0 border border-white/20" style="background: linear-gradient(135deg, ${t.primary}, ${t.secondary});"></span>
+            <span class="text-[11px] font-bold truncate">${t.name.replace('MediRadar ', '')}</span>
+        </button>
+    `).join('');
+    pop.classList.toggle('hidden');
+}
+
+document.addEventListener('click', (e) => {
+    const pop = document.getElementById('standaloneThemePopover');
+    const btn = document.getElementById('externalThemeBtn');
+    if (pop && !pop.classList.contains('hidden') && !pop.contains(e.target) && (!btn || !btn.contains(e.target))) {
+        pop.classList.add('hidden');
+    }
+});
+
+function syncSidebarToggleButtonVisibility() {
+    const headerBtn = document.getElementById('headerSidebarToggleBtn');
+    const divider = document.getElementById('headerSidebarDivider');
+    if (headerBtn) headerBtn.classList.toggle('hidden', sidebarOpen);
+    if (divider) divider.classList.toggle('sm:block', !sidebarOpen);
+}
+
+function syncCompactSearch(val) {
+    const mainInput = document.getElementById('searchInput');
+    if (mainInput) {
+        mainInput.value = val;
+        handleUnifiedHeroSearch();
+    }
+}
+
+window.addEventListener('scroll', () => {
+    const currentY = window.scrollY;
+    const header = document.getElementById('mainStickyHeader');
+    const compactBar = document.getElementById('compactStickySearchBar');
+    if (!header || !compactBar) return;
+
+    // After scrolling 220px down, smoothly slide header up and show compact search bar
+    if (currentY > 220) {
+        header.style.transform = 'translateY(-100%)';
+        compactBar.classList.remove('-translate-y-full');
+        const mainVal = document.getElementById('searchInput')?.value || '';
+        const compInput = document.getElementById('compactSearchInput');
+        if (compInput && document.activeElement !== compInput) compInput.value = mainVal;
+    } else {
+        header.style.transform = 'translateY(0)';
+        compactBar.classList.add('-translate-y-full');
+    }
+}, { passive: true });
+
+function goToMedicinePage(pageNum) {
+    currentMedicinePage = pageNum;
+    applyFiltersAndRender();
+    document.getElementById('medicinesMainContainer')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderPaginationBar(totalPages, totalItems) {
+    const bar = document.getElementById('medicinePaginationControls');
+    if (!bar) return;
+    if (totalPages <= 1) { bar.innerHTML = ''; return; }
+
+    let html = `
+        <button onclick="goToMedicinePage(${Math.max(1, currentMedicinePage - 1)})" ${currentMedicinePage === 1 ? 'disabled' : ''}
+            class="px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 disabled:opacity-40 hover:bg-brand-50 transition">
+            <i class="fa-solid fa-chevron-left mr-1"></i> Prev
+        </button>`;
+
+    for (let p = 1; p <= totalPages; p++) {
+        html += `
+            <button onclick="goToMedicinePage(${p})"
+                class="w-9 h-9 rounded-xl text-xs font-extrabold transition ${p === currentMedicinePage ? 'bg-brand-600 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'}">
+                ${p}
+            </button>`;
+    }
+
+    html += `
+        <button onclick="goToMedicinePage(${Math.min(totalPages, currentMedicinePage + 1)})" ${currentMedicinePage === totalPages ? 'disabled' : ''}
+            class="px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 disabled:opacity-40 hover:bg-brand-50 transition">
+            Next <i class="fa-solid fa-chevron-right ml-1"></i>
+        </button>`;
+    bar.innerHTML = html;
+}
+

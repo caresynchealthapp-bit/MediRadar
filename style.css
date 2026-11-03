@@ -16,18 +16,7 @@ body {
         #geminiSidebar {
             transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        /* Desktop: pushes content cleanly */
-        @media (min-width: 1024px) {
-            .sidebar-expanded {
-                width: 280px;
-                transform: translateX(0);
-            }
-            .sidebar-collapsed {
-                width: 0px;
-                overflow: hidden;
-                border-right-width: 0px;
-            }
-        }
+
         /* Mobile & Tablet (<1024px): fixed slide-over drawer so it never squishes the page! */
         @media (max-width: 1023px) {
             #geminiSidebar {
@@ -238,10 +227,6 @@ body {
     background: linear-gradient(90deg, #0f172a 0%, var(--hero-grad-start) 50%, #0f172a 100%) !important;
 }
 
-/* Sidebar Collapse Transitions */
-#geminiSidebar {
-    transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-}
 .sidebar-expanded {
     width: 280px;
 }
@@ -293,4 +278,30 @@ body {
 }
 .gps-pulse {
     animation: pulseRing 2s infinite;
+}
+
+#headerProfileAvatar, #popoverAvatarImg, #settingsCenterAvatarPreview {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+}
+
+@media (max-width: 640px) {
+    #googleProfilePopover {
+        position: fixed !important;
+        top: 64px !important;
+        left: 12px !important;
+        right: 12px !important;
+        width: auto !important;
+        max-height: 82vh;
+        overflow-y: auto;
+    }
+    #standaloneThemePopover {
+        position: fixed !important;
+        top: 64px !important;
+        left: 16px !important;
+        right: 16px !important;
+        width: auto !important;
+    }
 }

@@ -50,6 +50,8 @@
  <!-- Tesseract.js for Client-Side OCR Prescription Scanning -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 <link rel="stylesheet" href="style.css">
 
 </head>
@@ -141,7 +143,7 @@
     <div class="flex-1 flex flex-col min-w-0 min-h-screen">
 
 <!-- Sticky Eye-Catching Header -->
-<header class="theme-header-surface sticky top-0 z-30 bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white shadow-xl border-b border-teal-800/60 backdrop-blur-md">
+<header class="theme-header-surface sticky top-0 z-30 bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white shadow-xl border-b border-teal-800/60 backdrop-blur-md" id="mainStickyHeader" transition-transform duration-300>
     <div class="w-full max-w-[1600px] mx-auto px-4 sm:px-6 py-3 space-y-2.5">
         
         <!-- Line 1: Left Logo & Right Navigation Pill -->
@@ -149,8 +151,9 @@
             
             <!-- Left: Sidebar Toggle Button & MediRadar Logo -->
             <div class="flex items-center space-x-3.5">
-                <button id="headerSidebarToggleBtn" onclick="toggleSidebar()" title="Extend or Hide Categories Menu"
+                <button id="headerSidebarToggleBtn" id=" onclick="toggleSidebar()" title="Extend or Hide Categories Menu"
                     class="w-10 h-10 rounded-xl bg-teal-800/50 hover:bg-teal-700/70 text-teal-200 border border-teal-700/60 flex items-center justify-center transition shadow-sm focus:outline-none">
+                    <div id="headerSidebarDivider" class="h-6 w-px bg-teal-800/60 hidden sm:block"></div>
                     <i class="fa-solid fa-table-columns text-base"></i>
                 </button>
                 
@@ -229,6 +232,22 @@
 
 <!-- Right Corner of Line 2: Customer Profile Avatar, Theme Button & Google-Style Popover -->
             <div class="flex items-center gap-2 ml-auto relative">
+                <!-- Standalone External Theme Palette Button (Works for Guests & Logged-in Users) -->
+                    <div class="relative">
+                        <button type="button" onclick="toggleStandaloneThemePopover(event)" id="externalThemeBtn" title="Change Color Theme"
+                            class="h-9 px-3 rounded-full bg-slate-800/90 hover:bg-slate-700 text-brand-300 border border-slate-600/80 text-xs font-bold transition flex items-center gap-1.5 shadow-md">
+                            <i class="fa-solid fa-palette"></i>
+                            <span class="hidden sm:inline">Theme</span>
+                        </button>
+
+                        <!-- Standalone Theme-Only Popover (Never shows account tabs) -->
+                        <div id="standaloneThemePopover" class="hidden absolute right-0 top-12 w-64 bg-gemdark-900 text-white p-4 rounded-3xl shadow-2xl border border-slate-700 z-50">
+                            <div class="text-xs font-extrabold text-slate-200 mb-3 flex items-center justify-between">
+                                <span><i class="fa-solid fa-palette text-brand-400 mr-1.5"></i>Choose Color Theme</span>
+                            </div>
+                            <div id="standaloneThemeGrid" class="grid grid-cols-2 gap-2"></div>
+                        </div>
+                    </div>
                 <!-- Main Profile Pill (Opens Chrome-Style Dropdown if Signed In, or Auth Modal if Guest) -->
                 <button onclick="handleHeaderProfileClick(event)" id="headerAccountBtn" title="Account & Profile Menu"
                     class="h-9 flex items-center space-x-2.5 pl-1.5 pr-3.5 rounded-full bg-slate-800/90 hover:bg-slate-700 text-white border border-slate-600/80 text-xs font-bold transition shadow-md">
@@ -257,7 +276,7 @@
                             </div>
                         </div>
                         <input type="file" id="quickAvatarFileInput" accept="image/*" class="hidden" onchange="handleQuickAvatarFileSelected(event)">
-
+                        <p class="text-[11px] font-semibold text-amber-600 mt-1"><i class="fa-solid fa-circle-exclamation mr-1"></i>Max file size: 32 MB (Hosted on ImgBB CDN)</p>
                         <h4 id="popoverUserName" class="text-base font-extrabold text-white truncate">Customer Name</h4>
                         <p id="popoverUserEmail" class="text-xs text-slate-400 truncate mt-0.5">customer@gmail.com</p>
 
@@ -307,6 +326,22 @@
 
     </div>
 </header>
+
+<!-- Compact Sticky Search Bar (Appears when main header scrolls away) -->
+<div id="compactStickySearchBar" class="fixed top-0 left-0 right-0 z-40 theme-header-surface text-white px-4 py-2.5 shadow-2xl border-b border-teal-700/60 transform -translate-y-full transition-transform duration-300 flex items-center gap-3">
+    <button onclick="toggleSidebar()" class="w-9 h-9 rounded-xl bg-slate-800 text-teal-200 flex items-center justify-center flex-shrink-0">
+        <i class="fa-solid fa-bars"></i>
+    </button>
+    <div class="flex-1 max-w-2xl mx-auto flex items-center bg-white rounded-xl px-3 py-1.5 shadow-inner">
+        <i class="fa-solid fa-magnifying-glass text-teal-600 text-sm mr-2.5"></i>
+        <input id="compactSearchInput" type="text" placeholder="Quick search medicines or pharmacies..."
+            oninput="syncCompactSearch(this.value)"
+            class="w-full text-slate-800 text-xs sm:text-sm font-medium focus:outline-none">
+    </div>
+    <button onclick="openCartModal()" class="h-9 px-3 rounded-xl bg-emerald-600 text-white text-xs font-extrabold flex items-center gap-1.5 flex-shrink-0">
+        <i class="fa-solid fa-cart-shopping"></i>
+    </button>
+</div>
 
         <!-- ========================================== -->
         <!-- VIEW 1: HOME (SHOPPING & MEDICINE FINDER)  -->
@@ -382,68 +417,82 @@
 
                     <!-- Dynamic Working Filters Under Search Engine -->
                     <div class="max-w-5xl mx-auto mt-4 bg-slate-800/75 backdrop-blur-md p-3.5 rounded-2xl border border-teal-700/50">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-center">
+                        
+                        <!-- 1. PASTE THE MOBILE TOGGLE BUTTON HERE -->
+                        <button type="button" onclick="document.getElementById('mobileFiltersCollapsible').classList.toggle('hidden')"
+                            class="sm:hidden w-full py-2 px-4 rounded-xl bg-slate-800 text-teal-200 text-xs font-bold flex items-center justify-between mb-2 border border-teal-700/50">
+                            <span><i class="fa-solid fa-sliders mr-1.5"></i> Filter by City, Price & Supplier</span>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </button>
+
+                        <!-- 2. ADD THIS NEW WRAPPER DIV -->
+                        <div id="mobileFiltersCollapsible" class="hidden sm:block">
                             
-                            <!-- Filter 1: Sort Order -->
-                            <div>
-                                <label class="block text-[10px] font-bold uppercase tracking-wider text-teal-300 mb-1">
-                                    <i class="fa-solid fa-arrow-up-wide-short mr-1"></i> Sort By (Popularity Rank)
-                                </label>
-                                <select id="sortFilter" onchange="applyFiltersAndRender()"
-                                    class="w-full bg-slate-900/90 text-white text-xs rounded-xl px-3 py-2 border border-slate-700 focus:outline-none focus:border-brand-400">
-                                    <option value="popular_asc">Most Popular First (Ascending)</option>
-                                    <option value="price_asc">Selling Price: Low to High</option>
-                                    <option value="price_desc">Selling Price: High to Low</option>
-                                    <option value="nearest">Nearest Pharmacy Distance</option>
-                                    <option value="name_asc">Medicine Name (A - Z)</option>
-                                </select>
-                            </div>
-
-                            <!-- Filter 2: Pharmacy City -->
-                            <div>
-                                <label class="block text-[10px] font-bold uppercase tracking-wider text-teal-300 mb-1">
-                                    <i class="fa-solid fa-city mr-1"></i> Pharmacy City
-                                </label>
-                                <select id="cityFilter" onchange="applyFiltersAndRender()"
-                                    class="w-full bg-slate-900/90 text-white text-xs rounded-xl px-3 py-2 border border-slate-700 focus:outline-none focus:border-brand-400">
-                                    <option value="ALL">All Cities</option>
-                                </select>
-                            </div>
-
-                            <!-- Filter 3: Supplier / Manufacturer -->
-                            <div>
-                                <label class="block text-[10px] font-bold uppercase tracking-wider text-teal-300 mb-1">
-                                    <i class="fa-solid fa-truck-medical mr-1"></i> Supplier / Manufacturer
-                                </label>
-                                <select id="supplierFilter" onchange="applyFiltersAndRender()"
-                                    class="w-full bg-slate-900/90 text-white text-xs rounded-xl px-3 py-2 border border-slate-700 focus:outline-none focus:border-brand-400">
-                                    <option value="ALL">All Verified Suppliers</option>
-                                </select>
-                            </div>
-
-                            <!-- Filter 4: Raised Max Price Slider -->
-                            <div>
-                                <div class="flex justify-between text-[10px] font-bold uppercase tracking-wider text-teal-300 mb-1">
-                                    <span><i class="fa-solid fa-tags mr-1"></i> Max Price</span>
-                                    <span id="priceRangeLabel" class="text-amber-300">Rs. 25,000</span>
+                            <!-- THIS IS YOUR EXISTING GRID -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-center">
+                                
+                                <!-- Filter 1: Sort Order -->
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase tracking-wider text-teal-300 mb-1">
+                                        <i class="fa-solid fa-arrow-up-wide-short mr-1"></i> Sort By (Popularity Rank)
+                                    </label>
+                                    <select id="sortFilter" onchange="applyFiltersAndRender()"
+                                        class="w-full bg-slate-900/90 text-white text-xs rounded-xl px-3 py-2 border border-slate-700 focus:outline-none focus:border-brand-400">
+                                        <option value="popular_asc">Most Popular First (Ascending)</option>
+                                        <option value="price_asc">Selling Price: Low to High</option>
+                                        <option value="price_desc">Selling Price: High to Low</option>
+                                        <option value="nearest">Nearest Pharmacy Distance</option>
+                                        <option value="name_asc">Medicine Name (A - Z)</option>
+                                    </select>
                                 </div>
-                                <input id="priceFilter" type="range" min="100" max="25000" step="100" value="25000" oninput="updatePriceLabel(); applyFiltersAndRender();"
-                                    class="w-full accent-brand-400 cursor-pointer h-2 bg-slate-700 rounded-lg">
-                            </div>
 
-                            <!-- Filter 5: In-Stock Toggle & Reset -->
-                            <div class="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0">
-                                <label class="inline-flex items-center cursor-pointer select-none bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-700">
-                                    <input id="inStockOnlyFilter" type="checkbox" checked onchange="applyFiltersAndRender()" class="sr-only peer">
-                                    <div class="w-8 h-4 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all relative peer-checked:bg-brand-500"></div>
-                                    <span class="ml-2 text-xs font-semibold text-teal-100">In Stock Only</span>
-                                </label>
-                                <button onclick="resetAllFilters()" title="Reset All Filters"
-                                    class="p-2 rounded-xl bg-slate-700/80 hover:bg-slate-600 text-xs text-slate-200 transition">
-                                    <i class="fa-solid fa-rotate-left"></i>
-                                </button>
-                            </div>
+                                <!-- Filter 2: Pharmacy City -->
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase tracking-wider text-teal-300 mb-1">
+                                        <i class="fa-solid fa-city mr-1"></i> Pharmacy City
+                                    </label>
+                                    <select id="cityFilter" onchange="applyFiltersAndRender()"
+                                        class="w-full bg-slate-900/90 text-white text-xs rounded-xl px-3 py-2 border border-slate-700 focus:outline-none focus:border-brand-400">
+                                        <option value="ALL">All Cities</option>
+                                    </select>
+                                </div>
 
+                                <!-- Filter 3: Supplier / Manufacturer -->
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase tracking-wider text-teal-300 mb-1">
+                                        <i class="fa-solid fa-truck-medical mr-1"></i> Supplier / Manufacturer
+                                    </label>
+                                    <select id="supplierFilter" onchange="applyFiltersAndRender()"
+                                        class="w-full bg-slate-900/90 text-white text-xs rounded-xl px-3 py-2 border border-slate-700 focus:outline-none focus:border-brand-400">
+                                        <option value="ALL">All Verified Suppliers</option>
+                                    </select>
+                                </div>
+
+                                <!-- Filter 4: Raised Max Price Slider -->
+                                <div>
+                                    <div class="flex justify-between text-[10px] font-bold uppercase tracking-wider text-teal-300 mb-1">
+                                        <span><i class="fa-solid fa-tags mr-1"></i> Max Price</span>
+                                        <span id="priceRangeLabel" class="text-amber-300">Rs. 25,000</span>
+                                    </div>
+                                    <input id="priceFilter" type="range" min="100" max="25000" step="100" value="25000" oninput="updatePriceLabel(); applyFiltersAndRender();"
+                                        class="w-full accent-brand-400 cursor-pointer h-2 bg-slate-700 rounded-lg">
+                                </div>
+
+                                <!-- Filter 5: In-Stock Toggle & Reset -->
+                                <div class="flex items-center justify-between sm:justify-end gap-2 pt-2 sm:pt-0">
+                                    <label class="inline-flex items-center cursor-pointer select-none bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-700">
+                                        <input id="inStockOnlyFilter" type="checkbox" checked onchange="applyFiltersAndRender()" class="sr-only peer">
+                                        <div class="w-8 h-4 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all relative peer-checked:bg-brand-500"></div>
+                                        <span class="ml-2 text-xs font-semibold text-teal-100">In Stock Only</span>
+                                    </label>
+                                    <button onclick="resetAllFilters()" title="Reset All Filters"
+                                        class="p-2 rounded-xl bg-slate-700/80 hover:bg-slate-600 text-xs text-slate-200 transition">
+                                        <i class="fa-solid fa-rotate-left"></i>
+                                    </button>
+                                </div>
+
+                            </div>
+                        <!-- 3. CLOSE THE NEW WRAPPER DIV HERE -->
                         </div>
                     </div>
                 </div>
@@ -473,6 +522,8 @@
         <div id="medicineTilesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             <!-- Populated dynamically via JS -->
         </div>
+
+        <div id="medicinePaginationControls" class="mt-8 flex flex-wrap items-center justify-center gap-2"></div>
 
         <!-- Empty State -->
         <div id="emptyResultsState" class="hidden bg-white rounded-2xl p-12 text-center border border-slate-200 my-4">
