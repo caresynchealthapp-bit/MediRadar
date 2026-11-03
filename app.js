@@ -2757,7 +2757,7 @@ function getDefaultAvatarUrl(nameOrEmail) {
 }
 
 // Compress image client-side so uploads are fast and lightweight
-function compressImageFileToBase64(file, maxWidth = 2000, quality = 0.92) {
+function compressImageFileToBase64(file, maxWidth = 900, quality = 0.82) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -2786,7 +2786,7 @@ function compressImageFileToBase64(file, maxWidth = 2000, quality = 0.92) {
 
 // Upload ANY image (Profile Pic, Bank Receipt, Prescription) externally without using Supabase Storage
 async function uploadImageExternally(file) {
-    const dataUrl = await compressImageFileToBase64(file, 1000, 0.82);
+    const dataUrl = await compressImageFileToBase64(file, 1500, 0.95);
     const base64Payload = dataUrl.split(',')[1];
 
     // If ImgBB API key is configured, upload to external CDN and return public link
