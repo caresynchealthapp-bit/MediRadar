@@ -675,7 +675,7 @@ async function handleSaveCustomerProfile(event) {
         return;
     }
 
-    if (isWaitingForRegistrationOtp) {
+if (isWaitingForRegistrationOtp) {
         btn.disabled = true;
         btn.textContent = "Verifying...";
         try {
@@ -687,8 +687,19 @@ async function handleSaveCustomerProfile(event) {
             if (verifyErr) throw new Error("Network error connecting to verification server.");
             if (!verifyResult.success) throw new Error(verifyResult.error);
 
+            // --- MOVED INSIDE: Create Supabase Auth User ONLY AFTER OTP is verified ---
+            const rawPassword = document.getElementById('profPassword').value.trim();
+            const { data: authData, error: signUpErr } = await supabaseClient.auth.signUp({
+                email: payload.email,
+                password: rawPassword
+            });
+            if (signUpErr) throw signUpErr;
+
+            // Link public.customers.id to auth.users.id
+            payload.id = authData.user.id;
             const { data, error } = await supabaseClient.from('customers').insert([payload]).select().single();
             if (error) throw error;
+            // -------------------------------------------------------------------------
             
             const errorDisplay = document.getElementById('otpErrorMessage');
             if (errorDisplay) errorDisplay.classList.add('hidden');
@@ -697,7 +708,6 @@ async function handleSaveCustomerProfile(event) {
         } catch (err) {
             const errorDisplay = document.getElementById('otpErrorMessage');
             
-            // Replaced alert + reload with the gorgeous custom lockout modal
             if (err.message.includes("Maximum attempts")) {
                 showLockoutModal();
                 return; 
@@ -3805,16 +3815,6 @@ handleCustomerLogin = async function(event) {
         const { error: purgeErr } = await supabaseClient.rpc('purge_expired_customer_deletions');
         if (purgeErr) console.warn("Purge check failed:", purgeErr.message);
 
-handleCustomerLogin = async function(event) {
-    event.preventDefault();
-    const email = document.getElementById('loginEmailInput').value.trim().toLowerCase();
-    const rawPass = document.getElementById('loginPasswordInput').value.trim();
-
-    try {
-        // Purge any accounts past their 30-day window first
-        const { error: purgeErr } = await supabaseClient.rpc('purge_expired_customer_deletions');
-        if (purgeErr) console.warn("Purge check failed:", purgeErr.message);
-
         // --- NEW SUPABASE AUTH LOGIN ---
         const { data: authData, error: authErr } = await supabaseClient.auth.signInWithPassword({
             email: email,
@@ -3835,32 +3835,6 @@ handleCustomerLogin = async function(event) {
             
         if (error) throw error;
         // -------------------------------
-
-        currentCustomer = data;
-        localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
-        saveProfileToMultiAccountList(currentCustomer);
-        applyMediRadarTheme(currentCustomer.theme_preference || 'teal', false);
-        updateCustomerHeaderUI();
-        subscribeToCustomerOrderUpdates();
-        await loadCustomerCartFromSupabase();
-        await fetchMyCustomerOrders(true);
-        closeCustomerAccountModal();
-
-        // Prompt user if account is scheduled for 30-day deletion
-        await checkAndPromptPendingDeletion(currentCustomer);
-
-        if (currentCustomer) {
-            showToast("Signed In!", `Welcome back, ${currentCustomer.full_name}.`);
-            if (typeof postAuthCallback === 'function') {
-                const cb = postAuthCallback;
-                postAuthCallback = null;
-                cb();
-            }
-        }
-    } catch (err) {
-        showToast("Login Error", err.message);
-    }
-};
 
         currentCustomer = data;
         localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
