@@ -274,8 +274,7 @@
                                 <i class="fa-solid fa-camera text-xs"></i>
                             </div>
                         </div>
-                        <input type="file" id="quickAvatarFileInput" accept="image/*" class="hidden" onchange="handleQuickAvatarFileSelected(event)">
-                        <p class="text-[11px] font-semibold text-amber-600 mt-1"><i class="fa-solid fa-circle-exclamation mr-1"></i>Max file size: 32 MB (Hosted on ImgBB CDN)</p>
+                        <input type="file" id="quickAvatarFileInput" accept="image/*,.pdf,.heic,.heif,.webp,.gif" class="hidden" onchange="handleQuickAvatarFileSelected(event)">
                         <h4 id="popoverUserName" class="text-base font-extrabold text-white truncate">Customer Name</h4>
                         <p id="popoverUserEmail" class="text-xs text-slate-400 truncate mt-0.5">customer@gmail.com</p>
 
@@ -1183,7 +1182,7 @@
                     
                     <div class="flex flex-col gap-2">
                         <!-- Added onchange="handlePrescriptionSelection(event)" here -->
-                        <input type="file" id="prescription-upload" accept="image/*,.pdf" onchange="handlePrescriptionSelection(event)"
+                        <input type="file" id="prescription-upload" accept="image/*,.pdf,.heic,.heif,.webp,.gif" onchange="handlePrescriptionSelection(event)"
                             class="w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-rose-100 file:text-rose-800 hover:file:bg-rose-200">
                         
                         <!-- Action Buttons (Hidden until a file is chosen) -->
@@ -1293,7 +1292,7 @@
                             <i class="fa-solid fa-cloud-arrow-up text-brand-600 mr-1"></i> Upload Bank Payment Receipt Image *
                         </label>
                         <div class="flex items-center gap-2">
-                            <input type="file" id="receipt-upload" accept="image/*" onchange="handleReceiptSelection(event)"
+                            <input type="file" id="receipt-upload" accept="image/*,.pdf,.heic,.heif,.webp,.gif" onchange="handleReceiptSelection(event)"
                                 class="flex-1 text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100">
                             
                             <button type="button" id="remove-receipt-btn" onclick="clearReceiptUpload()" class="hidden px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 text-xs font-bold transition hover:bg-rose-100 whitespace-nowrap">
@@ -1456,8 +1455,8 @@
                     <label for="global-prescription-upload" class="cursor-pointer inline-block px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold shadow transition">
                         <i class="fa-solid fa-folder-open mr-1"></i> Choose Prescription Image
                     </label>
-                    <input type="file" id="global-prescription-upload" accept="image/*" class="hidden" onchange="handleGlobalRxSelection(event)">
-                    <p id="globalRxFileName" class="text-xs text-slate-500 mt-2 font-medium">No file chosen (PNG, JPG supported)</p>
+                    <input type="file" id="global-prescription-upload" accept="image/*,.pdf,.heic,.heif,.webp,.gif" class="hidden" onchange="handleGlobalRxSelection(event)">
+                    <p id="globalRxFileName" class="text-xs text-slate-500 mt-2 font-medium">No file chosen </p>
                 </div>
 
                 <!-- Image Preview -->

@@ -3391,6 +3391,7 @@ function ensureAccountSettingsModalExists() {
                         <img id="settingsCenterAvatarPreview" src="" alt="Avatar" class="w-20 h-20 rounded-full object-cover border-2 border-brand-500 shadow">
                         <div class="space-y-2 text-center sm:text-left">
                             <div class="text-xs font-bold text-slate-800">Profile Picture</div>
+                            <p class="text-[11px] font-semibold text-amber-600 mb-2"><i class="fa-solid fa-circle-exclamation mr-1"></i>Max file size: 32 MB (Hosted on ImgBB CDN)</p>
                             <div class="flex flex-wrap gap-2 justify-center sm:justify-start">
                                 <button type="button" onclick="triggerQuickAvatarUpload()" class="px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow transition">
                                     <i class="fa-solid fa-upload mr-1"></i> Upload Photo
@@ -4030,7 +4031,6 @@ async function uploadImageExternally(fileOrBlob, isTemporary24h = false) {
         throw new Error("Image exceeds the 32 MB maximum upload limit.");
     }
 
-    // Convert Blob/File directly to base64 without lossy downscaling if it's already cropped or under 4MB
     const toBase64 = (blob) => new Promise((res, rej) => {
         const r = new FileReader();
         r.onload = () => res(r.result);
@@ -4038,9 +4038,21 @@ async function uploadImageExternally(fileOrBlob, isTemporary24h = false) {
         r.readAsDataURL(blob);
     });
 
-    const dataUrl = (fileOrBlob.size && fileOrBlob.size < 4 * 1024 * 1024)
-        ? await toBase64(fileOrBlob)
-        : await compressImageFileToBase64(fileOrBlob, 2048, 0.98);
+    let dataUrl;
+    
+    // Skip canvas compression for files under 4MB, OR formats Canvas cannot natively draw (PDF, HEIC, TIFF)
+    const isUnsupported = fileOrBlob.type && (fileOrBlob.type === 'application/pdf' || fileOrBlob.type.includes('heic') || fileOrBlob.type.includes('heif') || fileOrBlob.type.includes('tif'));
+    
+    if (isUnsupported || (fileOrBlob.size && fileOrBlob.size < 4 * 1024 * 1024)) {
+        dataUrl = await toBase64(fileOrBlob);
+    } else {
+        try {
+            dataUrl = await compressImageFileToBase64(fileOrBlob, 2048, 0.98);
+        } catch (err) {
+            // Safe Fallback: If browser canvas fails to render the image format, upload the raw file
+            dataUrl = await toBase64(fileOrBlob);
+        }
+    }
 
     const base64Payload = dataUrl.split(',')[1];
 
@@ -4096,29 +4108,41 @@ function openAvatarCropModal(imageSrc) {
     const imgEl = document.getElementById('cropperTargetImg');
     activeCropper = new Cropper(imgEl, { aspectRatio: 1, viewMode: 1, autoCropArea: 1 });
 
-    document.getElementById('confirmCropUploadBtn').onclick = async function() {
-        this.disabled = true;
-        this.textContent = "Uploading HD...";
-        const canvas = activeCropper.getCroppedCanvas({ width: 800, height: 800, imageSmoothingQuality: 'high' });
-        canvas.toBlob(async (blob) => {
-            try {
-                const externalUrl = await uploadImageExternally(blob, false);
-                const { data, error } = await supabaseClient.from('customers').update({ profile_pic_url: externalUrl }).eq('id', currentCustomer.id).select().single();
-                if (error) throw error;
-                currentCustomer = data;
-                localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
-                updateCustomerHeaderUI();
-                renderGoogleProfilePopover();
-                const centerImg = document.getElementById('settingsCenterAvatarPreview');
-                if (centerImg) centerImg.src = externalUrl;
-                showToast("HD Profile Photo Saved!", "Crystal-clear avatar uploaded.");
-            } catch (err) {
-                showToast("Upload Error", err.message);
-            } finally {
-                modal.remove();
-            }
-        }, 'image/png', 1.0);
-    };
+            document.getElementById('confirmCropUploadBtn').onclick = async function() {
+                this.disabled = true;
+                this.textContent = "Uploading HD...";
+                
+                // 1. Increased resolution to 1024x1024 and forced high-quality smoothing
+                const canvas = activeCropper.getCroppedCanvas({ 
+                    width: 1024, 
+                    height: 1024, 
+                    imageSmoothingEnabled: true,
+                    imageSmoothingQuality: 'high' 
+                });
+                
+                // 2. Switched from 'image/png' to 'image/jpeg' to bypass ImgBB server-side compression
+                canvas.toBlob(async (blob) => {
+                    try {
+                        const externalUrl = await uploadImageExternally(blob, false);
+                        const { data, error } = await supabaseClient.from('customers').update({ profile_pic_url: externalUrl }).eq('id', currentCustomer.id).select().single();
+                        if (error) throw error;
+                        
+                        currentCustomer = data;
+                        localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+                        updateCustomerHeaderUI();
+                        renderGoogleProfilePopover();
+                        
+                        const centerImg = document.getElementById('settingsCenterAvatarPreview');
+                        if (centerImg) centerImg.src = externalUrl;
+                        
+                        showToast("HD Profile Photo Saved!", "Crystal-clear avatar uploaded.");
+                    } catch (err) {
+                        showToast("Upload Error", err.message);
+                    } finally {
+                        modal.remove();
+                    }
+                }, 'image/jpeg', 1.0);
+            };
 }
 
 function toggleStandaloneThemePopover(event) {
