@@ -4031,6 +4031,7 @@ async function uploadImageExternally(fileOrBlob, isTemporary24h = false) {
         throw new Error("Image exceeds the 32 MB maximum upload limit.");
     }
 
+    // Convert Blob/File directly to base64 without lossy downscaling if it's already cropped or under 4MB
     const toBase64 = (blob) => new Promise((res, rej) => {
         const r = new FileReader();
         r.onload = () => res(r.result);
@@ -4038,21 +4039,9 @@ async function uploadImageExternally(fileOrBlob, isTemporary24h = false) {
         r.readAsDataURL(blob);
     });
 
-    let dataUrl;
-    
-    // Skip canvas compression for files under 4MB, OR formats Canvas cannot natively draw (PDF, HEIC, TIFF)
-    const isUnsupported = fileOrBlob.type && (fileOrBlob.type === 'application/pdf' || fileOrBlob.type.includes('heic') || fileOrBlob.type.includes('heif') || fileOrBlob.type.includes('tif'));
-    
-    if (isUnsupported || (fileOrBlob.size && fileOrBlob.size < 4 * 1024 * 1024)) {
-        dataUrl = await toBase64(fileOrBlob);
-    } else {
-        try {
-            dataUrl = await compressImageFileToBase64(fileOrBlob, 2048, 0.98);
-        } catch (err) {
-            // Safe Fallback: If browser canvas fails to render the image format, upload the raw file
-            dataUrl = await toBase64(fileOrBlob);
-        }
-    }
+    const dataUrl = (fileOrBlob.size && fileOrBlob.size < 4 * 1024 * 1024)
+        ? await toBase64(fileOrBlob)
+        : await compressImageFileToBase64(fileOrBlob, 2048, 0.98);
 
     const base64Payload = dataUrl.split(',')[1];
 
@@ -4070,14 +4059,35 @@ async function uploadImageExternally(fileOrBlob, isTemporary24h = false) {
 }
 
 let activeCropper = null;
-function handleQuickAvatarFileSelected(event) {
+async function handleQuickAvatarFileSelected(event) {
     const file = event.target.files && event.target.files[0];
     if (!file || !currentCustomer) return;
     if (!validateFileSize32MB(file)) { event.target.value = ''; return; }
 
+    let fileToProcess = file;
+
+    // Detect iPhone HEIC/HEIF photos and convert them to JPEG
+    if (file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+        showToast("Converting Photo...", "Optimizing iPhone photo format, please wait.");
+        try {
+            const convertedBlob = await heic2any({
+                blob: file,
+                toType: "image/jpeg",
+                quality: 0.9
+            });
+            // heic2any can sometimes return an array of blobs for image sequences; grab the first one
+            fileToProcess = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+        } catch (err) {
+            console.error("HEIC conversion failed:", err);
+            showToast("Conversion Failed", "Could not read this HEIC file. Please try uploading a JPG or PNG.");
+            event.target.value = '';
+            return;
+        }
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => openAvatarCropModal(e.target.result);
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(fileToProcess);
     event.target.value = '';
 }
 
