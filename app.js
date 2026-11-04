@@ -740,7 +740,7 @@ if (isWaitingForRegistrationOtp) {
 }
 
 
-        function logoutCustomer() {
+        async function logoutCustomer() {
             await supabaseClient.auth.signOut();
             currentCustomer = null;
             myCustomerOrders = [];
