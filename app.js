@@ -627,7 +627,6 @@ async function handleSaveCustomerProfile(event) {
     const payload = {
         full_name: document.getElementById('profFullName').value.trim(),
         email: email,
-        password: encryptCustomerPassword(document.getElementById('profPassword').value.trim()),
         phone: document.getElementById('profPhone').value.trim(),
         address: document.getElementById('profAddress').value.trim(),
         bank_name: document.getElementById('profBankName').value,
@@ -715,10 +714,24 @@ async function handleSaveCustomerProfile(event) {
             btn.textContent = "Verify Code";
         }
     }
+
+    const rawPassword = document.getElementById('profPassword').value.trim();
+    const { data: authData, error: signUpErr } = await supabaseClient.auth.signUp({
+        email: payload.email,
+        password: rawPassword
+    });
+    if (signUpErr) throw signUpErr;
+
+    // Link public.customers.id to auth.users.id
+    payload.id = authData.user.id;
+    const { data, error } = await supabaseClient.from('customers').insert([payload]).select().single();
+    if (error) throw error;
+    
 }
 
 
         function logoutCustomer() {
+            await supabaseClient.auth.signOut();
             currentCustomer = null;
             myCustomerOrders = [];
             mediRadarCart = []; // Clear local view; items remain safely in `customer_cart_items` table for next login
@@ -3670,18 +3683,13 @@ async function confirmOtpAndChangePassword() {
         });
         if (verifyErr || !verifyRes?.success) throw new Error(verifyRes?.error || "Invalid OTP.");
 
-        const encPassword = encryptCustomerPassword(newPass);
-        const { data, error } = await supabaseClient
-            .from('customers')
-            .update({ password: encPassword })
-            .eq('id', currentCustomer.id)
-            .select()
-            .single();
-
-        if (error) throw error;
-        currentCustomer = data;
-        localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
-        saveProfileToMultiAccountList(currentCustomer);
+// --- NEW SUPABASE AUTH PASSWORD UPDATE ---
+        const { error: passErr } = await supabaseClient.auth.updateUser({ 
+            password: newPass 
+        });
+        
+        if (passErr) throw passErr;
+        // -----------------------------------------
 
         document.getElementById('secNewPassword').value = '';
         document.getElementById('secConfirmPassword').value = '';
@@ -3791,30 +3799,68 @@ handleCustomerLogin = async function(event) {
     event.preventDefault();
     const email = document.getElementById('loginEmailInput').value.trim().toLowerCase();
     const rawPass = document.getElementById('loginPasswordInput').value.trim();
-    const encPass = encryptCustomerPassword(rawPass);
 
     try {
         // Purge any accounts past their 30-day window first
         const { error: purgeErr } = await supabaseClient.rpc('purge_expired_customer_deletions');
         if (purgeErr) console.warn("Purge check failed:", purgeErr.message);
 
-        const { data, error } = await supabaseClient
-            .from('customers')
-            .select('*')
-            .eq('email', email)
-            .maybeSingle();
+handleCustomerLogin = async function(event) {
+    event.preventDefault();
+    const email = document.getElementById('loginEmailInput').value.trim().toLowerCase();
+    const rawPass = document.getElementById('loginPasswordInput').value.trim();
 
-        if (error) throw error;
+    try {
+        // Purge any accounts past their 30-day window first
+        const { error: purgeErr } = await supabaseClient.rpc('purge_expired_customer_deletions');
+        if (purgeErr) console.warn("Purge check failed:", purgeErr.message);
 
-        if (!data || (data.password !== encPass && data.password !== rawPass)) {
+        // --- NEW SUPABASE AUTH LOGIN ---
+        const { data: authData, error: authErr } = await supabaseClient.auth.signInWithPassword({
+            email: email,
+            password: rawPass
+        });
+        
+        if (authErr || !authData.user) {
             showToast("Sign In Failed", "Invalid email or password.");
             return;
         }
 
-        if (data.password === rawPass && data.password !== encPass) {
-            await supabaseClient.from('customers').update({ password: encPass }).eq('id', data.id);
-            data.password = encPass;
+        // Fetch the user's profile details using their secure Auth ID
+        const { data, error } = await supabaseClient
+            .from('customers')
+            .select('*')
+            .eq('id', authData.user.id)
+            .single();
+            
+        if (error) throw error;
+        // -------------------------------
+
+        currentCustomer = data;
+        localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+        saveProfileToMultiAccountList(currentCustomer);
+        applyMediRadarTheme(currentCustomer.theme_preference || 'teal', false);
+        updateCustomerHeaderUI();
+        subscribeToCustomerOrderUpdates();
+        await loadCustomerCartFromSupabase();
+        await fetchMyCustomerOrders(true);
+        closeCustomerAccountModal();
+
+        // Prompt user if account is scheduled for 30-day deletion
+        await checkAndPromptPendingDeletion(currentCustomer);
+
+        if (currentCustomer) {
+            showToast("Signed In!", `Welcome back, ${currentCustomer.full_name}.`);
+            if (typeof postAuthCallback === 'function') {
+                const cb = postAuthCallback;
+                postAuthCallback = null;
+                cb();
+            }
         }
+    } catch (err) {
+        showToast("Login Error", err.message);
+    }
+};
 
         currentCustomer = data;
         localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
