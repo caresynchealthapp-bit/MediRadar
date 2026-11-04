@@ -744,11 +744,11 @@ if (isWaitingForRegistrationOtp) {
             await supabaseClient.auth.signOut();
             currentCustomer = null;
             myCustomerOrders = [];
-            mediRadarCart = []; // Clear local view; items remain safely in `customer_cart_items` table for next login
+            mediRadarCart = []; // Clear local view; items remain safely in customer_cart_items table for next login
             localStorage.removeItem('mediradar_customer');
             updateCustomerHeaderUI();
             updateCartBadges();
-            updateOrdersBadge();
+            if (typeof updateOrdersBadge === 'function') updateOrdersBadge();
             closeCustomerAccountModal();
             showToast("Signed Out", "Your unbought cart items are safely saved in your account for your next sign-in.");
         }
