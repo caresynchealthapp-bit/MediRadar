@@ -1259,7 +1259,9 @@ let isCheckingOutFromCart = false;
                         `;
                     }
                 const slipLink = order.receipt_image_url
-                    ? `<a href="${order.receipt_image_url}" target="_blank" class="text-brand-600 font-bold hover:underline block mt-0.5"><i class="fa-solid fa-image mr-1"></i>View Uploaded Slip</a>`
+                    ? (order.receipt_image_url.startsWith('data:image') 
+                        ? `<button onclick="openImageLightbox('${order.receipt_image_url}', 'Bank Receipt')" class="text-brand-600 font-bold hover:underline block mt-0.5 text-left"><i class="fa-solid fa-image mr-1"></i>View Uploaded Slip</button>`
+                        : `<a href="${order.receipt_image_url}" target="_blank" class="text-brand-600 font-bold hover:underline block mt-0.5"><i class="fa-solid fa-image mr-1"></i>View Uploaded Slip</a>`)
                     : '';
 
                 return `
@@ -4066,25 +4068,45 @@ async function handleQuickAvatarFileSelected(event) {
 
     let fileToProcess = file;
 
-    // Detect iPhone HEIC/HEIF photos and convert them to JPEG
-    if (file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
-        showToast("Converting Photo...", "Optimizing iPhone photo format, please wait.");
+    // Detect raw HEIC/HEIF files
+    if (file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif') || file.type.includes('heic')) {
+        showToast("Processing Photo...", "Optimizing high-efficiency image format.");
         try {
+            // Attempt client-side conversion for cropping
             const convertedBlob = await heic2any({
                 blob: file,
                 toType: "image/jpeg",
                 quality: 0.9
             });
-            // heic2any can sometimes return an array of blobs for image sequences; grab the first one
             fileToProcess = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
         } catch (err) {
-            console.error("HEIC conversion failed:", err);
-            showToast("Conversion Failed", "Could not read this HEIC file. Please try uploading a JPG or PNG.");
-            event.target.value = '';
-            return;
+            console.warn("Client-side HEIC decode failed. Bypassing crop and uploading directly to cloud.");
+            
+            // SERVER-SIDE FALLBACK: Skip the crop modal and upload the raw HEIC straight to ImgBB
+            try {
+                showToast("Uploading Original...", "Bypassing crop mode for raw HEIC format.");
+                const externalUrl = await uploadImageExternally(file, false);
+                const { data, error } = await supabaseClient.from('customers').update({ profile_pic_url: externalUrl }).eq('id', currentCustomer.id).select().single();
+                if (error) throw error;
+                
+                currentCustomer = data;
+                localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
+                updateCustomerHeaderUI();
+                renderGoogleProfilePopover();
+                const centerImg = document.getElementById('settingsCenterAvatarPreview');
+                if (centerImg) centerImg.src = externalUrl;
+                
+                showToast("Profile Photo Saved!", "Cloud successfully processed your HEIC image.");
+            } catch (uploadErr) {
+                showToast("Upload Error", uploadErr.message);
+            } finally {
+                event.target.value = '';
+            }
+            return; // Exit early since the upload is complete
         }
     }
 
+    // Standard flow for JPGs, PNGs, and successfully converted HEICs
     const reader = new FileReader();
     reader.onload = (e) => openAvatarCropModal(e.target.result);
     reader.readAsDataURL(fileToProcess);
