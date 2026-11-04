@@ -2949,7 +2949,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================================================
 
 // Paste your free API key from https://api.imgbb.com/ here:
-const EXTERNAL_IMGBB_API_KEY = ''; 
+const EXTERNAL_IMGBB_API_KEY = 'f52046d0e6b62b5121554a494120a07a'; 
 
 const MEDIRADAR_THEMES = [
     { id: 'teal', name: 'MediRadar Teal', primary: '#0d9488', secondary: '#2dd4bf' },
