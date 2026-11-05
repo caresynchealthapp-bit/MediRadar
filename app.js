@@ -4071,11 +4071,11 @@ async function handleQuickAvatarFileSelected(event) {
     if (file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif') || file.type.includes('heic')) {
         showToast("Processing Photo...", "Optimizing high-efficiency image format.");
         try {
-            // Attempt client-side conversion for cropping
+            // Attempt client-side conversion for cropping at maximum 100% quality
             const convertedBlob = await heic2any({
                 blob: file,
                 toType: "image/jpeg",
-                quality: 0.9
+                quality: 1.0 
             });
             fileToProcess = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
         } catch (err) {
@@ -4145,13 +4145,13 @@ function openAvatarCropModal(imageSrc) {
                 
                 // 1. Increased resolution to 1024x1024 and forced high-quality smoothing
                 const canvas = activeCropper.getCroppedCanvas({ 
-                    width: 1024, 
-                    height: 1024, 
+                    maxWidth: 2048, 
+                    maxHeight: 2048, 
                     imageSmoothingEnabled: true,
                     imageSmoothingQuality: 'high' 
                 });
                 
-                // 2. Switched from 'image/png' to 'image/jpeg' to bypass ImgBB server-side compression
+                // 2. Export at 100% (1.0) JPEG quality to bypass ImgBB server compression
                 canvas.toBlob(async (blob) => {
                     try {
                         const externalUrl = await uploadImageExternally(blob, false);
