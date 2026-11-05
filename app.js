@@ -4052,9 +4052,37 @@ async function uploadImageExternally(fileOrBlob, isTemporary24h = false) {
         formData.append('image', base64Payload);
         if (isTemporary24h) formData.append('expiration', '86400');
 
-        const res = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
-        const json = await res.json();
-        if (json?.success && json?.data?.url) return json.data.url;
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
+
+            const res = await fetch('https://api.imgbb.com/1/upload', { 
+                method: 'POST', 
+                body: formData,
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+
+            if (!res.ok) {
+                throw new Error(`ImgBB API responded with status ${res.status}`);
+            }
+
+            const json = await res.json();
+            if (json?.success && json?.data?.url) {
+                return json.data.url;
+            } else {
+                 throw new Error(json?.error?.message || "ImgBB returned an invalid response.");
+            }
+
+        } catch (fetchErr) {
+             console.error("External upload failed:", fetchErr);
+             // If the user is trying to upload a high-res cropped avatar, failing is better than saving a massive base64 string.
+             if (!isTemporary24h) {
+                  throw new Error("Failed to reach the external image server. Please try again.");
+             }
+             // If it's a temporary receipt, the base64 fallback below will trigger.
+        }
     }
     return dataUrl;
 }
