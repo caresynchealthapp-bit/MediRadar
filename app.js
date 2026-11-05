@@ -3382,7 +3382,6 @@ function ensureAccountSettingsModalExists() {
                     <div class="flex items-center justify-between border-b border-slate-100 pb-4">
                         <div>
                             <h4 class="text-lg font-extrabold text-slate-900">Personal Info & Avatar</h4>
-                            <p class="text-xs text-slate-500">Photos are hosted externally so database storage never fills up</p>
                         </div>
                         <button onclick="closeAccountSettingsCenter()" class="text-slate-400 hover:text-slate-700">
                             <i class="fa-solid fa-xmark text-lg"></i>
@@ -3393,7 +3392,7 @@ function ensureAccountSettingsModalExists() {
                         <img id="settingsCenterAvatarPreview" src="" alt="Avatar" class="w-20 h-20 rounded-full object-cover border-2 border-brand-500 shadow">
                         <div class="space-y-2 text-center sm:text-left">
                             <div class="text-xs font-bold text-slate-800">Profile Picture</div>
-                            <p class="text-[11px] font-semibold text-amber-600 mb-2"><i class="fa-solid fa-circle-exclamation mr-1"></i>Max file size: 32 MB (Hosted on ImgBB CDN)</p>
+                            <p class="text-[11px] font-semibold text-amber-600 mb-2"><i class="fa-solid fa-circle-exclamation mr-1"></i>Max file size: 32 MB </p>
                             <div class="flex flex-wrap gap-2 justify-center sm:justify-start">
                                 <button type="button" onclick="triggerQuickAvatarUpload()" class="px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow transition">
                                     <i class="fa-solid fa-upload mr-1"></i> Upload Photo
