@@ -3250,9 +3250,22 @@ function triggerQuickAvatarUpload() {
 // ---------------------------------------------------------
 // RED POPUP NOTIFICATION WHEN ACCOUNT WAS DELETED IN DB
 // ---------------------------------------------------------
+// Updated dynamically for Suspended vs Banned
 function showAccountDeletedRedModal(customMessage) {
     const existing = document.getElementById('mr-deleted-account-modal');
     if (existing) existing.remove();
+
+    let modalTitle = 'Account Deleted';
+    let iconHtml = '<i class="fa-solid fa-user-xmark"></i>';
+    
+    // Dynamically change the UI based on the exact message passed in
+    if (customMessage && customMessage.includes('Suspended')) {
+        modalTitle = 'Account Suspended';
+        iconHtml = '<i class="fa-solid fa-user-clock"></i>';
+    } else if (customMessage && customMessage.includes('Banned')) {
+        modalTitle = 'Account Banned';
+        iconHtml = '<i class="fa-solid fa-ban"></i>';
+    }
 
     const overlay = document.createElement('div');
     overlay.id = 'mr-deleted-account-modal';
@@ -3262,9 +3275,9 @@ function showAccountDeletedRedModal(customMessage) {
         <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border-4 border-rose-600 animate-bounce" style="animation-iteration-count: 1;">
             <div class="bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 p-6 text-white text-center">
                 <div class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3 text-3xl shadow-inner">
-                    <i class="fa-solid fa-user-xmark"></i>
+                    ${iconHtml}
                 </div>
-                <h3 class="text-2xl font-extrabold tracking-tight">Account Deleted</h3>
+                <h3 class="text-2xl font-extrabold tracking-tight">${modalTitle}</h3>
                 <p class="text-xs text-rose-100 mt-1">Database Security Alert</p>
             </div>
             <div class="p-6 text-center space-y-4">
@@ -3872,32 +3885,28 @@ handleCustomerLogin = async function(event) {
 
                 // Add this right AFTER a successful Supabase login in your app.js:
 
+// --- CORRECTED MODERATION CHECK (Using the correct 'email' variable) ---
         const { data: modCheck, error: modErr } = await supabaseClient
             .from('customers')
             .select('account_status, suspended_until, moderation_reason')
-            .eq('email', loginEmail) // Replace loginEmail with your actual email variable
+            .eq('email', email) // <--- Fixed variable name here
             .maybeSingle();
 
         if (modCheck) {
             if (modCheck.account_status === 'Banned') {
-                await supabaseClient.auth.signOut(); // Immediately kick them out
-                showToast("Access Denied: Banned", `Your account has been permanently terminated.\nReason: ${modCheck.moderation_reason}`);
-                return; // Stop the login process
+                await supabaseClient.auth.signOut();
+                showAccountDeletedRedModal(`Access Denied: Banned. Your account has been permanently terminated. Reason: ${modCheck.moderation_reason}`);
+                return;
             }
             
             if (modCheck.account_status === 'Suspended') {
                 const suspendedDate = new Date(modCheck.suspended_until);
-                
                 if (suspendedDate > new Date()) {
-                    await supabaseClient.auth.signOut(); // Immediately kick them out
-                    showToast("Access Denied: Suspended", `Your account is suspended until ${suspendedDate.toLocaleDateString()}.\nReason: ${modCheck.moderation_reason}`);
-                    return; // Stop the login process
+                    await supabaseClient.auth.signOut();
+                    showAccountDeletedRedModal(`Access Denied: Suspended. Your account is suspended until ${suspendedDate.toLocaleDateString()}. Reason: ${modCheck.moderation_reason}`);
+                    return;
                 } else {
-                    // The suspension time has passed! Automatically restore their account to Active.
-                    await supabaseClient.from('customers').update({ 
-                        account_status: 'Active', 
-                        suspended_until: null 
-                    }).eq('email', loginEmail);
+                    await supabaseClient.from('customers').update({ account_status: 'Active', suspended_until: null }).eq('email', email);
                 }
             }
         }
