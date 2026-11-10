@@ -649,11 +649,10 @@ async function handleSaveCustomerProfile(event) {
         btn.textContent = "Checking...";
 
         // --- NEW PRE-REGISTRATION MODERATION CHECK ---
-        const { data: banCheck } = await supabaseClient
-            .from('customers')
-            .select('account_status, suspended_until, moderation_reason')
-            .eq('email', email)
-            .maybeSingle();
+        const { data: banCheckList } = await supabaseClient
+            .rpc('check_customer_status', { check_email: email });
+            
+        const banCheck = (banCheckList && banCheckList.length > 0) ? banCheckList[0] : null;
 
         if (banCheck) {
             if (banCheck.account_status === 'Banned') {
