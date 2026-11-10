@@ -730,7 +730,7 @@ if (isWaitingForRegistrationOtp) {
 const { data: banCheck } = await supabaseClient
     .from('customers')
     .select('account_status, moderation_reason')
-    .eq('email', signupEmail) // Replace signupEmail with your actual signup email variable
+    .eq('email', payload.email) 
     .maybeSingle();
 
 if (banCheck) {
@@ -2275,27 +2275,49 @@ window.addEventListener('DOMContentLoaded', async () => {
     const { error: purgeErr } = await supabaseClient.rpc('purge_expired_customer_deletions');
     if (purgeErr) console.warn("Purge check failed:", purgeErr.message);
 
-    // 2. Verify current user still exists in the database
+// 2. Verify current user still exists and is not suspended/banned
     if (currentCustomer && currentCustomer.id) {
         const { data, error } = await supabaseClient
             .from('customers')
-            .select('*')
+            .select('*, account_status, suspended_until, moderation_reason')
             .eq('id', currentCustomer.id)
             .maybeSingle();
 
         if (!error && !data) {
-            // Account was deleted from database! Wipe session & trigger Red Alert Modal
+            // Account was deleted from database!
             removeProfileFromMultiAccountList(currentCustomer.id);
             currentCustomer = null;
-            mediRadarCart = [];
-            myCustomerOrders = [];
             localStorage.removeItem('mediradar_customer');
-            updateCustomerHeaderUI();
-            updateCartBadges();
-            if (typeof updateOrdersBadge === 'function') updateOrdersBadge();
             showAccountDeletedRedModal();
-            return; // Stop execution here so it doesn't load phantom data
+            return; 
         } else if (data) {
+            // --- NEW LIVE MODERATION CHECK ---
+            if (data.account_status === 'Banned') {
+                await supabaseClient.auth.signOut();
+                removeProfileFromMultiAccountList(currentCustomer.id);
+                currentCustomer = null;
+                localStorage.removeItem('mediradar_customer');
+                showAccountDeletedRedModal(`Access Denied: Your account has been permanently terminated. Reason: ${data.moderation_reason || 'Policy Violation'}`);
+                return;
+            }
+
+            if (data.account_status === 'Suspended') {
+                const suspendedDate = new Date(data.suspended_until);
+                if (suspendedDate > new Date()) {
+                    await supabaseClient.auth.signOut();
+                    removeProfileFromMultiAccountList(currentCustomer.id);
+                    currentCustomer = null;
+                    localStorage.removeItem('mediradar_customer');
+                    showAccountDeletedRedModal(`Access Denied: Your account is suspended until ${suspendedDate.toLocaleDateString()}. Reason: ${data.moderation_reason || 'Policy Violation'}`);
+                    return;
+                } else {
+                    // Time served. Auto-restore.
+                    await supabaseClient.from('customers').update({ account_status: 'Active', suspended_until: null }).eq('id', data.id);
+                    data.account_status = 'Active';
+                }
+            }
+            // ---------------------------------
+
             currentCustomer = data;
             localStorage.setItem('mediradar_customer', JSON.stringify(currentCustomer));
             applyMediRadarTheme(currentCustomer.theme_preference || 'teal', false);
