@@ -2160,6 +2160,11 @@ window.toggleSidebar = function() {
                                 <i class="fa-solid fa-map-location-dot"></i>
                                 <span>Google Maps</span>
                             </a>
+                            <button type="button" onclick="openCustomerSupportHub('report', '${p.id}')"
+                                class="py-2 px-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold flex items-center justify-center gap-1 transition">
+                                <i class="fa-solid fa-flag"></i>
+                                <span>Report</span>
+                            </button>
                         </div>
                     </div>
                 `;
@@ -4514,3 +4519,277 @@ async function reorderPastOrder(orderId) {
         showToast("Items Out of Stock", "The medicines from this past order are currently out of stock at that pharmacy.");
     }
 }
+
+// ============================================================================
+// CUSTOMER LIVE SUPPORT CHAT & PHARMACY INCIDENT REPORTING ENGINE
+// ============================================================================
+let mySupportMessages = [];
+let pendingChatAttachmentFile = null;
+
+function openCustomerSupportHub(initialTab = 'chat', preselectedPharmacyId = null) {
+    if (!currentCustomer) {
+        showToast("Sign In Required", "Please sign in or register to chat with MediRadar Support or submit a pharmacy report.");
+        postAuthCallback = () => openCustomerSupportHub(initialTab, preselectedPharmacyId);
+        openCustomerAccountModal();
+        return;
+    }
+
+    // Populate pharmacies dropdown inside Report tab
+    const pharmSelect = document.getElementById('reportPharmacySelect');
+    if (pharmSelect) {
+        pharmSelect.innerHTML = `<option value="">-- Select Registered Pharmacy --</option>` +
+            pharmaciesTable.map(p => `<option value="${p.id}">${p.pharmacy_name} (${p.city || 'Sri Lanka'})</option>`).join('');
+        if (preselectedPharmacyId) {
+            pharmSelect.value = String(preselectedPharmacyId);
+        }
+    }
+
+    document.getElementById('customerSupportHubModal').classList.remove('hidden');
+    switchSupportHubTab(initialTab);
+    fetchMyCustomerSupportMessages(true);
+}
+
+function closeCustomerSupportHub() {
+    document.getElementById('customerSupportHubModal').classList.add('hidden');
+}
+
+function switchSupportHubTab(tab) {
+    const paneChat = document.getElementById('hubPaneChat');
+    const paneReport = document.getElementById('hubPaneReport');
+    const btnChat = document.getElementById('hubTabBtnChat');
+    const btnReport = document.getElementById('hubTabBtnReport');
+
+    if (tab === 'report') {
+        paneChat.classList.add('hidden');
+        paneReport.classList.remove('hidden');
+        btnReport.className = "py-2 rounded-xl text-xs font-extrabold bg-white text-slate-900 shadow-sm transition";
+        btnChat.className = "py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 transition";
+    } else {
+        paneReport.classList.add('hidden');
+        paneChat.classList.remove('hidden');
+        btnChat.className = "py-2 rounded-xl text-xs font-extrabold bg-white text-slate-900 shadow-sm transition";
+        btnReport.className = "py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 transition";
+        renderCustomerSupportChatBox();
+    }
+}
+
+function handleCustomerChatFileSelect(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    pendingChatAttachmentFile = file;
+    document.getElementById('customerChatFileName').textContent = file.name;
+    document.getElementById('customerChatAttachmentBar').classList.remove('hidden');
+}
+
+function clearCustomerChatAttachment() {
+    pendingChatAttachmentFile = null;
+    const input = document.getElementById('customerChatFileInput');
+    if (input) input.value = '';
+    document.getElementById('customerChatAttachmentBar').classList.add('hidden');
+}
+
+async function fetchMyCustomerSupportMessages(markRead = false) {
+    if (!currentCustomer || !currentCustomer.id) return;
+    try {
+        const { data, error } = await supabaseClient
+            .from('support_messages')
+            .select('*')
+            .eq('customer_id', currentCustomer.id)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        mySupportMessages = data || [];
+
+        const unreadFromStaff = mySupportMessages.filter(m => m.sender_role !== 'CUSTOMER' && !m.is_read_by_customer).length;
+        const badge = document.getElementById('customerChatUnreadBadge');
+        if (badge) {
+            if (unreadFromStaff > 0) {
+                badge.textContent = unreadFromStaff;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        if (markRead && unreadFromStaff > 0) {
+            await supabaseClient
+                .from('support_messages')
+                .update({ is_read_by_customer: true })
+                .eq('customer_id', currentCustomer.id)
+                .neq('sender_role', 'CUSTOMER');
+            if (badge) badge.classList.add('hidden');
+        }
+
+        renderCustomerSupportChatBox();
+    } catch (e) {
+        console.warn("Support chat sync error:", e);
+    }
+}
+
+function renderCustomerSupportChatBox() {
+    const box = document.getElementById('customerChatMessagesBox');
+    if (!box) return;
+
+    if (mySupportMessages.length === 0) {
+        box.innerHTML = `
+            <div class="text-center py-12 px-4 text-slate-400 space-y-2">
+                <div class="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mx-auto text-xl">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+                <p class="text-xs font-bold text-slate-700">Welcome to MediRadar Live Support</p>
+                <p class="text-[11px] text-slate-500">Send a message or screenshot below. Any available MediRadar operations staff member will reply to your thread.</p>
+            </div>
+        `;
+        return;
+    }
+
+    box.innerHTML = mySupportMessages.map(m => {
+        const isMe = m.sender_role === 'CUSTOMER';
+        return `
+            <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
+                <div class="max-w-[80%] rounded-2xl p-3 text-xs shadow-sm ${
+                    isMe
+                        ? 'bg-teal-600 text-white rounded-br-none'
+                        : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none'
+                }">
+                    <div class="flex items-center justify-between gap-3 text-[10px] mb-1 ${isMe ? 'text-teal-100' : 'text-teal-700 font-extrabold'}">
+                        <span>${isMe ? 'You' : m.sender_name}</span>
+                        <span>${new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</span>
+                    </div>
+                    ${m.message_text ? `<p class="leading-relaxed whitespace-pre-wrap">${m.message_text}</p>` : ''}
+                    ${m.attachment_url ? `
+                        <img src="${m.attachment_url}" onclick="openImageLightbox('${m.attachment_url}', 'Support Attachment')"
+                             class="mt-2 max-h-40 rounded-xl border border-white/20 cursor-zoom-in object-cover">
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+    box.scrollTop = box.scrollHeight;
+}
+
+async function sendCustomerSupportMessage(event) {
+    event.preventDefault();
+    if (!currentCustomer) return;
+
+    const textInput = document.getElementById('customerChatTextInput');
+    const sendBtn = document.getElementById('customerChatSendBtn');
+    const text = textInput.value.trim();
+
+    if (!text && !pendingChatAttachmentFile) return;
+
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+
+    try {
+        let uploadedUrl = null;
+        if (pendingChatAttachmentFile) {
+            uploadedUrl = await uploadImageExternally(pendingChatAttachmentFile, false);
+        }
+
+        const { error } = await supabaseClient.from('support_messages').insert([{
+            customer_id: currentCustomer.id,
+            customer_name: currentCustomer.full_name || 'Customer',
+            customer_email: currentCustomer.email,
+            sender_role: 'CUSTOMER',
+            sender_name: currentCustomer.full_name || currentCustomer.email,
+            message_text: text || null,
+            attachment_url: uploadedUrl,
+            is_read_by_staff: false,
+            is_read_by_customer: true
+        }]);
+
+        if (error) throw error;
+
+        textInput.value = '';
+        clearCustomerChatAttachment();
+        await fetchMyCustomerSupportMessages(true);
+    } catch (err) {
+        showToast("Message Failed", err.message || "Could not send message.");
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Send`;
+    }
+}
+
+async function submitPharmacyIncidentReport(event) {
+    event.preventDefault();
+    if (!currentCustomer) return;
+
+    const pharmId = document.getElementById('reportPharmacySelect').value;
+    const reasonCat = document.getElementById('reportReasonCategory').value;
+    const desc = document.getElementById('reportDescriptionInput').value.trim();
+    const fileInput = document.getElementById('reportEvidenceFiles');
+    const submitBtn = document.getElementById('submitPharmacyReportBtn');
+
+    const pharmObj = pharmaciesTable.find(p => String(p.id) === String(pharmId));
+    if (!pharmObj) {
+        showToast("Select Pharmacy", "Please select the pharmacy you wish to report.");
+        return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading Evidence & Submitting...`;
+
+    try {
+        const uploadedUrls = [];
+        if (fileInput && fileInput.files && fileInput.files.length > 0) {
+            const maxFiles = Math.min(3, fileInput.files.length);
+            for (let i = 0; i < maxFiles; i++) {
+                const url = await uploadImageExternally(fileInput.files[i], false);
+                if (url) uploadedUrls.push(url);
+            }
+        }
+
+        const { error } = await supabaseClient.from('pharmacy_reports').insert([{
+            customer_id: currentCustomer.id,
+            customer_name: currentCustomer.full_name || 'Customer',
+            customer_email: currentCustomer.email,
+            pharmacy_id: pharmObj.id,
+            pharmacy_name: pharmObj.pharmacy_name,
+            reason_category: reasonCat,
+            description: desc,
+            evidence_urls: uploadedUrls,
+            status: 'Pending Review'
+        }]);
+
+        if (error) throw error;
+
+        document.getElementById('hubPaneReport').reset();
+        closeCustomerSupportHub();
+        showToast("Report Submitted to MediRadar Staff", `Your report against ${pharmObj.pharmacy_name} has been logged for investigation.`);
+    } catch (err) {
+        showToast("Report Error", err.message || "Could not submit pharmacy report.");
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="fa-solid fa-flag"></i> Submit Official Pharmacy Report`;
+    }
+}
+
+// Poll every 6 seconds for staff chat replies
+setInterval(() => {
+    if (currentCustomer && currentCustomer.id) {
+        const modalOpen = !document.getElementById('customerSupportHubModal')?.classList.contains('hidden');
+        fetchMyCustomerSupportMessages(modalOpen);
+    }
+}, 6000);
+
+// Stealth Admin Portal Triggers (Ctrl+Shift+L or typing //admin in search bar)
+(function initStealthAdminGateway() {
+    window.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'l') {
+            e.preventDefault();
+            window.location.href = 'admin.html';
+        }
+    });
+    const searchEl = document.getElementById('searchInput');
+    if (searchEl) {
+        searchEl.addEventListener('input', (e) => {
+            const v = e.target.value.trim().toLowerCase();
+            if (v === '//admin' || v === '//owner' || v === '//staff') {
+                e.target.value = '';
+                window.location.href = 'admin.html';
+            }
+        });
+    }
+})();
