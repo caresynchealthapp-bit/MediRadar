@@ -3258,11 +3258,14 @@ function showAccountDeletedRedModal(customMessage) {
     let modalTitle = 'Account Deleted';
     let iconHtml = '<i class="fa-solid fa-user-xmark"></i>';
     
+    // Convert message to lowercase to catch "Suspended", "suspended", "Banned", "banned" safely
+    const lowerMsg = (customMessage || '').toLowerCase();
+
     // Dynamically change the UI based on the exact message passed in
-    if (customMessage && customMessage.includes('Suspended')) {
+    if (lowerMsg.includes('suspend')) {
         modalTitle = 'Account Suspended';
         iconHtml = '<i class="fa-solid fa-user-clock"></i>';
-    } else if (customMessage && customMessage.includes('Banned')) {
+    } else if (lowerMsg.includes('ban')) {
         modalTitle = 'Account Banned';
         iconHtml = '<i class="fa-solid fa-ban"></i>';
     }
