@@ -605,17 +605,24 @@ let currentSearchMode = 'medicines';
             const loginForm = document.getElementById('customerLoginForm');
             const tabReg = document.getElementById('tabRegisterMode');
             const tabLog = document.getElementById('tabLoginMode');
+            const modalTitle = document.getElementById('accountModalTitle'); // Targets the header text
 
             if (mode === 'LOGIN') {
                 regForm.classList.add('hidden');
                 loginForm.classList.remove('hidden');
                 tabLog.className = "flex-1 py-2 rounded-xl text-xs font-extrabold bg-white text-slate-900 shadow-sm transition";
                 tabReg.className = "flex-1 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 transition";
+                
+                // Change title to Sign In
+                if (modalTitle) modalTitle.textContent = "Sign In to MediRadar"; 
             } else {
                 loginForm.classList.add('hidden');
                 regForm.classList.remove('hidden');
                 tabReg.className = "flex-1 py-2 rounded-xl text-xs font-extrabold bg-white text-slate-900 shadow-sm transition";
                 tabLog.className = "flex-1 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 transition";
+                
+                // Change title back to Register
+                if (modalTitle) modalTitle.textContent = "Register Account"; 
             }
         }
 
