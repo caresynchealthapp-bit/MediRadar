@@ -633,6 +633,7 @@ async function handleSaveCustomerProfile(event) {
         bank_account_no: document.getElementById('profBankAccountNo').value.trim()
     };
 
+    // 1. Profile Update for existing signed-in users
     if (currentCustomer && currentCustomer.id) {
         btn.disabled = true;
         btn.textContent = "Updating...";
@@ -642,8 +643,40 @@ async function handleSaveCustomerProfile(event) {
         return;
     }
 
+    // 2. SEND OTP PHASE (Intercept Banned Users Here)
     if (!isWaitingForRegistrationOtp) {
         btn.disabled = true;
+        btn.textContent = "Checking...";
+
+        // --- NEW PRE-REGISTRATION MODERATION CHECK ---
+        const { data: banCheck } = await supabaseClient
+            .from('customers')
+            .select('account_status, suspended_until, moderation_reason')
+            .eq('email', email)
+            .maybeSingle();
+
+        if (banCheck) {
+            if (banCheck.account_status === 'Banned') {
+                closeCustomerAccountModal();
+                showAccountDeletedRedModal(`Registration Blocked: Account Banned. This email is permanently banned from MediRadar. Reason: ${banCheck.moderation_reason || 'Policy Violation'}`);
+                btn.disabled = false;
+                btn.textContent = "Continue to Email Verification";
+                return; // Stop the signup process immediately
+            }
+            
+            if (banCheck.account_status === 'Suspended') {
+                const suspendedDate = new Date(banCheck.suspended_until);
+                if (suspendedDate > new Date()) {
+                    closeCustomerAccountModal();
+                    showAccountDeletedRedModal(`Registration Blocked: Account Suspended. This email is suspended until ${suspendedDate.toLocaleDateString()}. Reason: ${banCheck.moderation_reason || 'Policy Violation'}`);
+                    btn.disabled = false;
+                    btn.textContent = "Continue to Email Verification";
+                    return; // Stop the signup process immediately
+                }
+            }
+        }
+        // ---------------------------------------------
+
         btn.textContent = "Sending OTP...";
         try {
             const { data: result, error } = await supabaseClient.functions.invoke('auth-otp', {
@@ -657,12 +690,10 @@ async function handleSaveCustomerProfile(event) {
             btn.textContent = "Verify Code";
         } catch (err) {
             const errorDisplay = document.getElementById('otpErrorMessage');
-            
             if (err.message.includes("Maximum attempts")) {
                 showLockoutModal();
                 return; 
             }
-
             if (errorDisplay) {
                 errorDisplay.textContent = err.message;
                 errorDisplay.classList.remove('hidden');
@@ -675,7 +706,8 @@ async function handleSaveCustomerProfile(event) {
         return;
     }
 
-if (isWaitingForRegistrationOtp) {
+    // 3. VERIFY OTP PHASE
+    if (isWaitingForRegistrationOtp) {
         btn.disabled = true;
         btn.textContent = "Verifying...";
         try {
@@ -687,7 +719,6 @@ if (isWaitingForRegistrationOtp) {
             if (verifyErr) throw new Error("Network error connecting to verification server.");
             if (!verifyResult.success) throw new Error(verifyResult.error);
 
-            // --- MOVED INSIDE: Create Supabase Auth User ONLY AFTER OTP is verified ---
             const rawPassword = document.getElementById('profPassword').value.trim();
             const { data: authData, error: signUpErr } = await supabaseClient.auth.signUp({
                 email: payload.email,
@@ -695,11 +726,9 @@ if (isWaitingForRegistrationOtp) {
             });
             if (signUpErr) throw signUpErr;
 
-            // Link public.customers.id to auth.users.id
             payload.id = authData.user.id;
             const { data, error } = await supabaseClient.from('customers').insert([payload]).select().single();
             if (error) throw error;
-            // -------------------------------------------------------------------------
             
             const errorDisplay = document.getElementById('otpErrorMessage');
             if (errorDisplay) errorDisplay.classList.add('hidden');
@@ -707,12 +736,10 @@ if (isWaitingForRegistrationOtp) {
             finalizeCustomerAuth(data, `Welcome, ${data.full_name}!`);
         } catch (err) {
             const errorDisplay = document.getElementById('otpErrorMessage');
-            
             if (err.message.includes("Maximum attempts")) {
                 showLockoutModal();
                 return; 
             }
-
             if (errorDisplay) {
                 errorDisplay.textContent = err.message;
                 errorDisplay.classList.remove('hidden');
@@ -724,44 +751,6 @@ if (isWaitingForRegistrationOtp) {
             btn.textContent = "Verify Code";
         }
     }
-
-    // Add this right BEFORE you call supabaseClient.auth.signUp() in app.js:
-
-const { data: banCheck } = await supabaseClient
-    .from('customers')
-    .select('account_status, moderation_reason')
-    .eq('email', payload.email) 
-    .maybeSingle();
-
-if (banCheck) {
-    if (banCheck.account_status === 'Banned') {
-        showToast("Registration Blocked", `This email address is permanently banned from MediRadar.\nReason: ${banCheck.moderation_reason}`);
-        return; // Stop the signup process entirely
-    }
-    
-    if (banCheck.account_status === 'Suspended') {
-        const suspendedDate = new Date(banCheck.suspended_until);
-        if (suspendedDate > new Date()) {
-            showToast("Registration Blocked", `This email is currently suspended until ${suspendedDate.toLocaleDateString()}.\nReason: ${banCheck.moderation_reason}`);
-            return; // Stop the signup process entirely
-        }
-    }
-}
-
-// ... if they pass the check, proceed with supabaseClient.auth.signUp() ...
-
-    const rawPassword = document.getElementById('profPassword').value.trim();
-    const { data: authData, error: signUpErr } = await supabaseClient.auth.signUp({
-        email: payload.email,
-        password: rawPassword
-    });
-    if (signUpErr) throw signUpErr;
-
-    // Link public.customers.id to auth.users.id
-    payload.id = authData.user.id;
-    const { data, error } = await supabaseClient.from('customers').insert([payload]).select().single();
-    if (error) throw error;
-    
 }
 
 
