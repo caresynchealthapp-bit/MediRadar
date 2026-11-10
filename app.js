@@ -3883,35 +3883,36 @@ handleCustomerLogin = async function(event) {
             password: rawPass
         });
 
-                // Add this right AFTER a successful Supabase login in your app.js:
-
-// --- CORRECTED MODERATION CHECK (Using the correct 'email' variable) ---
+        // --- MODERATION CHECK (Corrected Variables) ---
         const { data: modCheck, error: modErr } = await supabaseClient
             .from('customers')
             .select('account_status, suspended_until, moderation_reason')
-            .eq('email', email) // <--- Fixed variable name here
+            .eq('email', email) // <--- Fixed Variable 1
             .maybeSingle();
 
         if (modCheck) {
             if (modCheck.account_status === 'Banned') {
-                await supabaseClient.auth.signOut();
-                showAccountDeletedRedModal(`Access Denied: Banned. Your account has been permanently terminated. Reason: ${modCheck.moderation_reason}`);
-                return;
+                await supabaseClient.auth.signOut(); 
+                showAccountDeletedRedModal(`Access Denied: Account Banned. Your account has been permanently terminated. Reason: ${modCheck.moderation_reason}`);
+                return; 
             }
             
             if (modCheck.account_status === 'Suspended') {
                 const suspendedDate = new Date(modCheck.suspended_until);
+                
                 if (suspendedDate > new Date()) {
-                    await supabaseClient.auth.signOut();
-                    showAccountDeletedRedModal(`Access Denied: Suspended. Your account is suspended until ${suspendedDate.toLocaleDateString()}. Reason: ${modCheck.moderation_reason}`);
-                    return;
+                    await supabaseClient.auth.signOut(); 
+                    showAccountDeletedRedModal(`Access Denied: Account Suspended until ${suspendedDate.toLocaleDateString()}. Reason: ${modCheck.moderation_reason}`);
+                    return; 
                 } else {
-                    await supabaseClient.from('customers').update({ account_status: 'Active', suspended_until: null }).eq('email', email);
+                    // The suspension time has passed! Automatically restore their account to Active.
+                    await supabaseClient.from('customers').update({ 
+                        account_status: 'Active', 
+                        suspended_until: null 
+                    }).eq('email', email); // <--- Fixed Variable 2
                 }
             }
         }
-
-        // ... if they pass the check, proceed with loading the user's profile and closing the login modal ...
                 
         if (authErr || !authData.user) {
             showToast("Sign In Failed", "Invalid email or password.");
