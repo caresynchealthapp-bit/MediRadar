@@ -725,6 +725,31 @@ if (isWaitingForRegistrationOtp) {
         }
     }
 
+    // Add this right BEFORE you call supabaseClient.auth.signUp() in app.js:
+
+const { data: banCheck } = await supabaseClient
+    .from('customers')
+    .select('account_status, moderation_reason')
+    .eq('email', signupEmail) // Replace signupEmail with your actual signup email variable
+    .maybeSingle();
+
+if (banCheck) {
+    if (banCheck.account_status === 'Banned') {
+        showToast("Registration Blocked", `This email address is permanently banned from MediRadar.\nReason: ${banCheck.moderation_reason}`);
+        return; // Stop the signup process entirely
+    }
+    
+    if (banCheck.account_status === 'Suspended') {
+        const suspendedDate = new Date(banCheck.suspended_until);
+        if (suspendedDate > new Date()) {
+            showToast("Registration Blocked", `This email is currently suspended until ${suspendedDate.toLocaleDateString()}.\nReason: ${banCheck.moderation_reason}`);
+            return; // Stop the signup process entirely
+        }
+    }
+}
+
+// ... if they pass the check, proceed with supabaseClient.auth.signUp() ...
+
     const rawPassword = document.getElementById('profPassword').value.trim();
     const { data: authData, error: signUpErr } = await supabaseClient.auth.signUp({
         email: payload.email,
@@ -3822,7 +3847,41 @@ handleCustomerLogin = async function(event) {
             email: email,
             password: rawPass
         });
-        
+
+                // Add this right AFTER a successful Supabase login in your app.js:
+
+        const { data: modCheck, error: modErr } = await supabaseClient
+            .from('customers')
+            .select('account_status, suspended_until, moderation_reason')
+            .eq('email', loginEmail) // Replace loginEmail with your actual email variable
+            .maybeSingle();
+
+        if (modCheck) {
+            if (modCheck.account_status === 'Banned') {
+                await supabaseClient.auth.signOut(); // Immediately kick them out
+                showToast("Access Denied: Banned", `Your account has been permanently terminated.\nReason: ${modCheck.moderation_reason}`);
+                return; // Stop the login process
+            }
+            
+            if (modCheck.account_status === 'Suspended') {
+                const suspendedDate = new Date(modCheck.suspended_until);
+                
+                if (suspendedDate > new Date()) {
+                    await supabaseClient.auth.signOut(); // Immediately kick them out
+                    showToast("Access Denied: Suspended", `Your account is suspended until ${suspendedDate.toLocaleDateString()}.\nReason: ${modCheck.moderation_reason}`);
+                    return; // Stop the login process
+                } else {
+                    // The suspension time has passed! Automatically restore their account to Active.
+                    await supabaseClient.from('customers').update({ 
+                        account_status: 'Active', 
+                        suspended_until: null 
+                    }).eq('email', loginEmail);
+                }
+            }
+        }
+
+        // ... if they pass the check, proceed with loading the user's profile and closing the login modal ...
+                
         if (authErr || !authData.user) {
             showToast("Sign In Failed", "Invalid email or password.");
             return;
@@ -3897,9 +3956,47 @@ submitPharmacyOrder = async function(event) {
         }
 
         if (selectedPaymentMethod === 'CARD') {
-            if (cardNo.length < 12 || !cardExp || cardCvv.length < 3) {
-                throw new Error("Please enter valid temporary Card Number, Expiry Date, and CVV.");
-            }
+            const combinedOrderIds = createdInvoices.join(',');
+            const grandTotal = checkoutItemsQueue.reduce((s, i) => s + (i.qty * i.unit_price), 0);
+
+            const { data: phData, error: phErr } = await supabaseClient.functions.invoke('payhere-checkout', {
+                body: { order_id: combinedOrderIds, amount: grandTotal, currency: 'LKR' }
+            });
+            if (phErr) throw phErr;
+
+            window.payhere.onCompleted = async function onCompleted(orderId) {
+                showToast("Payment Successful!", `Order ${orderId} paid via PayHere.`);
+                closeCheckoutModal();
+                await fetchLiveSupabaseData();
+                await fetchMyCustomerOrders(true);
+            };
+            window.payhere.onDismissed = function onDismissed() {
+                showToast("Payment Cancelled", "You closed the payment window before completing payment.");
+            };
+            window.payhere.onError = function onError(error) {
+                showToast("Payment Error", error);
+            };
+
+            window.payhere.startPayment({
+                sandbox: true, // Change to false when your live PayHere domain is approved
+                merchant_id: phData.merchant_id,
+                return_url: window.location.origin,
+                cancel_url: window.location.origin,
+                notify_url: `${SUPABASE_URL}/functions/v1/payhere-checkout`,
+                order_id: combinedOrderIds,
+                items: "MediRadar Pharmacy Order",
+                amount: phData.amount,
+                currency: "LKR",
+                hash: phData.hash,
+                first_name: custName.split(' ')[0] || 'Customer',
+                last_name: custName.split(' ').slice(1).join(' ') || '',
+                email: currentCustomer.email,
+                phone: custPhone,
+                address: custAddress,
+                city: "Colombo",
+                country: "Sri Lanka"
+            });
+            return;
         } else {
             if (!bankRef) throw new Error("Please enter your Bank Transfer Reference / Slip Number.");
             if (!receiptFileInput.files || receiptFileInput.files.length === 0) {
@@ -3976,10 +4073,15 @@ submitPharmacyOrder = async function(event) {
             await supabaseClient.from('customer_order_items').insert(orderItemsPayload);
             if (isCard) {
                 for (const item of pharmItems) {
-                    const stockRow = grnStockTable.find(s => String(s.id) === String(item.stock_id));
-                    const newQty = stockRow ? Math.max(0, Number(stockRow.current_quantity) - item.qty) : 0;
-                    if (stockRow) stockRow.current_quantity = newQty;
-                    await supabaseClient.from('grn_stock').update({ current_quantity: newQty }).eq('id', item.stock_id);
+                    
+                    // --- NEW ATOMIC STOCK DEDUCTION ---
+                    const { data: remainingStock, error: stockRpcErr } = await supabaseClient.rpc('decrement_grn_stock', {
+                        stock_uuid: item.stock_id,
+                        buy_qty: item.qty
+                    });
+                    if (stockRpcErr) throw new Error(`Stock Error for ${item.medicine_name}: ${stockRpcErr.message}`);
+                    // ----------------------------------
+
                     await supabaseClient.from('sales_transactions').insert([{
                         pharmacy_id: pharmacyId,
                         invoice_no: invoiceNo,
