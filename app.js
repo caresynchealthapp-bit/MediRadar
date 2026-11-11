@@ -162,10 +162,11 @@ let currentSearchMode = 'medicines';
                 if (medRes.error) throw medRes.error;
                 if (stockRes.error) throw stockRes.error;
 
-                pharmaciesTable = pharmRes.data || [];
+                pharmaciesTable = (pharmRes.data || []).filter(p => (p.moderation_status || 'Active') !== 'Banned');
+                const activePharmacyIds = new Set(pharmaciesTable.map(p => String(p.id)));
                 pharmacyBanksTable = banksRes.data || [];
                 medicinesTable = medRes.data || [];
-                grnStockTable = stockRes.data || [];
+                grnStockTable = (stockRes.data || []).filter(s => activePharmacyIds.has(String(s.pharmacy_id)));
                 if (salesRes.data) salesTransactionsTable = salesRes.data;
 
                 statusDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0";
@@ -4589,6 +4590,7 @@ function clearCustomerChatAttachment() {
 }
 
 async function fetchMyCustomerSupportMessages(markRead = false) {
+    await supabaseClient.rpc('purge_old_support_messages');
     if (!currentCustomer || !currentCustomer.id) return;
     try {
         const { data, error } = await supabaseClient

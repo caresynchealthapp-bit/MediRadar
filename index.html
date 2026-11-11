@@ -1495,7 +1495,7 @@
 <!-- CUSTOMER LIVE CHAT & PHARMACY REPORT HUB (ADD BEFORE app.js)   -->
 <!-- ============================================================== -->
 <button type="button" onclick="openCustomerSupportHub('chat')"
-    class="fixed bottom-5 left-5 z-40 h-12 px-4 rounded-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-extrabold text-xs shadow-2xl border-2 border-white/20 flex items-center gap-2.5 transition transform hover:scale-105">
+    class="fixed bottom-5 right-5 z-40 h-12 px-5 rounded-full bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 hover:from-teal-500 hover:to-emerald-500 text-white font-extrabold text-xs shadow-2xl border-2 border-white/30 flex items-center gap-2.5 transition transform hover:scale-105">
     <i class="fa-solid fa-comments text-base"></i>
     <span>Live Support & Report</span>
     <span id="customerChatUnreadBadge" class="hidden min-w-[18px] h-[18px] px-1 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black flex items-center justify-center">0</span>
@@ -1533,18 +1533,38 @@
         </div>
 
         <!-- PANE 1: LIVE 1-ON-1 CHAT WITH MEDIRADAR STAFF -->
-        <div id="hubPaneChat" class="flex-1 flex flex-col min-h-0 bg-slate-50">
-            <div id="customerChatMessagesBox" class="flex-1 overflow-y-auto p-4 space-y-3">
+        <div id="hubPaneChat" class="flex-1 flex flex-col min-h-0 bg-slate-50 relative overflow-hidden">
+            
+            <!-- Fixed Center Watermark Emblem & Medical Pattern Background -->
+            <div class=" inset-0 pointer-events-none flex flex-col items-center justify-center select-none z-0 opacity-[0.07]"
+                 style="position: absolute; background-image: radial-gradient(#0d9488 1px, transparent 1px); background-size: 20px 20px;">
+                <svg class="w-44 h-44 text-teal-800" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="100" height="100" rx="28" fill="currentColor" fill-opacity="0.15"/>
+                    <path d="M50 14L20 28V50C20 69.5 32.8 87.2 50 92C67.2 87.2 80 69.5 80 50V28L50 14Z" stroke="currentColor" stroke-width="5"/>
+                    <path d="M50 34V66M34 50H66" stroke="currentColor" stroke-width="7" stroke-linecap="round"/>
+                </svg>
+                <span class="text-2xl font-black tracking-widest uppercase text-teal-950 mt-2">MEDIRADAR CARE</span>
+                <span class="text-[10px] font-bold tracking-wider uppercase text-teal-900">Official Encrypted Support Desk</span>
+            </div>
+
+            <!-- 30-Day Auto-Clear Notice Strip -->
+            <div class="relative z-10 bg-teal-50/90 backdrop-blur-xs border-b border-teal-200/80 px-4 py-1.5 text-[10px] font-semibold text-teal-800 flex items-center justify-between">
+                <span><i class="fa-solid fa-shield-halved text-teal-600 mr-1"></i> Official MediRadar Support Channel</span>
+                <span><i class="fa-regular fa-clock mr-1"></i> Chat history auto-clears after 30 days</span>
+            </div>
+
+            <!-- Scrollable Messages Container (z-10 so bubbles sit above the watermark) -->
+            <div id="customerChatMessagesBox" class="relative z-10 flex-1 overflow-y-auto p-4 space-y-3">
                 <!-- Populated dynamically via app.js -->
             </div>
 
             <!-- Optional Chat Image Preview -->
-            <div id="customerChatAttachmentBar" class="hidden px-4 py-2 bg-teal-50 border-t border-teal-200 flex items-center justify-between text-xs text-teal-900">
+            <div id="customerChatAttachmentBar" class="relative z-10 hidden px-4 py-2 bg-teal-50 border-t border-teal-200 flex items-center justify-between text-xs text-teal-900">
                 <span id="customerChatFileName" class="truncate font-semibold">image.jpg</span>
                 <button type="button" onclick="clearCustomerChatAttachment()" class="text-rose-600 font-bold ml-2">Remove</button>
             </div>
 
-            <form onsubmit="sendCustomerSupportMessage(event)" class="p-3 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0">
+            <form onsubmit="sendCustomerSupportMessage(event)" class="relative z-10 p-3 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0">
                 <label class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer shrink-0" title="Attach Screenshot / Photo">
                     <i class="fa-solid fa-paperclip text-sm"></i>
                     <input type="file" id="customerChatFileInput" accept="image/*" class="hidden" onchange="handleCustomerChatFileSelect(event)">
