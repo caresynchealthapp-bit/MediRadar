@@ -910,6 +910,11 @@ function renderCheckoutSummary() {
     const optSameday = document.getElementById('delTabSameday');
     const optPickup = document.getElementById('delTabPickup');
 
+// --- DYNAMICALLY HIDE UNAVAILABLE FULFILLMENT OPTIONS ---
+    const optNormal = document.getElementById('delTabNormal');
+    const optSameday = document.getElementById('delTabSameday');
+    const optPickup = document.getElementById('delTabPickup');
+
     const allowNormal = activePharmacy.allow_normal_delivery !== false;
     const allowSameday = activePharmacy.allow_sameday_delivery !== false;
     const allowPickup = activePharmacy.allow_pickup !== false;
@@ -918,17 +923,15 @@ function renderCheckoutSummary() {
     if (optSameday) optSameday.style.display = allowSameday ? 'flex' : 'none';
     if (optPickup) optPickup.style.display = allowPickup ? 'flex' : 'none';
 
-    // Auto-select using your actual function name: toggleFulfillmentMode
-    if (allowNormal && (!currentFulfillmentMode || currentFulfillmentMode === 'NORMAL_DELIVERY')) {
-        toggleFulfillmentMode('NORMAL_DELIVERY');
-    } else if (allowSameday && currentFulfillmentMode === 'SAMEDAY_DELIVERY') {
-        toggleFulfillmentMode('SAMEDAY_DELIVERY');
-    } else if (allowPickup && currentFulfillmentMode === 'SELF_PICKUP') {
-        toggleFulfillmentMode('SELF_PICKUP');
-    } else {
-        if (allowNormal) toggleFulfillmentMode('NORMAL_DELIVERY');
-        else if (allowSameday) toggleFulfillmentMode('SAMEDAY_DELIVERY');
-        else if (allowPickup) toggleFulfillmentMode('SELF_PICKUP');
+    // Safely set the default fulfillment mode variable without recursion loops
+    if (!currentFulfillmentMode || 
+        (currentFulfillmentMode === 'NORMAL_DELIVERY' && !allowNormal) || 
+        (currentFulfillmentMode === 'SAMEDAY_DELIVERY' && !allowSameday) || 
+        (currentFulfillmentMode === 'SELF_PICKUP' && !allowPickup)) {
+        
+        if (allowNormal) currentFulfillmentMode = 'NORMAL_DELIVERY';
+        else if (allowSameday) currentFulfillmentMode = 'SAMEDAY_DELIVERY';
+        else if (allowPickup) currentFulfillmentMode = 'SELF_PICKUP';
     }
 
     // --- DYNAMICALLY HIDE UNAVAILABLE PAYMENT OPTIONS ---
@@ -944,13 +947,16 @@ function renderCheckoutSummary() {
     if (payCard) payCard.style.display = allowCard ? 'flex' : 'none';
     if (payCod) payCod.style.display = allowCod ? 'flex' : 'none';
 
-    // Safely assign the active payment method
-    if (!currentPaymentMethod || (currentPaymentMethod === 'BANK' && !allowBank) || (currentPaymentMethod === 'CARD' && !allowCard) || (currentPaymentMethod === 'COD' && !allowCod)) {
+    // Safely set the default payment method variable without recursion loops
+    if (!currentPaymentMethod || 
+        (currentPaymentMethod === 'BANK' && !allowBank) || 
+        (currentPaymentMethod === 'CARD' && !allowCard) || 
+        (currentPaymentMethod === 'COD' && !allowCod)) {
+        
         if (allowBank) currentPaymentMethod = 'BANK';
         else if (allowCard) currentPaymentMethod = 'CARD';
         else if (allowCod) currentPaymentMethod = 'COD';
     }
-
     document.getElementById('checkoutPharmacyName').textContent = pharmNames.join(' + ');
     document.getElementById('checkoutItemsCountBadge').textContent = `${checkoutItemsQueue.reduce((s, i) => s + i.qty, 0)} Unit(s)`;
 
