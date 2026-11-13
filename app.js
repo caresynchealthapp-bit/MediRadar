@@ -1267,7 +1267,7 @@ let isCheckingOutFromCart = false;
                                         </button>
                                     ` : `
                                         <button type="button" onclick="printOfficialOrderInvoice('${order.id}')"
-                                            class="text-[10px] font-bold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2 py-1.5 rounded-lg transition text-center">
+                                            class="text-[10px] font-bold text-brand-700 hover:text-brand-900 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-2 py-1.5 rounded-lg transition text-center">
                                             Invoice
                                         </button>
                                     `}
@@ -2082,19 +2082,19 @@ window.toggleSidebar = function() {
 
                                 <div class="flex flex-wrap items-center gap-2">
                                     <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
-                                        class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs px-3 py-2.5 rounded-xl shadow-sm transition flex items-center justify-center gap-1.5">
-                                        <i class="fa-solid fa-diamond-turn-right text-emerald-600"></i>
+                                        class="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold text-xs px-3 py-2.5 rounded-xl shadow-sm transition flex items-center justify-center gap-1.5">
+                                        <i class="fa-solid fa-diamond-turn-right text-brand-600"></i>
                                         <span>Google Maps</span>
                                     </a>
 
                                     <button onclick="addToCart('${entry.id}', 1, false)"
-                                        class="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 font-bold text-xs px-3.5 py-2.5 rounded-xl transition flex items-center justify-center gap-1.5">
+                                        class="bg-brand-50 hover:bg-brand-100 text-brand-800 border border-brand-300 font-bold text-xs px-3.5 py-2.5 rounded-xl transition flex items-center justify-center gap-1.5">
                                         <i class="fa-solid fa-cart-plus"></i>
                                         <span>Add to Cart</span>
                                     </button>
 
                                     <button onclick="buySingleStockItemNow('${entry.id}')"
-                                        class="bg-slate-900 hover:bg-brand-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition flex items-center justify-center gap-1.5">
+                                        class="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition flex items-center justify-center gap-1.5">
                                         <i class="fa-solid fa-bag-shopping"></i>
                                         <span>Buy from ${p.pharmacy_name}</span>
                                     </button>

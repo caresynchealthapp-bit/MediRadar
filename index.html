@@ -803,7 +803,7 @@
     <div id="nearestPharmaciesModal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
             
-            <div class="bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white p-5 sm:p-6 flex items-start justify-between gap-4">
+            <div class="theme-header-surface text-white p-5 sm:p-6 flex items-start justify-between gap-4">
                 <div class="flex items-center gap-3.5">
                     <div class="w-12 h-12 rounded-2xl bg-brand-500/20 border border-brand-400/40 flex items-center justify-center text-brand-300 text-xl flex-shrink-0">
                         <i class="fa-solid fa-location-dot"></i>
@@ -833,7 +833,7 @@
                     <span>Add items to your <strong>Shopping Cart</strong> or click <strong>Buy Now</strong> to checkout from that pharmacy.</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button onclick="closeNearestModal(); openCartModal();" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition">
+                    <button onclick="closeNearestModal(); openCartModal();" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold transition">
                         <i class="fa-solid fa-cart-shopping mr-1"></i> View Cart
                     </button>
                     <button onclick="closeNearestModal()" class="px-5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold transition">
@@ -849,7 +849,7 @@
     <!-- ========================================== -->
     <div id="cartModal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-white rounded-3xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
-            <div class="bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white p-5 sm:p-6 flex items-center justify-between">
+            <div class="theme-header-surface text-white p-5 sm:p-6 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <div class="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 flex items-center justify-center text-lg">
                         <i class="fa-solid fa-cart-shopping"></i>
@@ -877,7 +877,7 @@
                     <button type="button" onclick="clearEntireCart()" class="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition">
                         <i class="fa-solid fa-trash-can mr-1"></i> Clear Cart
                     </button>
-                    <button type="button" onclick="proceedFromCartToCheckout()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-brand-600 to-teal-700 hover:from-brand-500 hover:to-teal-600 text-white text-xs sm:text-sm font-extrabold shadow-lg transition flex items-center gap-2">
+                    <button type="button" onclick="proceedFromCartToCheckout()" class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs sm:text-sm font-extrabold shadow-lg transition flex items-center gap-2">
                         <i class="fa-solid fa-lock"></i>
                         <span>Proceed to Checkout</span>
                     </button>
@@ -1345,7 +1345,7 @@
     <!-- ========================================== -->
     <div id="ordersModal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-white rounded-3xl max-w-5xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
-            <div class="bg-slate-900 text-white p-5 sm:p-6 flex items-center justify-between">
+            <div class="theme-header-surface text-white p-5 sm:p-6 flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <i class="fa-solid fa-file-invoice text-brand-400 text-xl"></i>
                     <div>
