@@ -905,7 +905,6 @@ function renderCheckoutSummary() {
     // 1. Properly lookup the primary pharmacy object for settings/toggles
     const activePharmacy = pharmaciesTable.find(ph => ph.id === uniquePharmIds[0]) || {};
 
-    // --- DYNAMICALLY HIDE UNAVAILABLE FULFILLMENT OPTIONS ---
     const optNormal = document.getElementById('delTabNormal');
     const optSameday = document.getElementById('delTabSameday');
     const optPickup = document.getElementById('delTabPickup');
@@ -918,17 +917,11 @@ function renderCheckoutSummary() {
     if (optSameday) optSameday.style.display = allowSameday ? 'flex' : 'none';
     if (optPickup) optPickup.style.display = allowPickup ? 'flex' : 'none';
 
-    // Auto-select the first available fulfillment method
-    if (allowNormal && (!currentFulfillmentMode || currentFulfillmentMode === 'NORMAL_DELIVERY')) {
-        selectFulfillmentMethod('NORMAL_DELIVERY');
-    } else if (allowSameday && currentFulfillmentMode === 'SAMEDAY_DELIVERY') {
-        selectFulfillmentMethod('SAMEDAY_DELIVERY');
-    } else if (allowPickup && currentFulfillmentMode === 'SELF_PICKUP') {
-        selectFulfillmentMethod('SELF_PICKUP');
-    } else {
-        if (allowNormal) selectFulfillmentMethod('NORMAL_DELIVERY');
-        else if (allowSameday) selectFulfillmentMethod('SAMEDAY_DELIVERY');
-        else if (allowPickup) selectFulfillmentMethod('SELF_PICKUP');
+    // Safely assign the active fulfillment mode without calling missing functions
+    if (!currentFulfillmentMode || (currentFulfillmentMode === 'NORMAL_DELIVERY' && !allowNormal) || (currentFulfillmentMode === 'SAMEDAY_DELIVERY' && !allowSameday) || (currentFulfillmentMode === 'SELF_PICKUP' && !allowPickup)) {
+        if (allowNormal) currentFulfillmentMode = 'NORMAL_DELIVERY';
+        else if (allowSameday) currentFulfillmentMode = 'SAMEDAY_DELIVERY';
+        else if (allowPickup) currentFulfillmentMode = 'SELF_PICKUP';
     }
 
     // --- DYNAMICALLY HIDE UNAVAILABLE PAYMENT OPTIONS ---
@@ -944,13 +937,11 @@ function renderCheckoutSummary() {
     if (payCard) payCard.style.display = allowCard ? 'flex' : 'none';
     if (payCod) payCod.style.display = allowCod ? 'flex' : 'none';
 
-    // Auto-select first available payment method if current one is hidden
-    if (allowBank && (!currentPaymentMethod || currentPaymentMethod === 'BANK')) {
-        selectPaymentMethod('BANK');
-    } else {
-        if (allowBank) selectPaymentMethod('BANK');
-        else if (allowCard) selectPaymentMethod('CARD');
-        else if (allowCod) selectPaymentMethod('COD');
+    // Safely assign the active payment method
+    if (!currentPaymentMethod || (currentPaymentMethod === 'BANK' && !allowBank) || (currentPaymentMethod === 'CARD' && !allowCard) || (currentPaymentMethod === 'COD' && !allowCod)) {
+        if (allowBank) currentPaymentMethod = 'BANK';
+        else if (allowCard) currentPaymentMethod = 'CARD';
+        else if (allowCod) currentPaymentMethod = 'COD';
     }
 
     document.getElementById('checkoutPharmacyName').textContent = pharmNames.join(' + ');
