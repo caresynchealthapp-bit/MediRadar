@@ -902,6 +902,28 @@ function syncCheckoutAvailabilityRules(itemsToBuy) {
                 return p ? `${p.pharmacy_name} (${p.city || ''})` : 'Registered Pharmacy';
             });
 
+            // --- DYNAMICALLY HIDE UNAVAILABLE FULFILLMENT OPTIONS ---
+            const optNormal = document.getElementById('delTabNormal');
+            const optSameday = document.getElementById('delTabSameday');
+            const optPickup = document.getElementById('delTabPickup');
+
+            const allowNormal = pharmacy.allow_normal_delivery !== false;
+            const allowSameday = pharmacy.allow_sameday_delivery !== false;
+            const allowPickup = pharmacy.allow_pickup !== false;
+
+            if (optNormal) optNormal.style.display = allowNormal ? 'flex' : 'none';
+            if (optSameday) optSameday.style.display = allowSameday ? 'flex' : 'none';
+            if (optPickup) optPickup.style.display = allowPickup ? 'flex' : 'none';
+
+            // Auto-select the first available fulfillment method
+            if (allowNormal) {
+                selectFulfillmentMethod('NORMAL');
+            } else if (allowSameday) {
+                selectFulfillmentMethod('SAMEDAY');
+            } else if (allowPickup) {
+                selectFulfillmentMethod('PICKUP');
+            }
+
             document.getElementById('checkoutPharmacyName').textContent = pharmNames.join(' + ');
             document.getElementById('checkoutItemsCountBadge').textContent = `${checkoutItemsQueue.reduce((s, i) => s + i.qty, 0)} Unit(s)`;
 
