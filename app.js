@@ -910,11 +910,6 @@ function renderCheckoutSummary() {
     const optSameday = document.getElementById('delTabSameday');
     const optPickup = document.getElementById('delTabPickup');
 
-// --- DYNAMICALLY HIDE UNAVAILABLE FULFILLMENT OPTIONS ---
-    const optNormal = document.getElementById('delTabNormal');
-    const optSameday = document.getElementById('delTabSameday');
-    const optPickup = document.getElementById('delTabPickup');
-
     const allowNormal = activePharmacy.allow_normal_delivery !== false;
     const allowSameday = activePharmacy.allow_sameday_delivery !== false;
     const allowPickup = activePharmacy.allow_pickup !== false;
