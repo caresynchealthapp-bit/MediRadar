@@ -905,6 +905,7 @@ function renderCheckoutSummary() {
     // 1. Properly lookup the primary pharmacy object for settings/toggles
     const activePharmacy = pharmaciesTable.find(ph => ph.id === uniquePharmIds[0]) || {};
 
+// --- DYNAMICALLY HIDE UNAVAILABLE FULFILLMENT OPTIONS ---
     const optNormal = document.getElementById('delTabNormal');
     const optSameday = document.getElementById('delTabSameday');
     const optPickup = document.getElementById('delTabPickup');
@@ -917,11 +918,17 @@ function renderCheckoutSummary() {
     if (optSameday) optSameday.style.display = allowSameday ? 'flex' : 'none';
     if (optPickup) optPickup.style.display = allowPickup ? 'flex' : 'none';
 
-    // Safely assign the active fulfillment mode without calling missing functions
-    if (!currentFulfillmentMode || (currentFulfillmentMode === 'NORMAL_DELIVERY' && !allowNormal) || (currentFulfillmentMode === 'SAMEDAY_DELIVERY' && !allowSameday) || (currentFulfillmentMode === 'SELF_PICKUP' && !allowPickup)) {
-        if (allowNormal) currentFulfillmentMode = 'NORMAL_DELIVERY';
-        else if (allowSameday) currentFulfillmentMode = 'SAMEDAY_DELIVERY';
-        else if (allowPickup) currentFulfillmentMode = 'SELF_PICKUP';
+    // Auto-select using your actual function name: toggleFulfillmentMode
+    if (allowNormal && (!currentFulfillmentMode || currentFulfillmentMode === 'NORMAL_DELIVERY')) {
+        toggleFulfillmentMode('NORMAL_DELIVERY');
+    } else if (allowSameday && currentFulfillmentMode === 'SAMEDAY_DELIVERY') {
+        toggleFulfillmentMode('SAMEDAY_DELIVERY');
+    } else if (allowPickup && currentFulfillmentMode === 'SELF_PICKUP') {
+        toggleFulfillmentMode('SELF_PICKUP');
+    } else {
+        if (allowNormal) toggleFulfillmentMode('NORMAL_DELIVERY');
+        else if (allowSameday) toggleFulfillmentMode('SAMEDAY_DELIVERY');
+        else if (allowPickup) toggleFulfillmentMode('SELF_PICKUP');
     }
 
     // --- DYNAMICALLY HIDE UNAVAILABLE PAYMENT OPTIONS ---
