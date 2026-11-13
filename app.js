@@ -903,26 +903,18 @@ function syncCheckoutAvailabilityRules(itemsToBuy) {
             });
 
             // --- DYNAMICALLY HIDE UNAVAILABLE FULFILLMENT OPTIONS ---
-            const optNormal = document.getElementById('delTabNormal');
-            const optSameday = document.getElementById('delTabSameday');
-            const optPickup = document.getElementById('delTabPickup');
+                const boxNormal = document.getElementById('checkout-box-normal');
+                const boxSameday = document.getElementById('checkout-box-sameday');
+                const boxPickup = document.getElementById('checkout-box-pickup');
 
-            const allowNormal = pharmacy.allow_normal_delivery !== false;
-            const allowSameday = pharmacy.allow_sameday_delivery !== false;
-            const allowPickup = pharmacy.allow_pickup !== false;
+                // Default to true if columns are missing
+                const allowNormal = pharmacy.allow_normal_delivery !== false;
+                const allowSameday = pharmacy.allow_sameday_delivery !== false;
+                const allowPickup = pharmacy.allow_pickup !== false;
 
-            if (optNormal) optNormal.style.display = allowNormal ? 'flex' : 'none';
-            if (optSameday) optSameday.style.display = allowSameday ? 'flex' : 'none';
-            if (optPickup) optPickup.style.display = allowPickup ? 'flex' : 'none';
-
-            // Auto-select the first available fulfillment method
-            if (allowNormal) {
-                selectFulfillmentMethod('NORMAL');
-            } else if (allowSameday) {
-                selectFulfillmentMethod('SAMEDAY');
-            } else if (allowPickup) {
-                selectFulfillmentMethod('PICKUP');
-            }
+                if (boxNormal) boxNormal.style.display = allowNormal ? 'block' : 'none';
+                if (boxSameday) boxSameday.style.display = allowSameday ? 'block' : 'none';
+                if (boxPickup) boxPickup.style.display = allowPickup ? 'block' : 'none';
 
             document.getElementById('checkoutPharmacyName').textContent = pharmNames.join(' + ');
             document.getElementById('checkoutItemsCountBadge').textContent = `${checkoutItemsQueue.reduce((s, i) => s + i.qty, 0)} Unit(s)`;
