@@ -1429,10 +1429,11 @@
     </div>
 
     <!-- GLOBAL AI PRESCRIPTION SCANNER MODAL -->
-<div id="globalRxScannerModal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
-    <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100 animate-fadeIn">
-        <!-- Modal Header -->
-        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-6 py-5 flex items-center justify-between text-white">
+<div id="globalRxScannerModal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-100 animate-fadeIn my-auto">
+        
+        <!-- Sticky Modal Header (Always Visible!) -->
+        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-6 py-4 flex items-center justify-between text-white shrink-0">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
                     <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>
@@ -1442,13 +1443,13 @@
                     <p class="text-[11px] text-indigo-200">Auto-detects medicines & calculates dosage quantities</p>
                 </div>
             </div>
-            <button type="button" onclick="closeGlobalScannerModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-300 hover:text-white transition">
-                <i class="fa-solid fa-xmark"></i>
+            <button type="button" onclick="closeGlobalScannerModal()" class="w-9 h-9 rounded-xl bg-white/10 hover:bg-rose-500/80 flex items-center justify-center text-slate-200 hover:text-white transition shadow">
+                <i class="fa-solid fa-xmark text-lg"></i>
             </button>
         </div>
 
-        <!-- Modal Body -->
-        <div class="p-6 space-y-4">
+        <!-- Scrollable Modal Body -->
+        <div class="p-6 space-y-4 overflow-y-auto flex-1">
             <div class="bg-indigo-50/70 border-2 border-dashed border-indigo-300 rounded-2xl p-5 text-center space-y-3">
                 <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto">
                     <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
@@ -1458,12 +1459,12 @@
                         <i class="fa-solid fa-folder-open mr-1"></i> Choose Prescription Image
                     </label>
                     <input type="file" id="global-prescription-upload" accept="image/*,.pdf,.heic,.heif,.webp,.gif" class="hidden" onchange="handleGlobalRxSelection(event)">
-                    <p id="globalRxFileName" class="text-xs text-slate-500 mt-2 font-medium">No file chosen </p>
+                    <p id="globalRxFileName" class="text-xs text-slate-500 mt-2 font-medium">No file chosen</p>
                 </div>
 
                 <!-- Image Preview -->
                 <div id="globalRxPreviewContainer" class="hidden pt-2">
-                    <img id="globalRxPreviewImg" src="" alt="Prescription Preview" class="max-h-40 mx-auto rounded-xl border border-slate-200 shadow-sm object-contain">
+                    <img id="globalRxPreviewImg" src="" alt="Prescription Preview" class="max-h-36 mx-auto rounded-xl border border-slate-200 shadow-sm object-contain">
                 </div>
             </div>
 
@@ -1473,21 +1474,22 @@
                 <p>Reads instructions like <span class="font-mono bg-white px-1.5 py-0.5 rounded border text-slate-800">"two times a day two pills for 3 weeks"</span> (84 pills) or <span class="font-mono bg-white px-1.5 py-0.5 rounded border text-slate-800">"1 tab TDS for 5 days"</span> (15 pills) and adds the exact quantity to your cart.</p>
             </div>
 
-            <!-- Detected Breakdown Output -->
-            <div id="globalRxScanResults" class="hidden bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-900 space-y-1"></div>
-
-            <!-- Action Buttons (Shown when file is selected) -->
-            <div id="globalRxActionButtons" class="hidden flex items-center gap-3 pt-2">
-                <button type="button" id="globalAiScanBtn" onclick="runPrescriptionAI('global')" 
-                    class="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-extrabold shadow-md transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i> Scan & Auto-Fill Cart
-                </button>
-                <button type="button" onclick="clearGlobalPrescriptionUpload()" 
-                    class="py-3 px-4 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-bold transition flex items-center justify-center gap-1.5">
-                    <i class="fa-solid fa-trash-can"></i> Remove
-                </button>
-            </div>
+            <!-- Detected Breakdown Output (With its own internal scroll if huge!) -->
+            <div id="globalRxScanResults" class="hidden bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-xs text-emerald-900 space-y-1 max-h-52 overflow-y-auto shadow-inner"></div>
         </div>
+
+        <!-- Sticky Footer Action Buttons -->
+        <div id="globalRxActionButtons" class="hidden px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center gap-3 shrink-0">
+            <button type="button" id="globalAiScanBtn" onclick="runPrescriptionAI('global')" 
+                class="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-extrabold shadow-md transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Scan & Auto-Fill Cart
+            </button>
+            <button type="button" onclick="clearGlobalPrescriptionUpload()" 
+                class="py-3 px-4 rounded-xl bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-bold transition flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-trash-can"></i> Remove
+            </button>
+        </div>
+
     </div>
 </div>
 
