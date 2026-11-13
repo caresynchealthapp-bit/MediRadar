@@ -790,6 +790,67 @@ let isCheckingOutFromCart = false;
             return parseFloat(pharm.normal_delivery_fee ?? 250);
         }
 
+        // Checks across all pharmacies in the current checkout whether each option is allowed
+function syncCheckoutAvailabilityRules(itemsToBuy) {
+    const uniquePharmIds = [...new Set(itemsToBuy.map(i => i.pharmacy_id))];
+    const pharms = uniquePharmIds.map(pid => pharmaciesTable.find(p => String(p.id) === String(pid))).filter(Boolean);
+
+    // If a customer is buying from 2 pharmacies at once, an option is only allowed if BOTH pharmacies support it
+    const allowNormal = pharms.length === 0 || pharms.every(p => p.allow_normal_delivery !== false);
+    const allowSameday = pharms.length === 0 || pharms.every(p => p.allow_sameday_delivery !== false);
+    const allowPickup = pharms.length === 0 || pharms.every(p => p.allow_pickup !== false);
+
+    const allowBank = pharms.length === 0 || pharms.every(p => p.allow_bank_transfer !== false);
+    const allowCard = pharms.length === 0 || pharms.every(p => p.allow_card_payment !== false);
+    const allowCod = pharms.length === 0 || pharms.every(p => p.allow_cod !== false);
+
+    // 1. Apply Fulfillment Radio Locks
+    const setFulfillmentState = (mode, isAllowed, priceBadgeId, unavailableText) => {
+        const radio = document.querySelector(`input[name="fulfillmentMode"][value="${mode}"]`);
+        const badge = document.getElementById(priceBadgeId);
+        if (radio) radio.disabled = !isAllowed;
+        if (badge && !isAllowed) {
+            badge.textContent = `🔒 ${unavailableText}`;
+            badge.className = "text-[10px] font-extrabold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-md border border-rose-300";
+        }
+    };
+
+    setFulfillmentState('NORMAL_DELIVERY', allowNormal, 'normalDeliveryPriceTag', 'Unavailable');
+    setFulfillmentState('SAMEDAY_DELIVERY', allowSameday, 'samedayDeliveryPriceTag', 'Unavailable');
+    setFulfillmentState('PICKUP', allowPickup, 'pickupPriceTag', 'Unavailable');
+
+    // Auto-select the first available fulfillment mode
+    let firstValidFulfillment = 'NORMAL_DELIVERY';
+    if (allowNormal) firstValidFulfillment = 'NORMAL_DELIVERY';
+    else if (allowSameday) firstValidFulfillment = 'SAMEDAY_DELIVERY';
+    else if (allowPickup) firstValidFulfillment = 'PICKUP';
+
+    const targetRadio = document.querySelector(`input[name="fulfillmentMode"][value="${firstValidFulfillment}"]`);
+    if (targetRadio) targetRadio.checked = true;
+    toggleFulfillmentMode(firstValidFulfillment);
+
+    // 2. Apply Payment Button Locks
+    const configPayBtn = (btnId, subId, isAllowed, defaultSubText) => {
+        const btn = document.getElementById(btnId);
+        const sub = document.getElementById(subId);
+        if (btn) btn.disabled = !isAllowed;
+        if (sub) {
+            sub.innerHTML = isAllowed
+                ? defaultSubText
+                : `<span class="text-rose-600 font-bold"><i class="fa-solid fa-ban mr-1"></i>Disabled by Pharmacy</span>`;
+        }
+    };
+
+    configPayBtn('payTabBank', 'paySubBank', allowBank, 'Upload Bank Slip');
+    configPayBtn('payTabCard', 'paySubCard', allowCard, 'Visa / MasterCard');
+    configPayBtn('payTabCod', 'paySubCod', allowCod, 'Pay Cash at Door');
+
+    // Auto-select the first allowed payment method
+    if (allowBank) selectPaymentMethod('BANK');
+    else if (allowCod) selectPaymentMethod('COD');
+    else if (allowCard) selectPaymentMethod('CARD');
+}
+
         function initiateCheckoutFlow(itemsToBuy, fromCart = false) {
             if (!currentCustomer) {
                 showToast("Registration Required", "Please register or sign in before purchasing medicines online.");
@@ -815,7 +876,8 @@ let isCheckingOutFromCart = false;
                 addrInput.classList.remove('bg-slate-100', 'text-slate-500');
                 addrInput.value = currentCustomer.address || '';
             }
-
+            
+            syncCheckoutAvailabilityRules(itemsToBuy);
             renderCheckoutSummary();
 
             // Always start card inputs blank (temporary per-transaction only, never stored)
@@ -1069,22 +1131,24 @@ let isCheckingOutFromCart = false;
 
         function selectPaymentMethod(method) {
             selectedPaymentMethod = method;
-            const tabCard = document.getElementById('payTabCard');
             const tabBank = document.getElementById('payTabBank');
-            const cardSec = document.getElementById('cardPaymentSection');
-            const bankSec = document.getElementById('bankPaymentSection');
+            const tabCard = document.getElementById('payTabCard');
+            const tabCod = document.getElementById('payTabCod');
 
-            if (method === 'BANK') {
-                tabBank.className = "p-3.5 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-3 relative";
-                tabCard.className = "p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-3";
-                bankSec.classList.remove('hidden');
-                cardSec.classList.add('hidden');
-            } else {
-                tabCard.className = "p-3.5 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-3";
-                tabBank.className = "p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-3 relative";
-                cardSec.classList.remove('hidden');
-                bankSec.classList.add('hidden');
-            }
+            const bankSec = document.getElementById('bankPaymentSection');
+            const cardSec = document.getElementById('cardPaymentSection');
+            const codSec = document.getElementById('codPaymentSection');
+
+            const activeClass = "p-3 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-2.5 relative shadow-sm";
+            const inactiveClass = "p-3 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-2.5 relative disabled:opacity-40 disabled:cursor-not-allowed";
+
+            if (tabBank) tabBank.className = method === 'BANK' ? activeClass : inactiveClass;
+            if (tabCard) tabCard.className = method === 'CARD' ? activeClass : inactiveClass;
+            if (tabCod) tabCod.className = method === 'COD' ? activeClass : inactiveClass;
+
+            if (bankSec) bankSec.classList.toggle('hidden', method !== 'BANK');
+            if (cardSec) cardSec.classList.toggle('hidden', method !== 'CARD');
+            if (codSec) codSec.classList.toggle('hidden', method !== 'COD');
         }
 
 
