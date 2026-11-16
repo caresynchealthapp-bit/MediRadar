@@ -906,27 +906,31 @@ function renderCheckoutSummary() {
     const activePharmacy = pharmaciesTable.find(ph => ph.id === uniquePharmIds[0]) || {};
 
 // --- DYNAMICALLY HIDE UNAVAILABLE FULFILLMENT OPTIONS ---
-    const optNormal = document.getElementById('delTabNormal');
-    const optSameday = document.getElementById('delTabSameday');
-    const optPickup = document.getElementById('delTabPickup');
+    const optNormal = document.getElementById('fulfillmentLabel_NORMAL_DELIVERY');
+    const optSameday = document.getElementById('fulfillmentLabel_SAMEDAY_DELIVERY');
+    const optPickup = document.getElementById('fulfillmentLabel_PICKUP');
 
     const allowNormal = activePharmacy.allow_normal_delivery !== false;
     const allowSameday = activePharmacy.allow_sameday_delivery !== false;
     const allowPickup = activePharmacy.allow_pickup !== false;
 
-    if (optNormal) optNormal.style.display = allowNormal ? 'flex' : 'none';
-    if (optSameday) optSameday.style.display = allowSameday ? 'flex' : 'none';
-    if (optPickup) optPickup.style.display = allowPickup ? 'flex' : 'none';
+    if (optNormal) optNormal.style.display = allowNormal ? 'block' : 'none';
+    if (optSameday) optSameday.style.display = allowSameday ? 'block' : 'none';
+    if (optPickup) optPickup.style.display = allowPickup ? 'block' : 'none';
 
     // Safely set the default fulfillment mode variable without recursion loops
     if (!currentFulfillmentMode || 
         (currentFulfillmentMode === 'NORMAL_DELIVERY' && !allowNormal) || 
         (currentFulfillmentMode === 'SAMEDAY_DELIVERY' && !allowSameday) || 
-        (currentFulfillmentMode === 'SELF_PICKUP' && !allowPickup)) {
+        (currentFulfillmentMode === 'PICKUP' && !allowPickup)) {
         
         if (allowNormal) currentFulfillmentMode = 'NORMAL_DELIVERY';
         else if (allowSameday) currentFulfillmentMode = 'SAMEDAY_DELIVERY';
-        else if (allowPickup) currentFulfillmentMode = 'SELF_PICKUP';
+        else if (allowPickup) currentFulfillmentMode = 'PICKUP';
+
+        // Check the actual radio button in the HTML to match
+        const defaultRadio = document.querySelector(`input[name="fulfillmentMode"][value="${currentFulfillmentMode}"]`);
+        if (defaultRadio) defaultRadio.checked = true;
     }
 
     // --- DYNAMICALLY HIDE UNAVAILABLE PAYMENT OPTIONS ---
@@ -936,7 +940,9 @@ function renderCheckoutSummary() {
 
     const allowBank = activePharmacy.allow_bank_transfer !== false;
     const allowCard = activePharmacy.allow_card_payment !== false;
-    const allowCod = activePharmacy.allow_cod !== false;
+    
+    // CRITICAL FIX: Hide COD if the pharmacy disabled it OR if Self-Pickup is currently selected
+    const allowCod = (activePharmacy.allow_cod !== false) && (currentFulfillmentMode !== 'PICKUP');
 
     if (payBank) payBank.style.display = allowBank ? 'flex' : 'none';
     if (payCard) payCard.style.display = allowCard ? 'flex' : 'none';
@@ -955,7 +961,7 @@ function renderCheckoutSummary() {
         // Update the UI visually to match the safe selection
         selectPaymentMethod(selectedPaymentMethod);
     }
-    
+
     document.getElementById('checkoutPharmacyName').textContent = pharmNames.join(' + ');
     document.getElementById('checkoutItemsCountBadge').textContent = `${checkoutItemsQueue.reduce((s, i) => s + i.qty, 0)} Unit(s)`;
 
