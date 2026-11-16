@@ -891,7 +891,6 @@ function syncCheckoutAvailabilityRules(itemsToBuy) {
             const uniquePharmIds = [...new Set(itemsToBuy.map(i => i.pharmacy_id))];
             renderCheckoutPharmacyBankDetails(uniquePharmIds);
 
-            selectPaymentMethod('BANK');
             document.getElementById('checkoutModal').classList.remove('hidden');
         }
 
