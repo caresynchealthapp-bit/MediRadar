@@ -931,6 +931,34 @@ function renderCheckoutSummary() {
         if (defaultRadio) defaultRadio.checked = true;
     }
 
+    // --- 1. DYNAMICALLY HIDE UNAVAILABLE FULFILLMENT OPTIONS ---
+    const optNormal = document.getElementById('fulfillmentLabel_NORMAL_DELIVERY');
+    const optSameday = document.getElementById('fulfillmentLabel_SAMEDAY_DELIVERY');
+    const optPickup = document.getElementById('fulfillmentLabel_PICKUP');
+
+    const allowNormal = activePharmacy.allow_normal_delivery !== false;
+    const allowSameday = activePharmacy.allow_sameday_delivery !== false;
+    const allowPickup = activePharmacy.allow_pickup !== false;
+
+    // Use native Tailwind classes for perfect flex stretching
+    if (optNormal) optNormal.classList.toggle('hidden', !allowNormal);
+    if (optSameday) optSameday.classList.toggle('hidden', !allowSameday);
+    if (optPickup) optPickup.classList.toggle('hidden', !allowPickup);
+
+    // Safely set the default fulfillment mode variable
+    if (!currentFulfillmentMode || 
+        (currentFulfillmentMode === 'NORMAL_DELIVERY' && !allowNormal) || 
+        (currentFulfillmentMode === 'SAMEDAY_DELIVERY' && !allowSameday) || 
+        (currentFulfillmentMode === 'PICKUP' && !allowPickup)) {
+        
+        if (allowNormal) currentFulfillmentMode = 'NORMAL_DELIVERY';
+        else if (allowSameday) currentFulfillmentMode = 'SAMEDAY_DELIVERY';
+        else if (allowPickup) currentFulfillmentMode = 'PICKUP';
+
+        const defaultRadio = document.querySelector(`input[name="fulfillmentMode"][value="${currentFulfillmentMode}"]`);
+        if (defaultRadio) defaultRadio.checked = true;
+    }
+
     // --- 2. DYNAMICALLY HIDE UNAVAILABLE PAYMENT OPTIONS ---
     const payBank = document.getElementById('payTabBank');
     const payCard = document.getElementById('payTabCard');
