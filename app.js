@@ -1202,8 +1202,9 @@ function renderCheckoutSummary() {
             const cardSec = document.getElementById('cardPaymentSection');
             const codSec = document.getElementById('codPaymentSection');
 
-            const activeClass = "p-3 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-2.5 relative shadow-sm";
-            const inactiveClass = "p-3 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-2.5 relative disabled:opacity-40 disabled:cursor-not-allowed";
+            // FIX: Added 'flex-1 w-full' so the buttons stretch dynamically to fill empty space
+            const activeClass = "flex-1 w-full p-3 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-2.5 relative shadow-sm";
+            const inactiveClass = "flex-1 w-full p-3 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-2.5 relative disabled:opacity-40 disabled:cursor-not-allowed";
 
             if (tabBank) tabBank.className = method === 'BANK' ? activeClass : inactiveClass;
             if (tabCard) tabCard.className = method === 'CARD' ? activeClass : inactiveClass;
@@ -1213,7 +1214,6 @@ function renderCheckoutSummary() {
             if (cardSec) cardSec.classList.toggle('hidden', method !== 'CARD');
             if (codSec) codSec.classList.toggle('hidden', method !== 'COD');
         }
-
 
         // ---------------------------------------------------------
         // 7. CUSTOMER-ONLY ORDERS TABLE & LIVE CASHIER APPROVAL LISTENER
