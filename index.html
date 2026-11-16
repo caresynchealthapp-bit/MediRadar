@@ -1097,7 +1097,8 @@
                         <!-- Option 1: Normal Home Delivery -->
                         <label id="fulfillmentLabel_NORMAL_DELIVERY" class="cursor-pointer relative flex-1">
                             <input type="radio" name="fulfillmentMode" value="NORMAL_DELIVERY" checked onchange="toggleFulfillmentMode('NORMAL_DELIVERY')" class="sr-only peer">
-                            <div class="h-full p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-brand-600 peer-checked:bg-brand-50/60 peer-disabled:opacity-45 peer-disabled:bg-slate-100 text-xs font-bold text-slate-800 flex flex-col items-center justify-center gap-1 text-center transition">
+                            <!-- ADDED w-full HERE -->
+                            <div class="w-full h-full p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-brand-600 peer-checked:bg-brand-50/60 peer-disabled:opacity-45 peer-disabled:bg-slate-100 text-xs font-bold text-slate-800 flex flex-col items-center justify-center gap-1 text-center transition">
                                 <div class="flex items-center gap-1.5" id="checkout-box-normal">
                                     <i class="fa-solid fa-truck text-brand-600"></i>
                                     <span>Normal Delivery</span>
@@ -1109,7 +1110,8 @@
                         <!-- Option 2: Same-Day Express Delivery -->
                         <label id="fulfillmentLabel_SAMEDAY_DELIVERY" class="cursor-pointer relative flex-1">
                             <input type="radio" name="fulfillmentMode" value="SAMEDAY_DELIVERY" onchange="toggleFulfillmentMode('SAMEDAY_DELIVERY')" class="sr-only peer">
-                            <div class="h-full p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-amber-500 peer-checked:bg-amber-50/60 peer-disabled:opacity-45 peer-disabled:bg-slate-100 text-xs font-bold text-slate-800 flex flex-col items-center justify-center gap-1 text-center transition">
+                            <!-- ADDED w-full HERE -->
+                            <div class="w-full h-full p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-amber-500 peer-checked:bg-amber-50/60 peer-disabled:opacity-45 peer-disabled:bg-slate-100 text-xs font-bold text-slate-800 flex flex-col items-center justify-center gap-1 text-center transition">
                                 <div class="flex items-center gap-1.5" id="checkout-box-sameday">
                                     <i class="fa-solid fa-bolt text-amber-500"></i>
                                     <span>Same-Day Delivery</span>
@@ -1121,7 +1123,8 @@
                         <!-- Option 3: Self-Pickup at Pharmacy -->
                         <label id="fulfillmentLabel_PICKUP" class="cursor-pointer relative flex-1">
                             <input type="radio" name="fulfillmentMode" value="PICKUP" onchange="toggleFulfillmentMode('PICKUP')" class="sr-only peer">
-                            <div class="h-full p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-brand-600 peer-checked:bg-brand-50/60 peer-disabled:opacity-45 peer-disabled:bg-slate-100 text-xs font-bold text-slate-800 flex flex-col items-center justify-center gap-1 text-center transition">
+                            <!-- ADDED w-full HERE -->
+                            <div class="w-full h-full p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-brand-600 peer-checked:bg-brand-50/60 peer-disabled:opacity-45 peer-disabled:bg-slate-100 text-xs font-bold text-slate-800 flex flex-col items-center justify-center gap-1 text-center transition">
                                 <div class="flex items-center gap-1.5" id="checkout-box-pickup">
                                     <i class="fa-solid fa-store text-teal-600"></i>
                                     <span>Self-Pickup</span>
@@ -1206,7 +1209,7 @@
                                 <div id="paySubCard" class="text-[10px] text-slate-500 truncate">Visa / MasterCard</div>
                             </div>
                         </button>
-                        
+
                         <!-- 1: Bank Transaction -->
                         <button type="button" id="payTabBank" onclick="selectPaymentMethod('BANK')"
                             class="flex-1 p-3 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-2.5 relative disabled:opacity-40 disabled:cursor-not-allowed">
