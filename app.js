@@ -906,6 +906,7 @@ function renderCheckoutSummary() {
     const activePharmacy = pharmaciesTable.find(ph => ph.id === uniquePharmIds[0]) || {};
 
 // --- DYNAMICALLY HIDE UNAVAILABLE FULFILLMENT OPTIONS ---
+    // --- DYNAMICALLY HIDE UNAVAILABLE FULFILLMENT OPTIONS ---
     const optNormal = document.getElementById('fulfillmentLabel_NORMAL_DELIVERY');
     const optSameday = document.getElementById('fulfillmentLabel_SAMEDAY_DELIVERY');
     const optPickup = document.getElementById('fulfillmentLabel_PICKUP');
@@ -914,9 +915,10 @@ function renderCheckoutSummary() {
     const allowSameday = activePharmacy.allow_sameday_delivery !== false;
     const allowPickup = activePharmacy.allow_pickup !== false;
 
-    if (optNormal) optNormal.style.display = allowNormal ? 'block' : 'none';
-    if (optSameday) optSameday.style.display = allowSameday ? 'block' : 'none';
-    if (optPickup) optPickup.style.display = allowPickup ? 'block' : 'none';
+    // Added .style.flex = '1' to force them to stretch equally
+    if (optNormal) { optNormal.style.display = allowNormal ? 'block' : 'none'; optNormal.style.flex = '1'; }
+    if (optSameday) { optSameday.style.display = allowSameday ? 'block' : 'none'; optSameday.style.flex = '1'; }
+    if (optPickup) { optPickup.style.display = allowPickup ? 'block' : 'none'; optPickup.style.flex = '1'; }
 
     // Safely set the default fulfillment mode variable without recursion loops
     if (!currentFulfillmentMode || 
@@ -928,7 +930,6 @@ function renderCheckoutSummary() {
         else if (allowSameday) currentFulfillmentMode = 'SAMEDAY_DELIVERY';
         else if (allowPickup) currentFulfillmentMode = 'PICKUP';
 
-        // Check the actual radio button in the HTML to match
         const defaultRadio = document.querySelector(`input[name="fulfillmentMode"][value="${currentFulfillmentMode}"]`);
         if (defaultRadio) defaultRadio.checked = true;
     }
@@ -941,12 +942,13 @@ function renderCheckoutSummary() {
     const allowBank = activePharmacy.allow_bank_transfer !== false;
     const allowCard = activePharmacy.allow_card_payment !== false;
     
-    // CRITICAL FIX: Hide COD if the pharmacy disabled it OR if Self-Pickup is currently selected
+    // Hide COD if the pharmacy disabled it OR if Self-Pickup is currently selected
     const allowCod = (activePharmacy.allow_cod !== false) && (currentFulfillmentMode !== 'PICKUP');
 
-    if (payBank) payBank.style.display = allowBank ? 'flex' : 'none';
-    if (payCard) payCard.style.display = allowCard ? 'flex' : 'none';
-    if (payCod) payCod.style.display = allowCod ? 'flex' : 'none';
+    // Added .style.flex = '1' to force them to stretch equally
+    if (payBank) { payBank.style.display = allowBank ? 'flex' : 'none'; payBank.style.flex = '1'; }
+    if (payCard) { payCard.style.display = allowCard ? 'flex' : 'none'; payCard.style.flex = '1'; }
+    if (payCod) { payCod.style.display = allowCod ? 'flex' : 'none'; payCod.style.flex = '1'; }
 
     // Safely set the default payment method variable without recursion loops
     if (!selectedPaymentMethod || 
@@ -958,7 +960,6 @@ function renderCheckoutSummary() {
         else if (allowCard) selectedPaymentMethod = 'CARD';
         else if (allowCod) selectedPaymentMethod = 'COD';
 
-        // Update the UI visually to match the safe selection
         selectPaymentMethod(selectedPaymentMethod);
     }
 
