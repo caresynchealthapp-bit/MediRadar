@@ -1093,11 +1093,11 @@
                     <label class="block text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-2">
                         <i class="fa-solid fa-person-biking text-brand-600 mr-1"></i> Select Order Fulfillment & Delivery Speed *
                     </label>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div class="flex flex-col sm:flex-row gap-2.5 w-full">
                         <!-- Option 1: Normal Home Delivery -->
-                        <label id="fulfillmentLabel_NORMAL_DELIVERY" class="cursor-pointer relative">
+                        <label id="fulfillmentLabel_NORMAL_DELIVERY" class="cursor-pointer relative flex-1">
                             <input type="radio" name="fulfillmentMode" value="NORMAL_DELIVERY" checked onchange="toggleFulfillmentMode('NORMAL_DELIVERY')" class="sr-only peer">
-                            <div class="p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-brand-600 peer-checked:bg-brand-50/60 peer-disabled:opacity-45 peer-disabled:bg-slate-100 text-xs font-bold text-slate-800 flex flex-col items-center justify-center gap-1 text-center transition">
+                            <div class="h-full p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-brand-600 peer-checked:bg-brand-50/60 peer-disabled:opacity-45 peer-disabled:bg-slate-100 text-xs font-bold text-slate-800 flex flex-col items-center justify-center gap-1 text-center transition">
                                 <div class="flex items-center gap-1.5" id="checkout-box-normal">
                                     <i class="fa-solid fa-truck text-brand-600"></i>
                                     <span>Normal Delivery</span>
@@ -1107,9 +1107,9 @@
                         </label>
 
                         <!-- Option 2: Same-Day Express Delivery -->
-                        <label id="fulfillmentLabel_SAMEDAY_DELIVERY" class="cursor-pointer relative">
+                        <label id="fulfillmentLabel_SAMEDAY_DELIVERY" class="cursor-pointer relative flex-1">
                             <input type="radio" name="fulfillmentMode" value="SAMEDAY_DELIVERY" onchange="toggleFulfillmentMode('SAMEDAY_DELIVERY')" class="sr-only peer">
-                            <div class="p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-amber-500 peer-checked:bg-amber-50/60 peer-disabled:opacity-45 peer-disabled:bg-slate-100 text-xs font-bold text-slate-800 flex flex-col items-center justify-center gap-1 text-center transition">
+                            <div class="h-full p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-amber-500 peer-checked:bg-amber-50/60 peer-disabled:opacity-45 peer-disabled:bg-slate-100 text-xs font-bold text-slate-800 flex flex-col items-center justify-center gap-1 text-center transition">
                                 <div class="flex items-center gap-1.5" id="checkout-box-sameday">
                                     <i class="fa-solid fa-bolt text-amber-500"></i>
                                     <span>Same-Day Delivery</span>
@@ -1119,9 +1119,9 @@
                         </label>
 
                         <!-- Option 3: Self-Pickup at Pharmacy -->
-                        <label id="fulfillmentLabel_PICKUP" class="cursor-pointer relative">
+                        <label id="fulfillmentLabel_PICKUP" class="cursor-pointer relative flex-1">
                             <input type="radio" name="fulfillmentMode" value="PICKUP" onchange="toggleFulfillmentMode('PICKUP')" class="sr-only peer">
-                            <div class="p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-brand-600 peer-checked:bg-brand-50/60 peer-disabled:opacity-45 peer-disabled:bg-slate-100 text-xs font-bold text-slate-800 flex flex-col items-center justify-center gap-1 text-center transition">
+                            <div class="h-full p-2.5 rounded-xl border-2 border-slate-200 bg-white peer-checked:border-brand-600 peer-checked:bg-brand-50/60 peer-disabled:opacity-45 peer-disabled:bg-slate-100 text-xs font-bold text-slate-800 flex flex-col items-center justify-center gap-1 text-center transition">
                                 <div class="flex items-center gap-1.5" id="checkout-box-pickup">
                                     <i class="fa-solid fa-store text-teal-600"></i>
                                     <span>Self-Pickup</span>
@@ -1189,14 +1189,10 @@
                 </div>
 
                 <!-- Payment Method Selector (Bank Transaction First on Left, Card Payment on Right) -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-2">
-                        Select Pharmacy Payment Method *
-                    </label>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div class="flex flex-col sm:flex-row gap-2.5 w-full">
                         <!-- 1: Bank Transaction -->
                         <button type="button" id="payTabBank" onclick="selectPaymentMethod('BANK')"
-                            class="p-3 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-2.5 relative disabled:opacity-40 disabled:cursor-not-allowed">
+                            class="flex-1 p-3 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-2.5 relative disabled:opacity-40 disabled:cursor-not-allowed">
                             <div class="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center text-base flex-shrink-0">
                                 <i class="fa-solid fa-building-columns"></i>
                             </div>
@@ -1208,7 +1204,7 @@
 
                         <!-- 2: Card Payment -->
                         <button type="button" id="payTabCard" onclick="selectPaymentMethod('CARD')"
-                            class="p-3 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-2.5 relative disabled:opacity-40 disabled:cursor-not-allowed">
+                            class="flex-1 p-3 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-2.5 relative disabled:opacity-40 disabled:cursor-not-allowed">
                             <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-base flex-shrink-0">
                                 <i class="fa-regular fa-credit-card"></i>
                             </div>
@@ -1220,7 +1216,7 @@
 
                         <!-- 3: Cash on Delivery (COD) -->
                         <button type="button" id="payTabCod" onclick="selectPaymentMethod('COD')"
-                            class="p-3 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-2.5 relative disabled:opacity-40 disabled:cursor-not-allowed">
+                            class="flex-1 p-3 rounded-2xl border-2 border-slate-200 hover:border-slate-300 bg-white text-left transition flex items-center gap-2.5 relative disabled:opacity-40 disabled:cursor-not-allowed">
                             <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-base flex-shrink-0">
                                 <i class="fa-solid fa-hand-holding-dollar"></i>
                             </div>

@@ -1053,14 +1053,17 @@ function renderCheckoutSummary() {
         function toggleFulfillmentMode(mode) {
             currentFulfillmentMode = mode;
             const addrInput = document.getElementById('custAddress');
+            
             if (addrInput) {
                 if (mode === 'PICKUP') {
                     addrInput.value = 'Self-Pickup at Pharmacy Counter';
                     addrInput.readOnly = true;
-                    addrInput.classList.add('bg-slate-100', 'text-slate-500');
+                    // Visually and physically lock the input
+                    addrInput.classList.add('bg-slate-100', 'text-slate-500', 'pointer-events-none', 'cursor-not-allowed', 'opacity-80');
                 } else {
                     addrInput.readOnly = false;
-                    addrInput.classList.remove('bg-slate-100', 'text-slate-500');
+                    // Remove the locks
+                    addrInput.classList.remove('bg-slate-100', 'text-slate-500', 'pointer-events-none', 'cursor-not-allowed', 'opacity-80');
                     if (addrInput.value === 'Self-Pickup at Pharmacy Counter') {
                         addrInput.value = (currentCustomer && currentCustomer.address) ? currentCustomer.address : '';
                     }
