@@ -901,10 +901,37 @@ function renderCheckoutSummary() {
         return p ? `${p.pharmacy_name} (${p.city || ''})` : 'Registered Pharmacy';
     });
 
-    // 1. Properly lookup the primary pharmacy object for settings/toggles
     const activePharmacy = pharmaciesTable.find(ph => ph.id === uniquePharmIds[0]) || {};
 
-// --- DYNAMICALLY HIDE UNAVAILABLE PAYMENT OPTIONS ---
+    // --- 1. DYNAMICALLY HIDE UNAVAILABLE FULFILLMENT OPTIONS ---
+    const optNormal = document.getElementById('fulfillmentLabel_NORMAL_DELIVERY');
+    const optSameday = document.getElementById('fulfillmentLabel_SAMEDAY_DELIVERY');
+    const optPickup = document.getElementById('fulfillmentLabel_PICKUP');
+
+    const allowNormal = activePharmacy.allow_normal_delivery !== false;
+    const allowSameday = activePharmacy.allow_sameday_delivery !== false;
+    const allowPickup = activePharmacy.allow_pickup !== false;
+
+    // Sets display flex and forces them to stretch equally to fill gaps
+    if (optNormal) { optNormal.style.display = allowNormal ? 'flex' : 'none'; optNormal.style.flex = '1'; }
+    if (optSameday) { optSameday.style.display = allowSameday ? 'flex' : 'none'; optSameday.style.flex = '1'; }
+    if (optPickup) { optPickup.style.display = allowPickup ? 'flex' : 'none'; optPickup.style.flex = '1'; }
+
+    // Safely set the default fulfillment mode variable
+    if (!currentFulfillmentMode || 
+        (currentFulfillmentMode === 'NORMAL_DELIVERY' && !allowNormal) || 
+        (currentFulfillmentMode === 'SAMEDAY_DELIVERY' && !allowSameday) || 
+        (currentFulfillmentMode === 'PICKUP' && !allowPickup)) {
+        
+        if (allowNormal) currentFulfillmentMode = 'NORMAL_DELIVERY';
+        else if (allowSameday) currentFulfillmentMode = 'SAMEDAY_DELIVERY';
+        else if (allowPickup) currentFulfillmentMode = 'PICKUP';
+
+        const defaultRadio = document.querySelector(`input[name="fulfillmentMode"][value="${currentFulfillmentMode}"]`);
+        if (defaultRadio) defaultRadio.checked = true;
+    }
+
+    // --- 2. DYNAMICALLY HIDE UNAVAILABLE PAYMENT OPTIONS ---
     const payBank = document.getElementById('payTabBank');
     const payCard = document.getElementById('payTabCard');
     const payCod = document.getElementById('payTabCod');
@@ -919,12 +946,12 @@ function renderCheckoutSummary() {
     if (payCard) { payCard.style.display = allowCard ? 'flex' : 'none'; payCard.style.flex = '1'; }
     if (payCod) { payCod.style.display = allowCod ? 'flex' : 'none'; payCod.style.flex = '1'; }
 
+    // Safely set the default payment method variable (PRIORITY: 1. CARD, 2. BANK, 3. COD)
     if (!selectedPaymentMethod || 
         (selectedPaymentMethod === 'BANK' && !allowBank) || 
         (selectedPaymentMethod === 'CARD' && !allowCard) || 
         (selectedPaymentMethod === 'COD' && !allowCod)) {
         
-        // Priority: 1. CARD, 2. BANK, 3. COD
         if (allowCard) selectedPaymentMethod = 'CARD';
         else if (allowBank) selectedPaymentMethod = 'BANK';
         else if (allowCod) selectedPaymentMethod = 'COD';
@@ -933,17 +960,19 @@ function renderCheckoutSummary() {
     // ALWAYS update the UI panels to match the final safe selection
     selectPaymentMethod(selectedPaymentMethod);
 
+    // --- 3. RENDER TEXTS AND TOTALS ---
     document.getElementById('checkoutPharmacyName').textContent = pharmNames.join(' + ');
     document.getElementById('checkoutItemsCountBadge').textContent = `${checkoutItemsQueue.reduce((s, i) => s + i.qty, 0)} Unit(s)`;
 
-    // Calculate combined Normal and Same-Day fees across the involved pharmacies
     const totalNormalFee = uniquePharmIds.reduce((sum, pid) => sum + getPharmacyDeliveryFeeForMode(pid, 'NORMAL_DELIVERY'), 0);
     const totalSamedayFee = uniquePharmIds.reduce((sum, pid) => sum + getPharmacyDeliveryFeeForMode(pid, 'SAMEDAY_DELIVERY'), 0);
 
     const normalTag = document.getElementById('normalDeliveryPriceTag');
     const samedayTag = document.getElementById('samedayDeliveryPriceTag');
-    if (normalTag) normalTag.textContent = `+ Rs. ${totalNormalFee.toFixed(2)}`;
-    if (samedayTag) samedayTag.textContent = `+ Rs. ${totalSamedayFee.toFixed(2)}`;
+    
+    // Prevent overwriting hidden badges
+    if (normalTag && allowNormal) normalTag.textContent = `+ Rs. ${totalNormalFee.toFixed(2)}`;
+    if (samedayTag && allowSameday) samedayTag.textContent = `+ Rs. ${totalSamedayFee.toFixed(2)}`;
 
     const itemsListEl = document.getElementById('checkoutOrderItemsList');
     let medicinesSubtotal = 0;
@@ -994,7 +1023,6 @@ function renderCheckoutSummary() {
 
     document.getElementById('checkoutTotalAmount').textContent = `Rs. ${grandTotal.toFixed(2)}`;
 
-    // Show/hide Multi-Pharmacy Split Warning
     const splitWarn = document.getElementById('multiPharmacySplitWarning');
     if (splitWarn) {
         if (uniquePharmIds.length > 1) {
@@ -1005,7 +1033,6 @@ function renderCheckoutSummary() {
         }
     }
 
-    // Show/hide Doctor's Prescription Upload if any item is Rx Required
     const rxSection = document.getElementById('prescriptionUploadSection');
     if (rxSection) {
         const allAgg = getAggregatedMedicines();
@@ -1017,7 +1044,6 @@ function renderCheckoutSummary() {
         else rxSection.classList.add('hidden');
     }
 
-    // Refresh per-pharmacy bank box so customer sees exact amount to transfer per pharmacy
     renderCheckoutPharmacyBankDetails(uniquePharmIds);
 }
 

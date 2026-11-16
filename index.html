@@ -1194,17 +1194,6 @@
                         Select Pharmacy Payment Method *
                     </label>
                     <div class="flex flex-col sm:flex-row gap-2.5 w-full">
-                        <!-- 1: Bank Transaction -->
-                        <button type="button" id="payTabBank" onclick="selectPaymentMethod('BANK')"
-                            class="flex-1 p-3 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-2.5 relative disabled:opacity-40 disabled:cursor-not-allowed">
-                            <div class="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center text-base flex-shrink-0">
-                                <i class="fa-solid fa-building-columns"></i>
-                            </div>
-                            <div class="min-w-0">
-                                <div class="text-xs font-extrabold text-slate-900 truncate">Bank Transaction</div>
-                                <div id="paySubBank" class="text-[10px] text-slate-500 truncate">Upload Bank Slip</div>
-                            </div>
-                        </button>
 
                         <!-- 2: Card Payment -->
                         <button type="button" id="payTabCard" onclick="selectPaymentMethod('CARD')"
@@ -1215,6 +1204,18 @@
                             <div class="min-w-0">
                                 <div class="text-xs font-extrabold text-slate-900 truncate">Card Payment</div>
                                 <div id="paySubCard" class="text-[10px] text-slate-500 truncate">Visa / MasterCard</div>
+                            </div>
+                        </button>
+                        
+                        <!-- 1: Bank Transaction -->
+                        <button type="button" id="payTabBank" onclick="selectPaymentMethod('BANK')"
+                            class="flex-1 p-3 rounded-2xl border-2 border-brand-600 bg-brand-50/60 text-left transition flex items-center gap-2.5 relative disabled:opacity-40 disabled:cursor-not-allowed">
+                            <div class="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center text-base flex-shrink-0">
+                                <i class="fa-solid fa-building-columns"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-xs font-extrabold text-slate-900 truncate">Bank Transaction</div>
+                                <div id="paySubBank" class="text-[10px] text-slate-500 truncate">Upload Bank Slip</div>
                             </div>
                         </button>
 
