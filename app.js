@@ -846,9 +846,9 @@ function syncCheckoutAvailabilityRules(itemsToBuy) {
     configPayBtn('payTabCod', 'paySubCod', allowCod, 'Pay Cash at Door');
 
     // Auto-select the first allowed payment method
-    if (allowBank) selectPaymentMethod('BANK');
+    if (allowCard) selectPaymentMethod('CARD');
+    else if (allowBank) selectPaymentMethod('BANK');
     else if (allowCod) selectPaymentMethod('COD');
-    else if (allowCard) selectPaymentMethod('CARD');
 }
 
         function initiateCheckoutFlow(itemsToBuy, fromCart = false) {
@@ -919,20 +919,19 @@ function renderCheckoutSummary() {
     if (payCard) { payCard.style.display = allowCard ? 'flex' : 'none'; payCard.style.flex = '1'; }
     if (payCod) { payCod.style.display = allowCod ? 'flex' : 'none'; payCod.style.flex = '1'; }
 
-    // Safely set the default payment method variable without recursion loops
     if (!selectedPaymentMethod || 
         (selectedPaymentMethod === 'BANK' && !allowBank) || 
         (selectedPaymentMethod === 'CARD' && !allowCard) || 
         (selectedPaymentMethod === 'COD' && !allowCod)) {
         
-        if (allowBank) selectedPaymentMethod = 'BANK';
-        else if (allowCard) selectedPaymentMethod = 'CARD';
+        // Priority: 1. CARD, 2. BANK, 3. COD
+        if (allowCard) selectedPaymentMethod = 'CARD';
+        else if (allowBank) selectedPaymentMethod = 'BANK';
         else if (allowCod) selectedPaymentMethod = 'COD';
     }
 
     // ALWAYS update the UI panels to match the final safe selection
     selectPaymentMethod(selectedPaymentMethod);
-    }
 
     document.getElementById('checkoutPharmacyName').textContent = pharmNames.join(' + ');
     document.getElementById('checkoutItemsCountBadge').textContent = `${checkoutItemsQueue.reduce((s, i) => s + i.qty, 0)} Unit(s)`;
