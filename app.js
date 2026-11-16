@@ -943,15 +943,19 @@ function renderCheckoutSummary() {
     if (payCod) payCod.style.display = allowCod ? 'flex' : 'none';
 
     // Safely set the default payment method variable without recursion loops
-    if (!currentPaymentMethod || 
-        (currentPaymentMethod === 'BANK' && !allowBank) || 
-        (currentPaymentMethod === 'CARD' && !allowCard) || 
-        (currentPaymentMethod === 'COD' && !allowCod)) {
+    if (!selectedPaymentMethod || 
+        (selectedPaymentMethod === 'BANK' && !allowBank) || 
+        (selectedPaymentMethod === 'CARD' && !allowCard) || 
+        (selectedPaymentMethod === 'COD' && !allowCod)) {
         
-        if (allowBank) currentPaymentMethod = 'BANK';
-        else if (allowCard) currentPaymentMethod = 'CARD';
-        else if (allowCod) currentPaymentMethod = 'COD';
+        if (allowBank) selectedPaymentMethod = 'BANK';
+        else if (allowCard) selectedPaymentMethod = 'CARD';
+        else if (allowCod) selectedPaymentMethod = 'COD';
+
+        // Update the UI visually to match the safe selection
+        selectPaymentMethod(selectedPaymentMethod);
     }
+    
     document.getElementById('checkoutPharmacyName').textContent = pharmNames.join(' + ');
     document.getElementById('checkoutItemsCountBadge').textContent = `${checkoutItemsQueue.reduce((s, i) => s + i.qty, 0)} Unit(s)`;
 
