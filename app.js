@@ -4976,25 +4976,49 @@ function getPharmacyServiceBadgesHtml(p) {
     }
 })();
 
-function startVoiceMedicineSearch() {
+// Attached to window to prevent "is not defined" errors from HTML onclick
+window.startVoiceMedicineSearch = function() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
     if (!SpeechRecognition) {
         showToast("Voice Search Unavailable", "Please use Google Chrome or Edge for voice recognition.");
         return;
     }
+    
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-US';
+    
     const btn = document.getElementById('voiceSearchBtn');
-    if (btn) btn.className = "text-rose-600 animate-pulse px-2";
+    
+    // Visually transform the button while listening
+    if (btn) {
+        btn.classList.replace('bg-teal-50', 'bg-rose-100');
+        btn.classList.replace('text-teal-600', 'text-rose-600');
+        btn.classList.replace('border-teal-100', 'border-rose-200');
+        btn.classList.add('animate-pulse');
+    }
+    
     showToast("Listening...", "Speak the medicine or pharmacy name now.");
 
     recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript.replace(/\.$/, '');
         document.getElementById('searchInput').value = transcript;
-        handleUnifiedHeroSearch();
+        
+        // Trigger the search automatically
+        if (typeof handleUnifiedHeroSearch === 'function') {
+            handleUnifiedHeroSearch();
+        }
     };
+    
     recognition.onend = () => {
-        if (btn) btn.className = "text-teal-600 hover:text-teal-800 px-2 transition";
+        // Return button to normal teal state
+        if (btn) {
+            btn.classList.replace('bg-rose-100', 'bg-teal-50');
+            btn.classList.replace('text-rose-600', 'text-teal-600');
+            btn.classList.replace('border-rose-200', 'border-teal-100');
+            btn.classList.remove('animate-pulse');
+        }
     };
+    
     recognition.start();
-}
+};
