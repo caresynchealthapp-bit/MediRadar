@@ -4975,3 +4975,26 @@ function getPharmacyServiceBadgesHtml(p) {
         });
     }
 })();
+
+function startVoiceMedicineSearch() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        showToast("Voice Search Unavailable", "Please use Google Chrome or Edge for voice recognition.");
+        return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    const btn = document.getElementById('voiceSearchBtn');
+    if (btn) btn.className = "text-rose-600 animate-pulse px-2";
+    showToast("Listening...", "Speak the medicine or pharmacy name now.");
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript.replace(/\.$/, '');
+        document.getElementById('searchInput').value = transcript;
+        handleUnifiedHeroSearch();
+    };
+    recognition.onend = () => {
+        if (btn) btn.className = "text-teal-600 hover:text-teal-800 px-2 transition";
+    };
+    recognition.start();
+}
