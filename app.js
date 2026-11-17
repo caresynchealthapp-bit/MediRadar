@@ -1852,9 +1852,14 @@ window.toggleSidebar = function() {
 
         function shopBySpecificPharmacy(pharmacyId, pharmacyName) {
             selectedPharmacyIdFilter = String(pharmacyId);
+            const banner = document.getElementById('activePharmacyFilterBanner');
+            const nameEl = document.getElementById('activePharmacyFilterName');
+            if (banner && nameEl) {
+                nameEl.textContent = pharmacyName;
+                banner.classList.remove('hidden');
+            }
             setHeroSearchMode('medicines');
             applyFiltersAndRender();
-            showToast("Filtering by Pharmacy", `Showing available medicines in ${pharmacyName}. Click 'Reset All Filters' to see all pharmacies.`);
         }
 
         let currentMedicinePage = 1;
@@ -4091,80 +4096,41 @@ submitPharmacyOrder = async function(event) {
     const custName = document.getElementById('custName').value.trim();
     const custPhone = document.getElementById('custPhone').value.trim();
     const custAddress = document.getElementById('custAddress').value.trim();
-    const cardNo = document.getElementById('cardNumberInput').value.replace(/\s+/g, '').trim();
-    const cardExp = document.getElementById('cardExpiryInput').value.trim();
-    const cardCvv = document.getElementById('cardCvvInput').value.trim();
+    
     const sendingBank = document.getElementById('bankNameSelect').value.trim();
     const bankRef = document.getElementById('bankRefInput').value.trim();
     const receiptFileInput = document.getElementById('receipt-upload');
 
     const submitBtn = document.getElementById('submitOrderBtn');
     submitBtn.disabled = true;
-    submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading Externally & Processing...`;
+    submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing Order...`;
 
     try {
         let uploadedReceiptUrl = null;
         let uploadedPrescriptionUrl = null;
 
+        // 1. Handle Prescription Upload (If required)
         const rxSection = document.getElementById('prescriptionUploadSection');
         const rxFileInput = document.getElementById('prescription-upload');
         if (rxSection && !rxSection.classList.contains('hidden')) {
             if (!rxFileInput.files || rxFileInput.files.length === 0) {
                 throw new Error("Please upload a photo of your Doctor's Prescription for the Rx medicine(s).");
             }
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading Prescription...`;
             uploadedPrescriptionUrl = await uploadImageExternally(rxFileInput.files[0], true);
         }
 
-        if (selectedPaymentMethod === 'CARD') {
-            const combinedOrderIds = createdInvoices.join(',');
-            const grandTotal = checkoutItemsQueue.reduce((s, i) => s + (i.qty * i.unit_price), 0);
-
-            const { data: phData, error: phErr } = await supabaseClient.functions.invoke('payhere-checkout', {
-                body: { order_id: combinedOrderIds, amount: grandTotal, currency: 'LKR' }
-            });
-            if (phErr) throw phErr;
-
-            window.payhere.onCompleted = async function onCompleted(orderId) {
-                showToast("Payment Successful!", `Order ${orderId} paid via PayHere.`);
-                closeCheckoutModal();
-                await fetchLiveSupabaseData();
-                await fetchMyCustomerOrders(true);
-            };
-            window.payhere.onDismissed = function onDismissed() {
-                showToast("Payment Cancelled", "You closed the payment window before completing payment.");
-            };
-            window.payhere.onError = function onError(error) {
-                showToast("Payment Error", error);
-            };
-
-            window.payhere.startPayment({
-                sandbox: true, // Change to false when your live PayHere domain is approved
-                merchant_id: phData.merchant_id,
-                return_url: window.location.origin,
-                cancel_url: window.location.origin,
-                notify_url: `${SUPABASE_URL}/functions/v1/payhere-checkout`,
-                order_id: combinedOrderIds,
-                items: "MediRadar Pharmacy Order",
-                amount: phData.amount,
-                currency: "LKR",
-                hash: phData.hash,
-                first_name: custName.split(' ')[0] || 'Customer',
-                last_name: custName.split(' ').slice(1).join(' ') || '',
-                email: currentCustomer.email,
-                phone: custPhone,
-                address: custAddress,
-                city: "Colombo",
-                country: "Sri Lanka"
-            });
-            return;
-        } else {
+        // 2. Handle Bank Slip Upload BEFORE creating orders (Only if BANK is selected)
+        if (selectedPaymentMethod === 'BANK') {
             if (!bankRef) throw new Error("Please enter your Bank Transfer Reference / Slip Number.");
             if (!receiptFileInput.files || receiptFileInput.files.length === 0) {
                 throw new Error("Please upload a screenshot/photo of your bank transfer receipt.");
             }
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading Bank Slip...`;
             uploadedReceiptUrl = await uploadImageExternally(receiptFileInput.files[0], true);
         }
 
+        // 3. Save profile changes if checkbox is ticked
         if (document.getElementById('saveChangesToProfileCheckbox').checked) {
             const { data: profData } = await supabaseClient
                 .from('customers')
@@ -4179,20 +4145,33 @@ submitPharmacyOrder = async function(event) {
             }
         }
 
+        // 4. Organize items by pharmacy
         const itemsByPharmacy = {};
         checkoutItemsQueue.forEach(item => {
             if (!itemsByPharmacy[item.pharmacy_id]) itemsByPharmacy[item.pharmacy_id] = [];
             itemsByPharmacy[item.pharmacy_id].push(item);
         });
 
+        submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating Invoices...`;
+        
+        // ARRAY TO HOLD GENERATED ORDER IDs FOR PAYHERE
+        const createdInvoices = [];
+        let grandTotal = 0; // Track total including delivery fees
+
+        // 5. CREATE ORDERS IN DATABASE
         for (const pharmacyId of Object.keys(itemsByPharmacy)) {
             const pharmItems = itemsByPharmacy[pharmacyId];
             const medicinesSubtotal = pharmItems.reduce((sum, i) => sum + (i.qty * i.unit_price), 0);
             const deliveryFeeForOrder = getPharmacyDeliveryFeeForMode(pharmacyId, currentFulfillmentMode);
             const orderTotal = medicinesSubtotal + deliveryFeeForOrder;
+            
+            grandTotal += orderTotal; // Add to global total
+            
             const invoiceNo = `MR-${Math.floor(100000 + Math.random() * 900000)}`;
             const isCard = selectedPaymentMethod === 'CARD';
+            const isCod = selectedPaymentMethod === 'COD';
 
+            // Create Order Row
             const { data: insertedOrder, error: orderErr } = await supabaseClient
                 .from('customer_orders')
                 .insert([{
@@ -4201,15 +4180,15 @@ submitPharmacyOrder = async function(event) {
                     invoice_no: invoiceNo,
                     total_amount: orderTotal,
                     delivery_fee: deliveryFeeForOrder,
-                    payment_method: isCard ? 'Card' : 'Bank Transaction',
+                    payment_method: isCard ? 'Card' : isCod ? 'Cash on Delivery' : 'Bank Transaction',
                     payment_status: isCard ? 'Paid' : 'Pending',
                     order_status: isCard ? 'Ready for Pickup' : 'Processing',
                     cashier_approval_status: isCard ? 'Accepted' : 'Pending',
                     delivery_address: custAddress,
                     customer_phone: custPhone,
                     customer_name: custName,
-                    sending_bank: isCard ? 'One-Time Card Payment' : sendingBank,
-                    bank_reference: isCard ? 'CARD-TXN' : bankRef,
+                    sending_bank: isCard ? 'One-Time Card Payment' : isCod ? 'Cash' : sendingBank,
+                    bank_reference: isCard ? 'CARD-TXN' : isCod ? 'PAY-ON-DELIVERY' : bankRef,
                     receipt_image_url: uploadedReceiptUrl,
                     fulfillment_type: currentFulfillmentMode,
                     prescription_image_url: uploadedPrescriptionUrl
@@ -4219,8 +4198,11 @@ submitPharmacyOrder = async function(event) {
 
             if (orderErr) throw orderErr;
 
+            // Push the generated database UUID into our array for PayHere
+            createdInvoices.push(insertedOrder.id);
             knownOrderStatuses[insertedOrder.id] = insertedOrder.cashier_approval_status;
 
+            // Insert Order Items
             const orderItemsPayload = pharmItems.map(i => ({
                 order_id: insertedOrder.id,
                 medicine_id: i.medicine_id || null,
@@ -4229,18 +4211,16 @@ submitPharmacyOrder = async function(event) {
                 quantity: i.qty,
                 unit_price: i.unit_price
             }));
-
             await supabaseClient.from('customer_order_items').insert(orderItemsPayload);
+
+            // Deduct stock immediately if Card Payment
             if (isCard) {
                 for (const item of pharmItems) {
-                    
-                    // --- NEW ATOMIC STOCK DEDUCTION ---
-                    const { data: remainingStock, error: stockRpcErr } = await supabaseClient.rpc('decrement_grn_stock', {
+                    const { error: stockRpcErr } = await supabaseClient.rpc('decrement_grn_stock', {
                         stock_uuid: item.stock_id,
                         buy_qty: item.qty
                     });
                     if (stockRpcErr) throw new Error(`Stock Error for ${item.medicine_name}: ${stockRpcErr.message}`);
-                    // ----------------------------------
 
                     await supabaseClient.from('sales_transactions').insert([{
                         pharmacy_id: pharmacyId,
@@ -4258,18 +4238,57 @@ submitPharmacyOrder = async function(event) {
             }
         }
 
-        const boughtStockIds = checkoutItemsQueue.map(i => i.stock_id);
-        await supabaseClient
-            .from('customer_cart_items')
-            .delete()
-            .eq('customer_id', currentCustomer.id)
-            .in('grn_stock_id', boughtStockIds);
+        // 6. NOW TRIGGER PAYHERE IF CARD IS SELECTED
+        if (selectedPaymentMethod === 'CARD') {
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Connecting to Gateway...`;
+            const combinedOrderIds = createdInvoices.join(',');
 
-        clearReceiptUpload();
-        closeCheckoutModal();
-        await fetchLiveSupabaseData();
-        await fetchMyCustomerOrders(true);
-        showToast("Order Submitted!", "Your order and external receipt link have been saved.");
+            const { data: phData, error: phErr } = await supabaseClient.functions.invoke('payhere-checkout', {
+                body: { order_id: combinedOrderIds, amount: grandTotal, currency: 'LKR' }
+            });
+            if (phErr) throw phErr;
+
+            window.payhere.onCompleted = async function onCompleted(orderId) {
+                showToast("Payment Successful!", `Order paid securely via PayHere.`);
+                await finalizeCheckoutCleanup();
+            };
+            
+            window.payhere.onDismissed = function onDismissed() {
+                showToast("Payment Cancelled", "You closed the payment window. Check 'My Orders' to try again.");
+                finalizeCheckoutCleanup();
+            };
+            
+            window.payhere.onError = function onError(error) {
+                showToast("Payment Error", error);
+                finalizeCheckoutCleanup();
+            };
+
+            window.payhere.startPayment({
+                sandbox: true,
+                merchant_id: phData.merchant_id,
+                return_url: window.location.origin,
+                cancel_url: window.location.origin,
+                notify_url: `${SUPABASE_URL}/functions/v1/payhere-checkout`,
+                order_id: combinedOrderIds,
+                items: "MediRadar Pharmacy Order",
+                amount: phData.amount,
+                currency: "LKR",
+                hash: phData.hash,
+                first_name: custName.split(' ')[0] || 'Customer',
+                last_name: custName.split(' ').slice(1).join(' ') || '',
+                email: currentCustomer.email,
+                phone: custPhone,
+                address: custAddress,
+                city: "Sri Lanka",
+                country: "Sri Lanka"
+            });
+            return; // Exit here. The PayHere callbacks will trigger the cart cleanup.
+        }
+
+        // 7. IF BANK OR COD, CLEANUP AND FINISH IMMEDIATELY
+        await finalizeCheckoutCleanup();
+        showToast("Order Submitted!", "Your order has been sent to the pharmacy.");
+
     } catch (err) {
         showToast("Checkout Error", err.message || "Could not submit order.");
     } finally {
@@ -4277,6 +4296,21 @@ submitPharmacyOrder = async function(event) {
         submitBtn.innerHTML = `<i class="fa-solid fa-circle-check"></i><span>Submit Pharmacy Order</span>`;
     }
 };
+
+// Helper function to handle the cart clearing and modal closing
+async function finalizeCheckoutCleanup() {
+    const boughtStockIds = checkoutItemsQueue.map(i => i.stock_id);
+    await supabaseClient
+        .from('customer_cart_items')
+        .delete()
+        .eq('customer_id', currentCustomer.id)
+        .in('grn_stock_id', boughtStockIds);
+
+    clearReceiptUpload();
+    closeCheckoutModal();
+    await fetchLiveSupabaseData();
+    await fetchMyCustomerOrders(true);
+}
 
 const MAX_IMGBB_BYTES = 32 * 1024 * 1024; // 32 MB limit
 
