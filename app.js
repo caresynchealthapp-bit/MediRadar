@@ -2192,6 +2192,8 @@ window.toggleSidebar = function() {
                                         <span><i class="fa-solid fa-id-card text-teal-600 mr-1"></i>License: <strong>${p.license_no || 'Verified'}</strong></span>
                                     </div>
 
+                                    ${getPharmacyServiceBadgesHtml(p)}
+
                                     <div class="flex flex-wrap items-center gap-2 pt-1.5">
                                         <span class="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">
                                             Rack: <strong>${entry.rack_location || 'Main Shelf'}</strong>
@@ -2277,6 +2279,7 @@ window.toggleSidebar = function() {
                                     <span><i class="fa-solid fa-phone text-teal-600 mr-1"></i>${p.phone || 'N/A'}</span>
                                     ${openStatusHtml}
                                 </div>
+                                ${getPharmacyServiceBadgesHtml(p)}
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
@@ -2299,6 +2302,7 @@ window.toggleSidebar = function() {
                     </div>
                 `;
             }).join('');
+
         }
 
         function updatePriceLabel() {
@@ -4933,6 +4937,16 @@ setInterval(() => {
         fetchMyCustomerSupportMessages(modalOpen);
     }
 }, 6000);
+
+function getPharmacyServiceBadgesHtml(p) {
+    const badges = [];
+    if (p.allow_normal_delivery !== false) badges.push(`<span class="px-2 py-0.5 rounded-md bg-teal-50 text-teal-700 border border-teal-200 text-[10px] font-bold"><i class="fa-solid fa-truck mr-1"></i>Delivery (Rs.${p.normal_delivery_fee ?? 250})</span>`);
+    if (p.allow_sameday_delivery !== false) badges.push(`<span class="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold"><i class="fa-solid fa-bolt mr-1 text-amber-500"></i>Same-Day</span>`);
+    if (p.allow_pickup !== false) badges.push(`<span class="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold"><i class="fa-solid fa-store mr-1"></i>Pickup</span>`);
+    if (p.allow_cod !== false) badges.push(`<span class="px-2 py-0.5 rounded-md bg-yellow-50 text-yellow-800 border border-yellow-300 text-[10px] font-bold"><i class="fa-solid fa-hand-holding-dollar mr-1"></i>COD</span>`);
+    if (p.allow_card_payment !== false) badges.push(`<span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold"><i class="fa-regular fa-credit-card mr-1"></i>Card</span>`);
+    return `<div class="flex flex-wrap gap-1 mt-2">${badges.join('')}</div>`;
+}
 
 // Stealth Admin Portal Triggers (Ctrl+Shift+L or typing //admin in search bar)
 (function initStealthAdminGateway() {
