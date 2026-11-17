@@ -2156,7 +2156,13 @@ window.toggleSidebar = function() {
             if (nearest5.length === 0) {
                 listContainer.innerHTML = `<p class="text-sm text-slate-500 text-center py-8">Currently out of stock across registered pharmacies.</p>`;
             } else {
-                listContainer.innerHTML = nearest5.map((entry, idx) => {
+                // 1. ADD THE MAP CONTAINER BEFORE THE LIST
+                let listHtml = `
+                    <div id="nearest-interactive-map" class="w-full h-48 bg-slate-100 rounded-xl mb-4 border border-slate-200 shadow-inner z-[1] relative"></div>
+                `;
+
+                // 2. APPEND THE PHARMACY CARDS
+                listHtml += nearest5.map((entry, idx) => {
                     const p = entry.pharmacy;
                     const isClosest = idx === 0;
                     const mapsUrl = buildGoogleMapsDirectionsUrl(p);
@@ -2164,7 +2170,7 @@ window.toggleSidebar = function() {
                     return `
                         <div class="bg-white rounded-2xl p-4 sm:p-5 border-2 ${
                             isClosest ? 'border-brand-500 shadow-md' : 'border-slate-200'
-                        } flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        } flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-3">
                             
                             <div class="flex items-start gap-4">
                                 <div class="relative flex-shrink-0">
@@ -2242,11 +2248,28 @@ window.toggleSidebar = function() {
 
                         </div>
                     `;
-                }).join('');
-            }
+                }).join(''); // Close the map() function
 
-            document.getElementById('nearestPharmaciesModal').classList.remove('hidden');
-        }
+                // Inject everything into the modal
+                listContainer.innerHTML = listHtml;
+                
+                // Show the modal
+                document.getElementById('nearestPharmaciesModal').classList.remove('hidden');
+
+                // 3. RENDER THE MAP PINS (Slight delay ensures the modal is fully open before map calculates size)
+                setTimeout(() => {
+                    // Extract just the data Leaflet needs
+                    const mapPharmacies = nearest5.map(s => ({
+                        lat: s.pharmacy.lat,
+                        lng: s.pharmacy.lng,
+                        pharmacy_name: s.pharmacy.pharmacy_name,
+                        price: s.unit_price
+                    }));
+                    
+                    renderNearestPharmaciesMap(userLocation.lat, userLocation.lng, mapPharmacies);
+                }, 150);
+            }
+}
 
         function closeNearestModal() {
             document.getElementById('nearestPharmaciesModal').classList.add('hidden');
@@ -5022,3 +5045,55 @@ window.startVoiceMedicineSearch = function() {
     
     recognition.start();
 };
+
+let nearestMapInstance = null;
+
+function renderNearestPharmaciesMap(userLat, userLng, nearestPharmaciesList) {
+    const mapContainer = document.getElementById('nearest-interactive-map');
+    if (!mapContainer) return;
+
+    // Destroy the old map instance if it exists to prevent initialization errors
+    if (nearestMapInstance) {
+        nearestMapInstance.remove();
+        nearestMapInstance = null;
+    }
+
+    // Initialize map using CartoDB's clean Voyager tiles (looks better than default OSM)
+    nearestMapInstance = L.map('nearest-interactive-map').setView([userLat, userLng], 13);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(nearestMapInstance);
+
+    const bounds = L.latLngBounds([[userLat, userLng]]);
+
+    // 1. Plot the User's Location (Pulsing Blue Dot)
+    const userIcon = L.divIcon({
+        className: 'bg-transparent border-0',
+        html: `<div class="w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-[0_0_12px_rgba(37,99,235,0.9)] animate-pulse"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+    });
+    L.marker([userLat, userLng], { icon: userIcon }).addTo(nearestMapInstance).bindPopup('<b class="text-xs">Your Location</b>');
+
+    // 2. Plot the 5 Nearest Pharmacies (Teal Medical Briefcase)
+    nearestPharmaciesList.forEach(p => {
+        if (p.lat && p.lng) {
+            const pharmIcon = L.divIcon({
+                className: 'bg-transparent border-0',
+                html: `<div class="w-7 h-7 bg-teal-600 rounded-full border-2 border-white shadow-[0_4px_10px_rgba(13,148,136,0.6)] flex items-center justify-center text-white text-[11px]"><i class="fa-solid fa-briefcase-medical"></i></div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
+            });
+            
+            const marker = L.marker([p.lat, p.lng], { icon: pharmIcon }).addTo(nearestMapInstance);
+            marker.bindPopup(`<div class="text-center font-bold"><div class="text-xs text-slate-800">${p.pharmacy_name}</div><div class="text-teal-600 mt-0.5">Rs. ${p.price.toFixed(2)}</div></div>`);
+            bounds.extend([p.lat, p.lng]);
+        }
+    });
+
+    // Auto-zoom the map so all pins fit perfectly inside the view
+    setTimeout(() => {
+        nearestMapInstance.invalidateSize();
+        nearestMapInstance.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+    }, 200);
+}
