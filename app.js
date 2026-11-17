@@ -2055,17 +2055,25 @@ window.toggleSidebar = function() {
                         </div>
 
                         <div class="px-4 pb-4 pt-2 border-t border-slate-100">
-                            <div class="flex items-end justify-between mb-3">
+                            <div class="flex items-end justify-between mb-2">
                                 <div>
                                     <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Selling Price From</span>
                                     <span class="text-xl font-extrabold text-slate-900">Rs. ${item.minPrice.toFixed(2)}</span>
                                 </div>
                                 <div class="text-right">
-                                    <span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                        ${item.totalStock} Units in Stock
+                                    <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md border 
+                                        ${item.totalStock < 10 ? 'text-rose-700 bg-rose-50 border-rose-200' : item.totalStock <= 30 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-emerald-700 bg-emerald-50 border-emerald-200'}">
+                                        <span class="w-1.5 h-1.5 rounded-full ${item.totalStock < 10 ? 'bg-rose-500 animate-pulse' : item.totalStock <= 30 ? 'bg-amber-500' : 'bg-emerald-500'}"></span>
+                                        ${item.totalStock < 10 ? 'Low Stock - Hurry!' : item.totalStock + ' Units in Stock'}
                                     </span>
                                     <span class="block text-[10px] text-slate-400 mt-0.5">In ${nearest5Count} Nearest Pharmacy${nearest5Count === 1 ? '' : 's'}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="w-full bg-slate-100 rounded-full h-1.5 mb-3 overflow-hidden">
+                                <div class="h-1.5 rounded-full transition-all duration-500 
+                                    ${item.totalStock < 10 ? 'bg-rose-500 animate-pulse' : item.totalStock <= 30 ? 'bg-amber-400' : 'bg-emerald-500'}" 
+                                    style="width: ${Math.min(100, Math.max(5, (item.totalStock / 50) * 100))}%">
                                 </div>
                             </div>
 
