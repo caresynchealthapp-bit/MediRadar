@@ -829,9 +829,15 @@
                         </p>
                     </div>
                 </div>
+                <div class="flex items-center gap-2">
+                <button type="button" id="checkoutBackBtn" onclick="goBackToNearestPharmacies()"
+                    class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer">
+                    <i class="fa-solid fa-arrow-left"></i> Back
+                </button>
                 <button onclick="closeNearestModal()" class="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800/70 hover:bg-slate-700 transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
+                </div>
             </div>
 
             <div class="p-5 sm:p-6 max-h-[70vh] overflow-y-auto space-y-4 bg-slate-50" id="nearestPharmaciesList"></div>

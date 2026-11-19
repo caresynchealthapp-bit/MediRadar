@@ -2136,6 +2136,7 @@ window.toggleSidebar = function() {
         }
 
         function openNearestPharmaciesModal(encodedMedKey) {
+            window.lastNearestMedKey = encodedMedKey;
             const medKey = decodeURIComponent(encodedMedKey);
             const med = getAggregatedMedicines().find(m => m.key === medKey);
             if (!med) return;
@@ -5106,3 +5107,24 @@ function renderNearestPharmaciesMap(userLat, userLng, nearestPharmaciesList) {
         nearestMapInstance.fitBounds(bounds, { padding: [35, 35], maxZoom: 15 });
     }, 250);
 }
+
+window.goBackToNearestPharmacies = function() {
+    // 1. Close the checkout modal (uses your existing close function)
+    if (typeof closeCheckoutModal === 'function') {
+        closeCheckoutModal();
+    } else {
+        const checkoutModal = document.getElementById('checkoutModal') || document.getElementById('directCheckoutModal');
+        if (checkoutModal) checkoutModal.classList.add('hidden');
+    }
+
+    // 2. Re-open the Nearest 5 Pharmacies modal & refresh the map
+    if (window.lastNearestMedKey) {
+        openNearestPharmaciesModal(window.lastNearestMedKey);
+    } else {
+        const nearestModal = document.getElementById('nearestPharmaciesModal');
+        if (nearestModal) nearestModal.classList.remove('hidden');
+        if (typeof nearestMapInstance !== 'undefined' && nearestMapInstance) {
+            setTimeout(() => nearestMapInstance.invalidateSize(), 200);
+        }
+    }
+};
