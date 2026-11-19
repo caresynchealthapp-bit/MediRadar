@@ -5097,7 +5097,13 @@ function renderNearestPharmaciesMap(userLat, userLng, nearestPharmaciesList) {
     });
 
     setTimeout(() => {
-        nearestMapInstance.invalidateSize();
-        nearestMapInstance.fitBounds(bounds, { padding: [35, 35], maxZoom: 15 });
-    }, 250);
+    const mapPharmacies = nearest5.map(s => ({
+        lat: parseFloat(s.pharmacy.latitude),
+        lng: parseFloat(s.pharmacy.longitude),
+        pharmacy_name: s.pharmacy.pharmacy_name,
+        price: s.unit_price ?? s.selling_price ?? 0
+    })).filter(p => !isNaN(p.lat) && !isNaN(p.lng));
+
+    renderNearestPharmaciesMap(userLocation?.lat, userLocation?.lng, mapPharmacies);
+}, 200);
 }
