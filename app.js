@@ -2256,15 +2256,13 @@ window.toggleSidebar = function() {
 
                 setTimeout(() => {
                     const mapPharmacies = nearest5.map(s => ({
-                        lat: s.pharmacy.lat,
-                        lng: s.pharmacy.lng,
+                        lat: parseFloat(s.pharmacy.latitude),
+                        lng: parseFloat(s.pharmacy.longitude),
                         pharmacy_name: s.pharmacy.pharmacy_name,
-                        price: s.unit_price
-                    }));
-                    
-                    if (typeof renderNearestPharmaciesMap === 'function') {
-                        renderNearestPharmaciesMap(userLocation.lat, userLocation.lng, mapPharmacies);
-                    }
+                        price: s.unit_price ?? s.selling_price ?? 0
+                    })).filter(p => !isNaN(p.lat) && !isNaN(p.lng));
+
+                    renderNearestPharmaciesMap(userLocation?.lat, userLocation?.lng, mapPharmacies);
                 }, 200);
             }
 }
@@ -5097,13 +5095,7 @@ function renderNearestPharmaciesMap(userLat, userLng, nearestPharmaciesList) {
     });
 
     setTimeout(() => {
-    const mapPharmacies = nearest5.map(s => ({
-        lat: parseFloat(s.pharmacy.latitude),
-        lng: parseFloat(s.pharmacy.longitude),
-        pharmacy_name: s.pharmacy.pharmacy_name,
-        price: s.unit_price ?? s.selling_price ?? 0
-    })).filter(p => !isNaN(p.lat) && !isNaN(p.lng));
-
-    renderNearestPharmaciesMap(userLocation?.lat, userLocation?.lng, mapPharmacies);
-}, 200);
+        nearestMapInstance.invalidateSize();
+        nearestMapInstance.fitBounds(bounds, { padding: [35, 35], maxZoom: 15 });
+    }, 250);
 }
