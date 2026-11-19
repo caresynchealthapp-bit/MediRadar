@@ -2156,12 +2156,12 @@ window.toggleSidebar = function() {
             if (nearest5.length === 0) {
                 listContainer.innerHTML = `<p class="text-sm text-slate-500 text-center py-8">Currently out of stock across registered pharmacies.</p>`;
             } else {
-                // 1. ADD THE MAP CONTAINER BEFORE THE LIST
+                // 1. INJECT THE MAP CONTAINER WITH A FIXED HEIGHT (h-56)
                 let listHtml = `
-                    <div id="nearest-interactive-map" class="w-full h-48 bg-slate-100 rounded-xl mb-4 border border-slate-200 shadow-inner z-[1] relative"></div>
+                    <div id="nearest-interactive-map" class="w-full h-56 bg-slate-100 rounded-xl mb-4 border border-slate-200 shadow-inner z-[1] relative overflow-hidden"></div>
                 `;
 
-                // 2. APPEND THE PHARMACY CARDS
+                // 2. APPEND THE PHARMACY CARDS (Notice the badges line is removed)
                 listHtml += nearest5.map((entry, idx) => {
                     const p = entry.pharmacy;
                     const isClosest = idx === 0;
@@ -2256,9 +2256,7 @@ window.toggleSidebar = function() {
                 // Show the modal
                 document.getElementById('nearestPharmaciesModal').classList.remove('hidden');
 
-                // 3. RENDER THE MAP PINS (Slight delay ensures the modal is fully open before map calculates size)
                 setTimeout(() => {
-                    // Extract just the data Leaflet needs
                     const mapPharmacies = nearest5.map(s => ({
                         lat: s.pharmacy.lat,
                         lng: s.pharmacy.lng,
@@ -2266,8 +2264,10 @@ window.toggleSidebar = function() {
                         price: s.unit_price
                     }));
                     
-                    renderNearestPharmaciesMap(userLocation.lat, userLocation.lng, mapPharmacies);
-                }, 150);
+                    if (typeof renderNearestPharmaciesMap === 'function') {
+                        renderNearestPharmaciesMap(userLocation.lat, userLocation.lng, mapPharmacies);
+                    }
+                }, 200);
             }
 }
 
