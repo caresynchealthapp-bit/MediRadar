@@ -5060,8 +5060,9 @@ function renderNearestPharmaciesMap(userLat, userLng, nearestPharmaciesList) {
 
     // Initialize map using CartoDB's clean Voyager tiles (looks better than default OSM)
     nearestMapInstance = L.map('nearest-interactive-map').setView([userLat, userLng], 13);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap'
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
     }).addTo(nearestMapInstance);
 
     const bounds = L.latLngBounds([[userLat, userLng]]);
