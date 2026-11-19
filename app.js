@@ -2158,7 +2158,7 @@ window.toggleSidebar = function() {
             } else {
                 // 1. INJECT THE MAP CONTAINER WITH A FIXED HEIGHT (h-56)
                 let listHtml = `
-                    <div id="nearest-interactive-map" class="w-full h-56 bg-slate-100 rounded-xl mb-4 border border-slate-200 shadow-inner z-[1] relative overflow-hidden"></div>
+                    <div id="nearest-interactive-map" style="height: 220px; width: 100%;" class="bg-slate-100 rounded-xl mb-4 border border-slate-200 shadow-inner z-[1] relative overflow-hidden"></div>
                 `;
 
                 // 2. APPEND THE PHARMACY CARDS (Notice the badges line is removed)
