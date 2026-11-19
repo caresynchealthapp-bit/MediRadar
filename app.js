@@ -5056,7 +5056,9 @@ function renderNearestPharmaciesMap(userLat, userLng, nearestPharmaciesList) {
     const safeLat = Number(userLat) || 6.7730;
     const safeLng = Number(userLng) || 79.8816;
 
-    nearestMapInstance = L.map('nearest-interactive-map').setView([safeLat, safeLng], 13);
+    nearestMapInstance = L.map('nearest-interactive-map', {
+        attributionControl: false
+    }).setView([safeLat, safeLng], 13);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; OpenStreetMap contributors'
@@ -5067,11 +5069,16 @@ function renderNearestPharmaciesMap(userLat, userLng, nearestPharmaciesList) {
     // 1. User's GPS Location Pin (Inline-styled glowing blue dot)
     const userIcon = L.divIcon({
         className: '',
-        html: `<div style="width:16px;height:16px;background:#2563eb;border-radius:50%;border:3px solid #ffffff;box-shadow:0 0 12px rgba(37,99,235,0.9);"></div>`,
-        iconSize: [16, 16],
-        iconAnchor: [8, 8]
+        html: `
+            <div style="position:relative;width:18px;height:18px;display:flex;align-items:center;justify-content:center;">
+                <div class="user-radar-ring"></div>
+                <div style="position:relative;width:14px;height:14px;background:#2563eb;border-radius:50%;border:2.5px solid #ffffff;box-shadow:0 0 10px rgba(37,99,235,0.9);"></div>
+            </div>
+        `,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9]
     });
-    L.marker([safeLat, safeLng], { icon: userIcon })
+    L.marker([safeLat, safeLng], { icon: userIcon, zIndexOffset: 1000 })
         .addTo(nearestMapInstance)
         .bindPopup('<b style="font-size:12px;">Your Location</b>');
 
