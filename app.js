@@ -2206,8 +2206,6 @@ window.toggleSidebar = function() {
                                         <span><i class="fa-solid fa-id-card text-teal-600 mr-1"></i>License: <strong>${p.license_no || 'Verified'}</strong></span>
                                     </div>
 
-                                    ${getPharmacyServiceBadgesHtml(p)}
-
                                     <div class="flex flex-wrap items-center gap-2 pt-1.5">
                                         <span class="text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">
                                             Rack: <strong>${entry.rack_location || 'Main Shelf'}</strong>
@@ -5050,51 +5048,56 @@ let nearestMapInstance = null;
 
 function renderNearestPharmaciesMap(userLat, userLng, nearestPharmaciesList) {
     const mapContainer = document.getElementById('nearest-interactive-map');
-    if (!mapContainer) return;
+    if (!mapContainer || typeof L === 'undefined') return;
 
-    // Destroy the old map instance if it exists to prevent initialization errors
     if (nearestMapInstance) {
         nearestMapInstance.remove();
         nearestMapInstance = null;
     }
 
-    // Initialize map using CartoDB's clean Voyager tiles (looks better than default OSM)
-    nearestMapInstance = L.map('nearest-interactive-map').setView([userLat, userLng], 13);
+    const safeLat = Number(userLat) || 6.7730;
+    const safeLng = Number(userLng) || 79.8816;
+
+    nearestMapInstance = L.map('nearest-interactive-map').setView([safeLat, safeLng], 13);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(nearestMapInstance);
 
-    const bounds = L.latLngBounds([[userLat, userLng]]);
+    const bounds = L.latLngBounds([[safeLat, safeLng]]);
 
-    // 1. Plot the User's Location (Pulsing Blue Dot)
+    // 1. User's GPS Location Pin (Inline-styled glowing blue dot)
     const userIcon = L.divIcon({
-        className: 'bg-transparent border-0',
-        html: `<div class="w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-[0_0_12px_rgba(37,99,235,0.9)] animate-pulse"></div>`,
+        className: '',
+        html: `<div style="width:16px;height:16px;background:#2563eb;border-radius:50%;border:3px solid #ffffff;box-shadow:0 0 12px rgba(37,99,235,0.9);"></div>`,
         iconSize: [16, 16],
         iconAnchor: [8, 8]
     });
-    L.marker([userLat, userLng], { icon: userIcon }).addTo(nearestMapInstance).bindPopup('<b class="text-xs">Your Location</b>');
+    L.marker([safeLat, safeLng], { icon: userIcon })
+        .addTo(nearestMapInstance)
+        .bindPopup('<b style="font-size:12px;">Your Location</b>');
 
-    // 2. Plot the 5 Nearest Pharmacies (Teal Medical Briefcase)
-    nearestPharmaciesList.forEach(p => {
-        if (p.lat && p.lng) {
+    // 2. Pharmacy Pins (Inline-styled teal circle with icon)
+    nearestPharmaciesList.forEach((p, idx) => {
+        const pLat = Number(p.lat ?? p.latitude);
+        const pLng = Number(p.lng ?? p.longitude);
+        if (pLat && pLng) {
             const pharmIcon = L.divIcon({
-                className: 'bg-transparent border-0',
-                html: `<div class="w-7 h-7 bg-teal-600 rounded-full border-2 border-white shadow-[0_4px_10px_rgba(13,148,136,0.6)] flex items-center justify-center text-white text-[11px]"><i class="fa-solid fa-briefcase-medical"></i></div>`,
-                iconSize: [28, 28],
-                iconAnchor: [14, 14]
+                className: '',
+                html: `<div class="pill-pin-zoom" style="width:30px;height:30px;background:#0d9488;color:#ffffff;border-radius:50%;border:2px solid #ffffff;box-shadow:0 3px 10px rgba(13,148,136,0.65);display:flex;align-items:center;justify-content:center;font-size:13px;"><i class="fa-solid fa-capsules"></i></div>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
             });
-            
-            const marker = L.marker([p.lat, p.lng], { icon: pharmIcon }).addTo(nearestMapInstance);
-            marker.bindPopup(`<div class="text-center font-bold"><div class="text-xs text-slate-800">${p.pharmacy_name}</div><div class="text-teal-600 mt-0.5">Rs. ${p.price.toFixed(2)}</div></div>`);
-            bounds.extend([p.lat, p.lng]);
+
+            L.marker([pLat, pLng], { icon: pharmIcon })
+                .addTo(nearestMapInstance)
+                .bindPopup(`<div style="text-align:center;font-weight:700;"><div style="font-size:12px;color:#1e293b;">${p.pharmacy_name}</div><div style="color:#0d9488;margin-top:2px;">Rs. ${Number(p.price || 0).toFixed(2)}</div></div>`);
+            bounds.extend([pLat, pLng]);
         }
     });
 
-    // Auto-zoom the map so all pins fit perfectly inside the view
     setTimeout(() => {
         nearestMapInstance.invalidateSize();
-        nearestMapInstance.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
-    }, 200);
+        nearestMapInstance.fitBounds(bounds, { padding: [35, 35], maxZoom: 15 });
+    }, 250);
 }
