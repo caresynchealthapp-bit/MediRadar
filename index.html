@@ -829,15 +829,9 @@
                         </p>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
-                <button type="button" id="checkoutBackBtn" onclick="goBackToNearestPharmacies()"
-                    class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer">
-                    <i class="fa-solid fa-arrow-left"></i> Back
-                </button>
                 <button onclick="closeNearestModal()" class="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800/70 hover:bg-slate-700 transition">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
-                </div>
             </div>
 
             <div class="p-5 sm:p-6 max-h-[70vh] overflow-y-auto space-y-4 bg-slate-50" id="nearestPharmaciesList"></div>
@@ -1083,9 +1077,15 @@
                         <p class="text-xs text-teal-200">Official Pharmacy Billing • Card or Bank Receipt Upload</p>
                     </div>
                 </div>
-                <button onclick="closeCheckoutModal()" class="text-slate-300 hover:text-white p-2 rounded-xl bg-white/10">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="checkoutBackBtn" onclick="goBackToNearestPharmacies()"
+                        class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer">
+                        <i class="fa-solid fa-arrow-left"></i> Back
+                    </button>
+                    <button onclick="closeCheckoutModal()" class="text-slate-300 hover:text-white p-2 rounded-xl bg-white/10">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- Form Body -->
